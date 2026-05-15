@@ -640,7 +640,7 @@ streamlit run b2c_app.py
 
 ### 5. 유스케이스 다이어그램
 
-```
+```mermaid
 flowchart TD
     START([서비스 진입]) --> LOGIN{회원 유형 선택}
 
