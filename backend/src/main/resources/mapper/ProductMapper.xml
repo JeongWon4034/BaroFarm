@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.freshgrowth.product.ProductMapper">
+    <insert id="insert" parameterType="com.freshgrowth.product.Product" useGeneratedKeys="true" keyProperty="productId">
+        INSERT INTO products(seller_id, name, description, category, price, stock_qty, thumbnail_url, expiration_date)
+        VALUES (#{sellerId}, #{name}, #{description}, #{category}, #{price}, #{stockQty}, #{thumbnailUrl}, #{expirationDate})
+    </insert>
+
+    <select id="findById" resultType="com.freshgrowth.product.Product">
+        SELECT product_id, seller_id, name, description, category, price, stock_qty, thumbnail_url, expiration_date, created_at, updated_at
+        FROM products
+        WHERE product_id = #{productId}
+    </select>
+
+    <select id="findAll" resultType="com.freshgrowth.product.Product">
+        SELECT product_id, seller_id, name, description, category, price, stock_qty, thumbnail_url, expiration_date, created_at, updated_at
+        FROM products
+        ORDER BY product_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM products
+    </select>
+
+    <select id="findBySellerId" resultType="com.freshgrowth.product.Product">
+        SELECT product_id, seller_id, name, description, category, price, stock_qty, thumbnail_url, expiration_date, created_at, updated_at
+        FROM products
+        WHERE seller_id = #{sellerId}
+        ORDER BY product_id DESC
+    </select>
+
+    <update id="update" parameterType="com.freshgrowth.product.Product">
+        UPDATE products
+        SET name = #{name},
+            description = #{description},
+            category = #{category},
+            price = #{price},
+            stock_qty = #{stockQty},
+            thumbnail_url = #{thumbnailUrl},
+            expiration_date = #{expirationDate}
+        WHERE product_id = #{productId}
+          AND seller_id = #{sellerId}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM products
+        WHERE product_id = #{productId}
+          AND seller_id = #{sellerId}
+    </delete>
+
+    <update id="decreaseStock">
+        UPDATE products
+        SET stock_qty = stock_qty - #{quantity}
+        WHERE product_id = #{productId}
+          AND stock_qty >= #{quantity}
+    </update>
+</mapper>
