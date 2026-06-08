@@ -27,3 +27,5 @@ batch/output/
 # Env / secrets
 *.env
 application-local.yml
+application-local.properties
+application-secret.*

@@ -68,6 +68,17 @@ CREATE TABLE wishlists (
     FOREIGN KEY (product_id) REFERENCES products(product_id)
 );
 
+CREATE TABLE follows (
+    follow_id BIGINT NOT NULL AUTO_INCREMENT,
+    follower_id BIGINT NOT NULL,   -- 구매자
+    following_id BIGINT NOT NULL,  -- 판매자
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (follow_id),
+    UNIQUE KEY uq_follow (follower_id, following_id),
+    FOREIGN KEY (follower_id) REFERENCES users(user_id),
+    FOREIGN KEY (following_id) REFERENCES users(user_id)
+);
+
 INSERT INTO users(role, email, password, name) VALUES
 ('SELLER', 'seller@example.com', '1234', '도연농장'),
 ('BUYER', 'buyer@example.com', '1234', '김도연');

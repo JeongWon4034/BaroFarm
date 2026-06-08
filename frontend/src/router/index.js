@@ -8,6 +8,7 @@ const routes = [
   { path: '/cart', name: 'cart', component: () => import('../views/CartView.vue') },
   { path: '/order/complete', name: 'order-complete', component: () => import('../views/OrderCompleteView.vue') },
   { path: '/wishlist', name: 'wishlist', component: () => import('../views/WishlistView.vue'), meta: { auth: true } },
+  { path: '/following', name: 'following', component: () => import('../views/FollowingView.vue'), meta: { auth: true } },
   { path: '/mypage', name: 'mypage', component: () => import('../views/MyPageView.vue'), meta: { auth: true } },
   { path: '/seller/dashboard', name: 'seller-dashboard', component: () => import('../views/SellerDashboardView.vue'), meta: { auth: true, seller: true } },
   { path: '/seller/products', name: 'seller-products', component: () => import('../views/SellerProductsView.vue'), meta: { auth: true, seller: true } },

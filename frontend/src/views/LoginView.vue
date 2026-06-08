@@ -3,11 +3,13 @@ import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useWishlistStore } from '../stores/wishlist'
+import { useFollowStore } from '../stores/follow'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const wishlist = useWishlistStore()
+const follow = useFollowStore()
 
 const email = ref('')
 const password = ref('')
@@ -19,7 +21,10 @@ async function submit() {
   loading.value = true
   try {
     await auth.login({ email: email.value, password: password.value })
-    await wishlist.load()
+    if (auth.isBuyer) {
+      await wishlist.load()
+      await follow.load()
+    }
     router.push(route.query.redirect || { name: 'products' })
   } catch (e) {
     error.value = e.message
