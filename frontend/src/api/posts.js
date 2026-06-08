@@ -6,6 +6,7 @@ export const postApi = {
   create: (payload) => http.post('/posts', payload), // {title, content}
   update: (id, payload) => http.put(`/posts/${id}`, payload),
   remove: (id) => http.delete(`/posts/${id}`),
+  trend: () => http.get('/posts/ai/trend'),
 }
 
 export const commentApi = {
