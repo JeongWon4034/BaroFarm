@@ -35,7 +35,8 @@ public class AiController {
 
     @LoginRequired(role = "SELLER")
     @GetMapping("/price-suggestion")
-    public ApiResponse<?> priceSuggestion(@RequestParam String category) {
-        return ApiResponse.ok("추천가를 산출했습니다.", productAiService.suggestPrice(category));
+    public ApiResponse<?> priceSuggestion(@RequestParam(defaultValue = "") String name,
+                                          @RequestParam String category) {
+        return ApiResponse.ok("추천가를 산출했습니다.", productAiService.suggestPrice(name, category));
     }
 }

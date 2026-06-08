@@ -1,0 +1,14 @@
+# 이 파일을 복사해 backend/application-local.yml 로 만들고 실제 키를 채우세요.
+# application-local.yml 은 .gitignore 되어 커밋되지 않습니다. (절대 커밋 금지)
+# jar 실행 위치(backend/) 기준으로 자동 로드됩니다 (spring.config.import).
+
+# 생성형 AI (GMS — OpenAI 호환)
+ai:
+  base-url: https://gms.ssafy.io/gmsapi/api.openai.com/v1
+  api-key: GMS_KEY_HERE
+  model: gpt-4o-mini
+
+# KAMIS 시세 API (인증키 + 인증ID 두 개)
+kamis:
+  cert-key: KAMIS_CERT_KEY_HERE
+  cert-id: KAMIS_CERT_ID_HERE

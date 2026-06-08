@@ -96,9 +96,11 @@ async function suggestPrice() {
   aiMsg.value = ''
   aiPriceLoading.value = true
   try {
-    const s = await productApi.priceSuggestion(form.category)
+    const s = await productApi.priceSuggestion(form.name, form.category)
     if (s.suggestedPrice) form.price = s.suggestedPrice
-    aiMsg.value = '💡 ' + s.basis
+    const tag = s.source === 'KAMIS' ? '📊 KAMIS 시세 기반' : (s.source === 'CATALOG' ? '📊 자체 통계 기반' : '⚠️ 근거 부족')
+    const price = s.suggestedPrice ? Number(s.suggestedPrice).toLocaleString() + '원' : '-'
+    aiMsg.value = `${tag} · 추천가 ${price}\n· 근거: ${s.basis || '-'}\n· 이유: ${s.reason || '-'}`
   } catch (e) {
     aiMsg.value = e.message
   } finally {
@@ -221,7 +223,7 @@ async function remove(p) {
 .ai-btn { background: var(--color-primary-soft); color: var(--color-primary-dark); border: 1px solid #cfe8d4; border-radius: 999px; font-size: 12px; font-weight: 700; padding: 3px 10px; cursor: pointer; }
 .ai-btn:hover:not(:disabled) { background: #cfe8d4; }
 .ai-btn:disabled { opacity: 0.5; cursor: default; }
-.ai-msg { color: var(--color-primary-dark); font-size: 13px; margin: 10px 0 0; background: var(--color-primary-soft); padding: 8px 12px; border-radius: var(--radius-sm); }
+.ai-msg { color: var(--color-primary-dark); font-size: 13px; margin: 10px 0 0; background: var(--color-primary-soft); padding: 10px 12px; border-radius: var(--radius-sm); white-space: pre-line; line-height: 1.55; }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
 .err { color: var(--color-accent-dark); font-size: 14px; margin: 10px 0 0; }
 

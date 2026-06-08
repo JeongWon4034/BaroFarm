@@ -12,6 +12,6 @@ export const productApi = {
   update: (productId, payload) => http.put(`/products/${productId}`, payload),
   remove: (productId) => http.delete(`/products/${productId}`),
   // AI 등록 도우미
-  priceSuggestion: (category) => http.get('/products/ai/price-suggestion', { params: { category } }),
+  priceSuggestion: (name, category) => http.get('/products/ai/price-suggestion', { params: { name, category } }),
   generateDescription: (payload) => http.post('/products/ai/description', payload), // {name, category}
 }
