@@ -11,6 +11,7 @@ public class Order {
     private Integer totalPrice;
     private String status;
     private LocalDateTime orderDate;
+    private Long reviewId; // 이 주문에 작성된 리뷰 id (없으면 null) — 리뷰 작성 여부 판별용
 
     public Long getOrderId() { return orderId; }
     public void setOrderId(Long orderId) { this.orderId = orderId; }
@@ -28,4 +29,6 @@ public class Order {
     public void setStatus(String status) { this.status = status; }
     public LocalDateTime getOrderDate() { return orderDate; }
     public void setOrderDate(LocalDateTime orderDate) { this.orderDate = orderDate; }
+    public Long getReviewId() { return reviewId; }
+    public void setReviewId(Long reviewId) { this.reviewId = reviewId; }
 }

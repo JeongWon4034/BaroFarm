@@ -11,9 +11,11 @@
             o.quantity,
             o.total_price,
             o.status,
-            o.order_date
+            o.order_date,
+            r.review_id AS review_id
         FROM orders o
         JOIN products p ON o.product_id = p.product_id
+        LEFT JOIN reviews r ON r.order_id = o.order_id
     </sql>
 
     <insert id="insert" parameterType="com.freshgrowth.order.Order" useGeneratedKeys="true" keyProperty="orderId">

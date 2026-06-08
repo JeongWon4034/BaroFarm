@@ -15,7 +15,6 @@ const reviewing = ref(null) // orderId
 const reviewRating = ref(5)
 const reviewContent = ref('')
 const reviewMsg = ref('')
-const reviewDone = ref(new Set())
 
 onMounted(load)
 
@@ -41,8 +40,8 @@ function openReview(orderId) {
 async function submitReview(order) {
   reviewMsg.value = ''
   try {
-    await reviewApi.create({ orderId: order.orderId, rating: reviewRating.value, content: reviewContent.value })
-    reviewDone.value.add(order.orderId)
+    const review = await reviewApi.create({ orderId: order.orderId, rating: reviewRating.value, content: reviewContent.value })
+    order.reviewId = review.reviewId // DB 기준 상태로 즉시 반영(리로드해도 유지)
     reviewing.value = null
   } catch (e) {
     reviewMsg.value = e.message
@@ -85,7 +84,7 @@ async function submitReview(order) {
         </div>
 
         <div class="order-actions">
-          <span v-if="reviewDone.has(o.orderId)" class="done muted">✅ 리뷰 작성 완료</span>
+          <span v-if="o.reviewId" class="done muted">✅ 리뷰 작성 완료</span>
           <button v-else-if="reviewing !== o.orderId" class="btn btn-outline sm-btn" @click="openReview(o.orderId)">✍️ 리뷰 작성</button>
         </div>
 
