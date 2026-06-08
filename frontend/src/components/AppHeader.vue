@@ -3,14 +3,17 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useCartStore } from '../stores/cart'
+import { useWishlistStore } from '../stores/wishlist'
 
 const router = useRouter()
 const auth = useAuthStore()
 const cart = useCartStore()
+const wishlist = useWishlistStore()
 const cartCount = computed(() => cart.count)
 
 function logout() {
   auth.logout()
+  wishlist.clear()
   router.push({ name: 'products' })
 }
 </script>
@@ -46,7 +49,9 @@ function logout() {
         <router-link :to="{ name: 'products' }" class="nav-item" active-class="active" exact-active-class="active">🏠 홈 / 상품 목록</router-link>
         <router-link :to="{ name: 'deals' }" class="nav-item" active-class="active">⏰ 마감임박 특가</router-link>
         <router-link :to="{ name: 'cart' }" class="nav-item" active-class="active">🧺 장바구니 & 결제</router-link>
+        <router-link v-if="auth.isBuyer" :to="{ name: 'wishlist' }" class="nav-item" active-class="active">❤️ 찜</router-link>
         <router-link :to="{ name: 'mypage' }" class="nav-item" active-class="active">👤 마이페이지</router-link>
+        <router-link v-if="auth.isSeller" :to="{ name: 'seller-products' }" class="nav-item" active-class="active">📦 상품 관리</router-link>
         <router-link v-if="auth.isSeller" :to="{ name: 'seller-dashboard' }" class="nav-item" active-class="active">📊 판매자 대시보드</router-link>
       </div>
     </nav>

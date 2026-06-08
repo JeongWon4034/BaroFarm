@@ -1,6 +1,8 @@
 package com.freshgrowth.user;
 
 import com.freshgrowth.common.ApiResponse;
+import com.freshgrowth.common.auth.LoginRequired;
+import com.freshgrowth.common.auth.LoginUser;
 import com.freshgrowth.user.dto.LoginRequest;
 import com.freshgrowth.user.dto.SignupRequest;
 import jakarta.validation.Valid;
@@ -33,13 +35,15 @@ public class UserController {
         return ApiResponse.ok("로그아웃되었습니다.", null);
     }
 
+    @LoginRequired
     @GetMapping("/users/me")
-    public ApiResponse<?> me(@RequestHeader("X-USER-ID") Long userId) {
+    public ApiResponse<?> me(@LoginUser Long userId) {
         return ApiResponse.ok("내 정보를 조회했습니다.", userService.findMe(userId));
     }
 
+    @LoginRequired
     @DeleteMapping("/users/me")
-    public ApiResponse<Void> deactivate(@RequestHeader("X-USER-ID") Long userId) {
+    public ApiResponse<Void> deactivate(@LoginUser Long userId) {
         userService.deactivate(userId);
         return ApiResponse.ok("회원 탈퇴가 완료되었습니다.", null);
     }

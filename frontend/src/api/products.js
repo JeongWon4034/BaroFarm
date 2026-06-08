@@ -7,4 +7,8 @@ export const productApi = {
   reviews: (productId) => http.get(`/products/${productId}/reviews`),
   // 판매자 본인 상품 (응답에 폐기위험·떨이가 엔진값 포함). X-USER-ID 헤더 필요.
   sellerProducts: () => http.get('/seller/products'),
+  // 판매자 상품 관리 (SELLER 권한)
+  create: (payload) => http.post('/products', payload),
+  update: (productId, payload) => http.put(`/products/${productId}`, payload),
+  remove: (productId) => http.delete(`/products/${productId}`),
 }

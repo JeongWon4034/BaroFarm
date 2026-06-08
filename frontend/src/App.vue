@@ -1,5 +1,16 @@
 <script setup>
+import { onMounted } from 'vue'
 import AppHeader from './components/AppHeader.vue'
+import { useAuthStore } from './stores/auth'
+import { useWishlistStore } from './stores/wishlist'
+
+const auth = useAuthStore()
+const wishlist = useWishlistStore()
+
+// 새로고침 후에도 하트 상태 유지 — 로그인돼 있으면 찜 목록 로드
+onMounted(() => {
+  if (auth.isLoggedIn) wishlist.load()
+})
 </script>
 
 <template>
