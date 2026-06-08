@@ -56,4 +56,13 @@
         WHERE product_id = #{productId}
           AND stock_qty >= #{quantity}
     </update>
+
+    <select id="findCategoryPriceStats" resultType="com.freshgrowth.product.ai.dto.PriceStats">
+        SELECT COUNT(*) AS cnt,
+               COALESCE(AVG(price), 0) AS avgPrice,
+               COALESCE(MIN(price), 0) AS minPrice,
+               COALESCE(MAX(price), 0) AS maxPrice
+        FROM products
+        WHERE category = #{category}
+    </select>
 </mapper>

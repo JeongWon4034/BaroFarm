@@ -1,5 +1,6 @@
 package com.freshgrowth.product;
 
+import com.freshgrowth.product.ai.dto.PriceStats;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.util.List;
@@ -14,4 +15,5 @@ public interface ProductMapper {
     int update(Product product);
     int delete(@Param("productId") Long productId, @Param("sellerId") Long sellerId);
     int decreaseStock(@Param("productId") Long productId, @Param("quantity") int quantity);
+    PriceStats findCategoryPriceStats(@Param("category") String category);
 }

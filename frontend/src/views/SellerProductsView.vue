@@ -87,6 +87,40 @@ async function submit() {
   }
 }
 
+// --- AI 등록 도우미 ---
+const aiPriceLoading = ref(false)
+const aiDescLoading = ref(false)
+const aiMsg = ref('')
+
+async function suggestPrice() {
+  aiMsg.value = ''
+  aiPriceLoading.value = true
+  try {
+    const s = await productApi.priceSuggestion(form.category)
+    if (s.suggestedPrice) form.price = s.suggestedPrice
+    aiMsg.value = '💡 ' + s.basis
+  } catch (e) {
+    aiMsg.value = e.message
+  } finally {
+    aiPriceLoading.value = false
+  }
+}
+
+async function generateDesc() {
+  if (!form.name.trim()) { formError.value = '상품명을 먼저 입력하세요.'; return }
+  aiMsg.value = ''
+  aiDescLoading.value = true
+  try {
+    const r = await productApi.generateDescription({ name: form.name.trim(), category: form.category })
+    form.description = r.description
+    aiMsg.value = '✍️ AI가 설명을 생성했어요.'
+  } catch (e) {
+    aiMsg.value = e.message
+  } finally {
+    aiDescLoading.value = false
+  }
+}
+
 async function remove(p) {
   if (!confirm(`'${p.name}' 상품을 삭제할까요?`)) return
   try {
@@ -122,11 +156,22 @@ async function remove(p) {
           </select>
         </label>
         <label class="fld"><span>유통기한</span><input v-model="form.expirationDate" type="date" class="input" /></label>
-        <label class="fld"><span>가격(원) *</span><input v-model.number="form.price" type="number" min="0" class="input" placeholder="3900" /></label>
+        <div class="fld">
+          <span class="fld-top">가격(원) *
+            <button type="button" class="ai-btn" :disabled="aiPriceLoading" @click="suggestPrice">{{ aiPriceLoading ? '…' : '💡 추천가' }}</button>
+          </span>
+          <input v-model.number="form.price" type="number" min="0" class="input" placeholder="3900" />
+        </div>
         <label class="fld"><span>재고(개) *</span><input v-model.number="form.stockQty" type="number" min="0" class="input" placeholder="50" /></label>
-        <label class="fld span2"><span>설명</span><input v-model="form.description" class="input" placeholder="상품 설명" /></label>
+        <div class="fld span2">
+          <span class="fld-top">설명
+            <button type="button" class="ai-btn" :disabled="aiDescLoading" @click="generateDesc">{{ aiDescLoading ? '생성 중…' : '✍️ AI 설명 생성' }}</button>
+          </span>
+          <input v-model="form.description" class="input" placeholder="상품 설명 (AI 생성 가능)" />
+        </div>
         <label class="fld span2"><span>썸네일 URL (선택)</span><input v-model="form.thumbnailUrl" class="input" placeholder="비우면 이모지로 표시" /></label>
       </div>
+      <p v-if="aiMsg" class="ai-msg">{{ aiMsg }}</p>
       <p v-if="formError" class="err">{{ formError }}</p>
       <div class="form-actions">
         <button class="btn btn-outline" @click="closeForm">취소</button>
@@ -172,6 +217,11 @@ async function remove(p) {
 .fld { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; color: var(--color-muted); }
 .fld .input, .fld .select { font-weight: 500; color: var(--color-text); }
 .fld.span2 { grid-column: 1 / -1; }
+.fld-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ai-btn { background: var(--color-primary-soft); color: var(--color-primary-dark); border: 1px solid #cfe8d4; border-radius: 999px; font-size: 12px; font-weight: 700; padding: 3px 10px; cursor: pointer; }
+.ai-btn:hover:not(:disabled) { background: #cfe8d4; }
+.ai-btn:disabled { opacity: 0.5; cursor: default; }
+.ai-msg { color: var(--color-primary-dark); font-size: 13px; margin: 10px 0 0; background: var(--color-primary-soft); padding: 8px 12px; border-radius: var(--radius-sm); }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
 .err { color: var(--color-accent-dark); font-size: 14px; margin: 10px 0 0; }
 
