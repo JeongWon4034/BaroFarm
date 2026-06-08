@@ -51,6 +51,7 @@ function logout() {
       <div class="container nav-inner">
         <router-link :to="{ name: 'products' }" class="nav-item" active-class="active" exact-active-class="active">🏠 홈 / 상품 목록</router-link>
         <router-link :to="{ name: 'deals' }" class="nav-item" active-class="active">⏰ 마감임박 특가</router-link>
+        <router-link :to="{ name: 'board' }" class="nav-item" active-class="active">📝 게시판</router-link>
         <router-link :to="{ name: 'cart' }" class="nav-item" active-class="active">🧺 장바구니 & 결제</router-link>
         <router-link v-if="auth.isBuyer" :to="{ name: 'wishlist' }" class="nav-item" active-class="active">❤️ 찜</router-link>
         <router-link v-if="auth.isBuyer" :to="{ name: 'following' }" class="nav-item" active-class="active">👥 팔로잉</router-link>

@@ -2,6 +2,7 @@ package com.freshgrowth.product.ai;
 
 import com.freshgrowth.common.ApiResponse;
 import com.freshgrowth.common.auth.LoginRequired;
+import com.freshgrowth.common.auth.LoginUser;
 import com.freshgrowth.product.ai.dto.DescriptionRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -29,8 +30,15 @@ public class AiController {
     @LoginRequired(role = "SELLER")
     @PostMapping("/description")
     public ApiResponse<?> description(@Valid @RequestBody DescriptionRequest request) {
-        String description = productAiService.generateDescription(request.getName(), request.getCategory());
-        return ApiResponse.ok("AI 상품 설명을 생성했습니다.", Map.of("description", description));
+        return ApiResponse.ok("AI 상품 설명을 생성했습니다.",
+                productAiService.generateDescription(request.getName(), request.getCategory(),
+                        request.getExpirationDate(), request.getStockQty()));
+    }
+
+    @LoginRequired(role = "SELLER")
+    @GetMapping("/seller-report")
+    public ApiResponse<?> sellerReport(@LoginUser Long sellerId) {
+        return ApiResponse.ok("판매자 AI 요약 리포트", productAiService.generateSellerReport(sellerId));
     }
 
     @LoginRequired(role = "SELLER")

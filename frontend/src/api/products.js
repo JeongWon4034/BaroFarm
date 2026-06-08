@@ -13,5 +13,6 @@ export const productApi = {
   remove: (productId) => http.delete(`/products/${productId}`),
   // AI 등록 도우미
   priceSuggestion: (name, category) => http.get('/products/ai/price-suggestion', { params: { name, category } }),
-  generateDescription: (payload) => http.post('/products/ai/description', payload), // {name, category}
+  generateDescription: (payload) => http.post('/products/ai/description', payload), // {name, category, expirationDate, stockQty}
+  sellerReport: () => http.get('/products/ai/seller-report'),
 }

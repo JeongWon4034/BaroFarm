@@ -10,8 +10,19 @@ const form = ref({ name: '', email: '', password: '', role: 'BUYER' })
 const error = ref('')
 const loading = ref(false)
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function validate() {
+  if (!form.value.name.trim()) return '이름을 입력하세요.'
+  if (!EMAIL_RE.test(form.value.email)) return '올바른 이메일 형식이 아닙니다.'
+  if (form.value.password.length < 8) return '비밀번호는 8자 이상이어야 합니다.'
+  return ''
+}
+
 async function submit() {
   error.value = ''
+  const v = validate()
+  if (v) { error.value = v; return }
   loading.value = true
   try {
     await auth.signup({ ...form.value })
@@ -19,7 +30,8 @@ async function submit() {
     await auth.login({ email: form.value.email, password: form.value.password })
     router.push({ name: 'products' })
   } catch (e) {
-    error.value = e.message
+    // 중복 이메일 등 구체 메시지 노출 (인터셉터가 error.detail/code 전달)
+    error.value = e.code === 'DUPLICATED_EMAIL' ? '이미 사용 중인 이메일입니다.' : e.message
   } finally {
     loading.value = false
   }
@@ -42,8 +54,8 @@ async function submit() {
           <input v-model="form.email" type="email" class="input" placeholder="you@example.com" required />
         </div>
         <div class="field">
-          <label>비밀번호</label>
-          <input v-model="form.password" type="password" class="input" placeholder="비밀번호" required />
+          <label>비밀번호 <span class="hint muted">(8자 이상)</span></label>
+          <input v-model="form.password" type="password" class="input" placeholder="8자 이상" required />
         </div>
         <div class="field">
           <label>가입 유형</label>

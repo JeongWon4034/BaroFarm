@@ -4,6 +4,10 @@ import { useAuthStore } from '../stores/auth'
 const routes = [
   { path: '/', name: 'products', component: () => import('../views/ProductListView.vue') },
   { path: '/deals', name: 'deals', component: () => import('../views/DealsView.vue') },
+  { path: '/board', name: 'board', component: () => import('../views/BoardListView.vue') },
+  { path: '/board/write', name: 'board-write', component: () => import('../views/BoardFormView.vue'), meta: { auth: true } },
+  { path: '/board/:id', name: 'board-detail', component: () => import('../views/BoardDetailView.vue') },
+  { path: '/board/:id/edit', name: 'board-edit', component: () => import('../views/BoardFormView.vue'), meta: { auth: true } },
   { path: '/products/:id', name: 'product-detail', component: () => import('../views/ProductDetailView.vue') },
   { path: '/cart', name: 'cart', component: () => import('../views/CartView.vue') },
   { path: '/order/complete', name: 'order-complete', component: () => import('../views/OrderCompleteView.vue') },

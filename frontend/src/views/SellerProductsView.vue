@@ -113,9 +113,15 @@ async function generateDesc() {
   aiMsg.value = ''
   aiDescLoading.value = true
   try {
-    const r = await productApi.generateDescription({ name: form.name.trim(), category: form.category })
+    const r = await productApi.generateDescription({
+      name: form.name.trim(),
+      category: form.category,
+      expirationDate: form.expirationDate || null,
+      stockQty: form.stockQty,
+    })
     form.description = r.description
-    aiMsg.value = '✍️ AI가 설명을 생성했어요.'
+    const ctx = (r.usedContext || []).join(' · ')
+    aiMsg.value = '✍️ AI가 설명을 생성했어요.' + (ctx ? `\n🔎 AI가 참고한 정보: ${ctx}` : '')
   } catch (e) {
     aiMsg.value = e.message
   } finally {
