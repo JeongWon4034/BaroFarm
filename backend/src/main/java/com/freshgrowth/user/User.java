@@ -8,6 +8,9 @@ public class User {
     private String email;
     private String password;
     private String name;
+    private String intro;
+    private String phone;
+    private String profileImage;
     private String status;
     private LocalDateTime createdAt;
 
@@ -21,6 +24,12 @@ public class User {
     public void setPassword(String password) { this.password = password; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+    public String getIntro() { return intro; }
+    public void setIntro(String intro) { this.intro = intro; }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+    public String getProfileImage() { return profileImage; }
+    public void setProfileImage(String profileImage) { this.profileImage = profileImage; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public LocalDateTime getCreatedAt() { return createdAt; }

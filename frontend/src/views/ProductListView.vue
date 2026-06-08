@@ -1,11 +1,13 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { productApi } from '../api/products'
 import { useCartStore } from '../stores/cart'
 import { categoryLabel } from '../utils/format'
 import ProductCard from '../components/ProductCard.vue'
 
 const cart = useCartStore()
+const CATEGORIES = ['all', 'vegetable', 'fruit', 'seafood', 'meat', 'grain', 'mushroom', 'root']
+const SIZE = 12
 
 const products = ref([])
 const loading = ref(true)
@@ -13,6 +15,9 @@ const error = ref('')
 const keyword = ref('')
 const activeCategory = ref('all')
 const sort = ref('latest')
+const page = ref(0)
+const totalPages = ref(0)
+const totalElements = ref(0)
 
 onMounted(load)
 
@@ -20,8 +25,16 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const res = await productApi.list(0, 100)
+    const res = await productApi.list({
+      page: page.value,
+      size: SIZE,
+      keyword: keyword.value.trim() || undefined,
+      category: activeCategory.value === 'all' ? undefined : activeCategory.value,
+      sort: sort.value,
+    })
     products.value = res.content || []
+    totalPages.value = res.totalPages || 0
+    totalElements.value = res.totalElements || 0
   } catch (e) {
     error.value = e.message
   } finally {
@@ -29,30 +42,29 @@ async function load() {
   }
 }
 
-// 상품에 존재하는 카테고리들로 필터칩 동적 구성
-const categories = computed(() => {
-  const set = [...new Set(products.value.map((p) => p.category).filter(Boolean))]
-  return ['all', ...set]
+// 검색은 디바운스, 필터/정렬 변경 시 첫 페이지로 리셋 후 재조회
+let searchTimer
+watch(keyword, () => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => { page.value = 0; load() }, 350)
 })
+watch([activeCategory, sort], () => { page.value = 0; load() })
 
-const filtered = computed(() => {
-  let list = products.value
-  if (activeCategory.value !== 'all') {
-    list = list.filter((p) => p.category === activeCategory.value)
-  }
-  if (keyword.value.trim()) {
-    const kw = keyword.value.trim().toLowerCase()
-    list = list.filter((p) => p.name?.toLowerCase().includes(kw))
-  }
-  const sorted = [...list]
-  const dday = (p) => (p.daysToExpiry == null ? 9999 : p.daysToExpiry)
-  const deal = (p) => p.discountedPrice ?? p.price
-  if (sort.value === 'urgent') sorted.sort((a, b) => dday(a) - dday(b) || (b.discountRate ?? 0) - (a.discountRate ?? 0))
-  else if (sort.value === 'discount') sorted.sort((a, b) => (b.discountRate ?? 0) - (a.discountRate ?? 0))
-  else if (sort.value === 'priceAsc') sorted.sort((a, b) => deal(a) - deal(b))
-  else if (sort.value === 'priceDesc') sorted.sort((a, b) => deal(b) - deal(a))
-  else sorted.sort((a, b) => b.productId - a.productId)
-  return sorted
+function setCategory(c) { activeCategory.value = c }
+function goPage(p) {
+  if (p < 0 || p >= totalPages.value || p === page.value) return
+  page.value = p
+  load()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const pageWindow = computed(() => {
+  const tp = totalPages.value
+  if (tp <= 1) return []
+  let start = Math.max(0, page.value - 2)
+  const end = Math.min(tp, start + 5)
+  start = Math.max(0, end - 5)
+  return Array.from({ length: end - start }, (_, i) => start + i)
 })
 
 let toastTimer
@@ -67,24 +79,21 @@ function addToCart(product) {
 
 <template>
   <div>
-    <!-- 배너 -->
     <div class="banner">
       🥬 산지에서 바로, 신선식품 직거래
       <router-link :to="{ name: 'deals' }" class="banner-badge deals-link">⏰ 마감임박 특가 →</router-link>
     </div>
 
-    <!-- 검색 -->
     <div class="search-row">
       <input v-model="keyword" class="input search" placeholder="상품명으로 검색하세요 (예: 상추)" />
     </div>
 
-    <!-- 카테고리 필터칩 + 정렬 -->
     <div class="filter-row">
       <div class="chips">
         <button
-          v-for="c in categories" :key="c"
+          v-for="c in CATEGORIES" :key="c"
           class="chip" :class="{ active: activeCategory === c }"
-          @click="activeCategory = c"
+          @click="setCategory(c)"
         >
           <span class="dot" />{{ c === 'all' ? '전체' : categoryLabel(c) }}
         </button>
@@ -92,24 +101,31 @@ function addToCart(product) {
       <div class="sort">
         <label class="muted">정렬</label>
         <select v-model="sort" class="select">
-          <option value="urgent">마감임박순</option>
-          <option value="discount">할인율순</option>
+          <option value="latest">최신순</option>
+          <option value="expiry">마감임박순</option>
           <option value="priceAsc">가격 낮은순</option>
           <option value="priceDesc">가격 높은순</option>
-          <option value="latest">최신순</option>
         </select>
       </div>
     </div>
 
-    <p class="count muted">{{ filtered.length }}개 상품</p>
+    <p class="count muted">총 {{ totalElements }}개 상품 · {{ page + 1 }}/{{ Math.max(totalPages, 1) }} 페이지</p>
 
     <div v-if="loading" class="empty"><span class="emoji">⏳</span>상품을 불러오는 중…</div>
     <div v-else-if="error" class="empty"><span class="emoji">⚠️</span>{{ error }}<br /><button class="btn btn-outline" style="margin-top:12px" @click="load">다시 시도</button></div>
-    <div v-else-if="filtered.length === 0" class="empty"><span class="emoji">🔍</span>조건에 맞는 상품이 없어요.</div>
+    <div v-else-if="products.length === 0" class="empty"><span class="emoji">🔍</span>조건에 맞는 상품이 없어요.</div>
 
-    <div v-else class="grid">
-      <ProductCard v-for="p in filtered" :key="p.productId" :product="p" @add="addToCart" />
-    </div>
+    <template v-else>
+      <div class="grid">
+        <ProductCard v-for="p in products" :key="p.productId" :product="p" @add="addToCart" />
+      </div>
+
+      <div v-if="totalPages > 1" class="pagination">
+        <button class="pg-btn" :disabled="page === 0" @click="goPage(page - 1)">‹</button>
+        <button v-for="p in pageWindow" :key="p" class="pg-btn" :class="{ active: p === page }" @click="goPage(p)">{{ p + 1 }}</button>
+        <button class="pg-btn" :disabled="page >= totalPages - 1" @click="goPage(page + 1)">›</button>
+      </div>
+    </template>
 
     <transition name="fade">
       <div v-if="toast" class="toast">{{ toast }}</div>
@@ -155,6 +171,16 @@ function addToCart(product) {
 .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
 @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
+
+.pagination { display: flex; justify-content: center; gap: 6px; margin: 28px 0 8px; }
+.pg-btn {
+  min-width: 36px; height: 36px; padding: 0 10px;
+  border: 1px solid var(--color-border); background: #fff; border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 600; color: var(--color-text); cursor: pointer;
+}
+.pg-btn:hover:not(:disabled) { border-color: var(--color-primary); }
+.pg-btn.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+.pg-btn:disabled { opacity: 0.4; cursor: default; }
 
 .toast {
   position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);

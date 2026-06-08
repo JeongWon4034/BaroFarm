@@ -8,6 +8,9 @@ public class UserResponse {
     private String email;
     private String name;
     private String role;
+    private String intro;
+    private String phone;
+    private String profileImage;
     private String status;
     private LocalDateTime createdAt;
 
@@ -16,6 +19,9 @@ public class UserResponse {
         this.email = user.getEmail();
         this.name = user.getName();
         this.role = user.getRole();
+        this.intro = user.getIntro();
+        this.phone = user.getPhone();
+        this.profileImage = user.getProfileImage();
         this.status = user.getStatus();
         this.createdAt = user.getCreatedAt();
     }
@@ -24,6 +30,9 @@ public class UserResponse {
     public String getEmail() { return email; }
     public String getName() { return name; }
     public String getRole() { return role; }
+    public String getIntro() { return intro; }
+    public String getPhone() { return phone; }
+    public String getProfileImage() { return profileImage; }
     public String getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

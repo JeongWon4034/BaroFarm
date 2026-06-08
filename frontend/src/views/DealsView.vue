@@ -15,7 +15,7 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const res = await productApi.list(0, 100)
+    const res = await productApi.list({ size: 100 })
     products.value = res.content || []
   } catch (e) {
     error.value = e.message

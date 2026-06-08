@@ -8,16 +8,22 @@
     </insert>
 
     <select id="findById" resultType="com.freshgrowth.user.User">
-        SELECT user_id, role, email, password, name, status, created_at
+        SELECT user_id, role, email, password, name, intro, phone, profile_image, status, created_at
         FROM users
         WHERE user_id = #{userId}
     </select>
 
     <select id="findByEmail" resultType="com.freshgrowth.user.User">
-        SELECT user_id, role, email, password, name, status, created_at
+        SELECT user_id, role, email, password, name, intro, phone, profile_image, status, created_at
         FROM users
         WHERE email = #{email}
     </select>
+
+    <update id="updateProfile" parameterType="com.freshgrowth.user.User">
+        UPDATE users
+        SET name = #{name}, intro = #{intro}, phone = #{phone}, profile_image = #{profileImage}
+        WHERE user_id = #{userId}
+    </update>
 
     <update id="deactivate">
         UPDATE users

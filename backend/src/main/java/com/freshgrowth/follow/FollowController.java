@@ -1,6 +1,7 @@
 package com.freshgrowth.follow;
 
 import com.freshgrowth.common.ApiResponse;
+import com.freshgrowth.common.auth.JwtProvider;
 import com.freshgrowth.common.auth.LoginRequired;
 import com.freshgrowth.common.auth.LoginUser;
 import org.springframework.web.bind.annotation.*;
@@ -9,9 +10,11 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1")
 public class FollowController {
     private final FollowService followService;
+    private final JwtProvider jwtProvider;
 
-    public FollowController(FollowService followService) {
+    public FollowController(FollowService followService, JwtProvider jwtProvider) {
         this.followService = followService;
+        this.jwtProvider = jwtProvider;
     }
 
     @LoginRequired(role = "BUYER")
@@ -37,7 +40,8 @@ public class FollowController {
     // 판매자 공개 요약 (+ 로그인 시 내 팔로우 여부). 누구나 조회 가능.
     @GetMapping("/sellers/{sellerId}")
     public ApiResponse<?> seller(@PathVariable Long sellerId,
-                                 @RequestHeader(value = "X-USER-ID", required = false) Long viewerId) {
+                                 @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        Long viewerId = jwtProvider.optionalUserId(authHeader);
         return ApiResponse.ok("판매자 정보를 조회했습니다.", followService.getSellerSummary(sellerId, viewerId));
     }
 }
