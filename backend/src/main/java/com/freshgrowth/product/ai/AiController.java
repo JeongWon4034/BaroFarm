@@ -12,9 +12,18 @@ import java.util.Map;
 @RequestMapping("/api/v1/products/ai")
 public class AiController {
     private final ProductAiService productAiService;
+    private final KamisClient kamisClient;
 
-    public AiController(ProductAiService productAiService) {
+    public AiController(ProductAiService productAiService, KamisClient kamisClient) {
         this.productAiService = productAiService;
+        this.kamisClient = kamisClient;
+    }
+
+    // KAMIS 시세 응답 구조 확인용(임시). 키 넣은 뒤 실제 응답 보고 추천가에 엮을 예정.
+    @LoginRequired(role = "SELLER")
+    @GetMapping("/kamis-debug")
+    public ApiResponse<?> kamisDebug(@RequestParam(defaultValue = "dailySalesList") String action) {
+        return ApiResponse.ok("KAMIS 시세 raw 응답", kamisClient.fetch(action, ""));
     }
 
     @LoginRequired(role = "SELLER")

@@ -79,6 +79,18 @@ CREATE TABLE follows (
     FOREIGN KEY (following_id) REFERENCES users(user_id)
 );
 
+CREATE TABLE posts (
+    post_id BIGINT NOT NULL AUTO_INCREMENT,
+    author_id BIGINT NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    content TEXT NOT NULL,
+    view_count INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (post_id),
+    FOREIGN KEY (author_id) REFERENCES users(user_id)
+);
+
 INSERT INTO users(role, email, password, name) VALUES
 ('SELLER', 'seller@example.com', '1234', '도연농장'),
 ('BUYER', 'buyer@example.com', '1234', '김도연');
