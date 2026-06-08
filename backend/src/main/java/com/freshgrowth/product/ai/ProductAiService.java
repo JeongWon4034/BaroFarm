@@ -1,11 +1,15 @@
 package com.freshgrowth.product.ai;
 
 import com.freshgrowth.product.ProductMapper;
+import com.freshgrowth.product.ai.dto.DescriptionResult;
 import com.freshgrowth.product.ai.dto.KamisItem;
 import com.freshgrowth.product.ai.dto.PriceStats;
 import com.freshgrowth.product.ai.dto.PriceSuggestion;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -25,6 +29,12 @@ public class ProductAiService {
             "mushroom", "특용작물"
     );
 
+    // 카테고리 한글 라벨(표시용)
+    private static final Map<String, String> CAT_KO = Map.of(
+            "vegetable", "채소", "fruit", "과일", "seafood", "해산물", "meat", "육류",
+            "grain", "곡물", "mushroom", "버섯", "root", "구근"
+    );
+
     private static final double FAST_SALE_FACTOR = 0.92; // 빠른 판매: 시세보다 8% 낮게
 
     public ProductAiService(AiClient aiClient, KamisClient kamisClient, ProductMapper productMapper) {
@@ -33,14 +43,46 @@ public class ProductAiService {
         this.productMapper = productMapper;
     }
 
-    /** 생성형 AI 상품 설명 (GMS) */
-    public String generateDescription(String name, String category) {
+    /**
+     * 생성형 AI 상품 설명 (GMS). 카테고리·유통기한 D-day·KAMIS 시세 등 도메인 데이터를
+     * 프롬프트에 녹이고, 실제로 넣은 정보(usedContext)를 함께 반환한다.
+     */
+    public DescriptionResult generateDescription(String name, String category,
+                                                 LocalDate expirationDate, Integer stockQty) {
+        List<String> ctx = new ArrayList<>();
+        StringBuilder user = new StringBuilder("상품명: " + name);
+
+        String catKo = category == null ? null : CAT_KO.getOrDefault(category, category);
+        if (catKo != null) { ctx.add("카테고리: " + catKo); user.append("\n카테고리: ").append(catKo); }
+
+        if (expirationDate != null) {
+            long d = ChronoUnit.DAYS.between(LocalDate.now(), expirationDate);
+            String dday = d < 0 ? "유통기한 경과"
+                    : d == 0 ? "유통기한: 오늘 마감"
+                    : "유통기한: D-" + d + (d <= 2 ? " (마감임박)" : "");
+            ctx.add(dday);
+            user.append("\n").append(dday);
+        }
+        if (stockQty != null) { ctx.add("재고: " + stockQty + "개"); }
+
+        KamisItem m = matchKamis(name, category);
+        if (m != null && m.getPrice() != null) {
+            String market = "KAMIS 소매 시세: " + m.getItemName() + " " + won(m.getPrice()) + "원"
+                    + (m.getUnit() == null ? "" : "/" + m.getUnit());
+            ctx.add(market);
+            user.append("\n").append(market);
+        }
+        user.append("\n위 정보를 자연스럽게 반영해 판매용 상세 설명을 2~3문장으로 작성해줘.");
+
         String system = "너는 신선식품 산지직거래 마켓의 카피라이터다. "
-                + "상품의 신선함과 매력을 살린 2~3문장의 한국어 상품 설명을 작성한다. "
-                + "과장된 표현과 이모지는 쓰지 말고, 구매자가 신뢰할 수 있게 담백하게 쓴다.";
-        String user = "상품명: " + name + "\n카테고리: " + (category == null ? "" : category)
-                + "\n이 상품의 판매용 상세 설명을 2~3문장으로 작성해줘.";
-        return aiClient.chat(system, user, 300);
+                + "주어진 상품 정보(카테고리·유통기한·시세 등)를 자연스럽게 녹여 2~3문장의 한국어 판매 설명을 작성한다. "
+                + "과장 표현과 이모지는 쓰지 말고 담백하게. 유통기한이 임박하면 '신선할 때 빨리' 뉘앙스를, "
+                + "시세 정보가 있으면 합리적인 가격임을 은근히 드러낸다.";
+
+        DescriptionResult result = new DescriptionResult();
+        result.setDescription(aiClient.chat(system, user.toString(), 300));
+        result.setUsedContext(ctx);
+        return result;
     }
 
     /**

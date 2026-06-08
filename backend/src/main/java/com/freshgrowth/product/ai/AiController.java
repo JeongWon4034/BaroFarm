@@ -29,8 +29,9 @@ public class AiController {
     @LoginRequired(role = "SELLER")
     @PostMapping("/description")
     public ApiResponse<?> description(@Valid @RequestBody DescriptionRequest request) {
-        String description = productAiService.generateDescription(request.getName(), request.getCategory());
-        return ApiResponse.ok("AI 상품 설명을 생성했습니다.", Map.of("description", description));
+        return ApiResponse.ok("AI 상품 설명을 생성했습니다.",
+                productAiService.generateDescription(request.getName(), request.getCategory(),
+                        request.getExpirationDate(), request.getStockQty()));
     }
 
     @LoginRequired(role = "SELLER")
