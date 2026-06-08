@@ -5,6 +5,8 @@ import { productApi } from '../api/products'
 import { orderApi } from '../api/orders'
 import { useCartStore } from '../stores/cart'
 import { useAuthStore } from '../stores/auth'
+import { useFollowStore } from '../stores/follow'
+import { followApi } from '../api/follow'
 import { won, thumbEmoji, categoryLabel, dateOnly, dDayLabel, riskMeta } from '../utils/format'
 import StarRating from '../components/StarRating.vue'
 
@@ -12,8 +14,10 @@ const route = useRoute()
 const router = useRouter()
 const cart = useCartStore()
 const auth = useAuthStore()
+const follow = useFollowStore()
 
 const product = ref(null)
+const seller = ref(null)
 const reviews = ref([])
 const loading = ref(true)
 const error = ref('')
@@ -30,6 +34,7 @@ async function loadAll() {
   try {
     product.value = await productApi.detail(route.params.id)
     reviews.value = await productApi.reviews(route.params.id).catch(() => [])
+    seller.value = await followApi.seller(product.value.sellerId).catch(() => null)
   } catch (e) {
     error.value = e.message
   } finally {
@@ -56,6 +61,19 @@ function changeQty(delta) {
 function addToCart() {
   cart.add(product.value, qty.value)
   router.push({ name: 'cart' })
+}
+
+const sellerName = computed(() => seller.value?.name || product.value?.sellerName || ('판매자 #' + (product.value?.sellerId ?? '')))
+const following = computed(() => (product.value ? follow.isFollowing(product.value.sellerId) : false))
+
+async function toggleFollow() {
+  if (!auth.isLoggedIn) {
+    router.push({ name: 'login', query: { redirect: route.fullPath } })
+    return
+  }
+  const wasFollowing = following.value
+  await follow.toggle(product.value.sellerId)
+  if (seller.value) seller.value.followerCount += wasFollowing ? -1 : 1
 }
 
 async function buyNow() {
@@ -99,7 +117,15 @@ async function buyNow() {
       <!-- 정보 + 결제 -->
       <div class="info">
         <h1 class="name">{{ product.name }}</h1>
-        <p class="seller muted">판매자: 🏡 {{ product.sellerName || '판매자 #' + product.sellerId }}</p>
+        <div class="seller-box">
+          <div class="seller-info">
+            <span class="seller-name">🏡 {{ sellerName }}</span>
+            <span class="seller-meta muted">팔로워 {{ seller?.followerCount ?? 0 }} · 상품 {{ seller?.productCount ?? '-' }}</span>
+          </div>
+          <button v-if="auth.isBuyer" class="follow-btn" :class="{ on: following }" @click="toggleFollow">
+            {{ following ? '팔로잉 ✓' : '+ 팔로우' }}
+          </button>
+        </div>
         <p class="rate">
           평점: <StarRating :rating="avgRating" size="16px" />
           <strong>{{ avgRating ? avgRating.toFixed(1) : '-' }}</strong>
@@ -187,7 +213,13 @@ async function buyNow() {
 
 .info { display: flex; flex-direction: column; }
 .name { font-size: 28px; margin: 0 0 6px; }
-.seller { margin: 0 0 8px; }
+.seller-box { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; margin: 0 0 12px; background: var(--color-bg); border-radius: var(--radius-sm); }
+.seller-info { display: flex; flex-direction: column; gap: 2px; }
+.seller-name { font-weight: 700; font-size: 15px; }
+.seller-meta { font-size: 13px; }
+.follow-btn { border: 1px solid var(--color-primary); background: var(--color-primary); color: #fff; font-weight: 700; font-size: 14px; padding: 8px 16px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.follow-btn.on { background: #fff; color: var(--color-primary-dark); }
+.follow-btn:hover { opacity: 0.9; }
 .rate { display: flex; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 15px; }
 .desc { line-height: 1.6; color: #4a5560; }
 .divider { border: none; border-top: 1px solid var(--color-border); margin: 18px 0; }

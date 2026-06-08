@@ -1,6 +1,7 @@
 package com.freshgrowth.review;
 
 import com.freshgrowth.common.ApiResponse;
+import com.freshgrowth.common.auth.LoginRequired;
 import com.freshgrowth.review.dto.ReviewRequest;
 import com.freshgrowth.review.dto.ReviewUpdateRequest;
 import jakarta.validation.Valid;
@@ -15,6 +16,7 @@ public class ReviewController {
         this.reviewService = reviewService;
     }
 
+    @LoginRequired(role = "BUYER")
     @PostMapping("/reviews")
     public ApiResponse<?> create(@Valid @RequestBody ReviewRequest request) {
         return ApiResponse.ok("리뷰가 작성되었습니다.", reviewService.create(request));
@@ -25,12 +27,14 @@ public class ReviewController {
         return ApiResponse.ok("상품별 리뷰 목록을 조회했습니다.", reviewService.findByProductId(productId));
     }
 
+    @LoginRequired
     @PutMapping("/reviews/{reviewId}")
     public ApiResponse<?> update(@PathVariable Long reviewId,
                                  @Valid @RequestBody ReviewUpdateRequest request) {
         return ApiResponse.ok("리뷰가 수정되었습니다.", reviewService.update(reviewId, request));
     }
 
+    @LoginRequired
     @DeleteMapping("/reviews/{reviewId}")
     public ApiResponse<Void> delete(@PathVariable Long reviewId) {
         reviewService.delete(reviewId);

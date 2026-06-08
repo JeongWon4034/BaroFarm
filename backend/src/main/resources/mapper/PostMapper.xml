@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.freshgrowth.post.PostMapper">
+    <insert id="insert" parameterType="com.freshgrowth.post.Post" useGeneratedKeys="true" keyProperty="postId">
+        INSERT INTO posts(author_id, title, content)
+        VALUES (#{authorId}, #{title}, #{content})
+    </insert>
+
+    <sql id="cols">
+        p.post_id, p.author_id, u.name AS author_name,
+        p.title, p.content, p.view_count, p.created_at, p.updated_at
+    </sql>
+
+    <select id="findById" resultType="com.freshgrowth.post.Post">
+        SELECT <include refid="cols"/>
+        FROM posts p JOIN users u ON p.author_id = u.user_id
+        WHERE p.post_id = #{postId}
+    </select>
+
+    <select id="findAll" resultType="com.freshgrowth.post.Post">
+        SELECT <include refid="cols"/>
+        FROM posts p JOIN users u ON p.author_id = u.user_id
+        ORDER BY p.post_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM posts
+    </select>
+
+    <update id="update" parameterType="com.freshgrowth.post.Post">
+        UPDATE posts
+        SET title = #{title}, content = #{content}
+        WHERE post_id = #{postId} AND author_id = #{authorId}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM posts
+        WHERE post_id = #{postId} AND author_id = #{authorId}
+    </delete>
+
+    <update id="increaseView">
+        UPDATE posts SET view_count = view_count + 1 WHERE post_id = #{postId}
+    </update>
+</mapper>

@@ -1,5 +1,21 @@
 <script setup>
+import { onMounted } from 'vue'
 import AppHeader from './components/AppHeader.vue'
+import { useAuthStore } from './stores/auth'
+import { useWishlistStore } from './stores/wishlist'
+import { useFollowStore } from './stores/follow'
+
+const auth = useAuthStore()
+const wishlist = useWishlistStore()
+const follow = useFollowStore()
+
+// 새로고침 후에도 찜/팔로우 상태 유지 — 구매자면 로드
+onMounted(() => {
+  if (auth.isBuyer) {
+    wishlist.load()
+    follow.load()
+  }
+})
 </script>
 
 <template>
@@ -9,7 +25,7 @@ import AppHeader from './components/AppHeader.vue'
   </main>
   <footer class="site-footer">
     <div class="container">
-      줍줍AI — AI가 찾아주는 마감임박 신선식품 떨이 · 포트폴리오 데모
+      FreshGrowth — 산지 직거래 신선식품 마켓
     </div>
   </footer>
 </template>

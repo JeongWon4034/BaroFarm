@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.freshgrowth.follow.FollowMapper">
+    <insert id="insert">
+        INSERT IGNORE INTO follows(follower_id, following_id)
+        VALUES (#{followerId}, #{followingId})
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM follows
+        WHERE follower_id = #{followerId} AND following_id = #{followingId}
+    </delete>
+
+    <select id="exists" resultType="int">
+        SELECT COUNT(*) FROM follows
+        WHERE follower_id = #{followerId} AND following_id = #{followingId}
+    </select>
+
+    <sql id="sellerSummaryCols">
+        u.user_id AS sellerId,
+        u.name AS name,
+        (SELECT COUNT(*) FROM follows f WHERE f.following_id = u.user_id) AS followerCount,
+        (SELECT COUNT(*) FROM products p WHERE p.seller_id = u.user_id) AS productCount
+    </sql>
+
+    <select id="findFollowingSellers" resultType="com.freshgrowth.follow.dto.SellerSummary">
+        SELECT <include refid="sellerSummaryCols"/>
+        FROM follows fo
+        JOIN users u ON fo.following_id = u.user_id
+        WHERE fo.follower_id = #{buyerId}
+        ORDER BY fo.follow_id DESC
+    </select>
+
+    <select id="findSellerSummary" resultType="com.freshgrowth.follow.dto.SellerSummary">
+        SELECT <include refid="sellerSummaryCols"/>
+        FROM users u
+        WHERE u.user_id = #{sellerId} AND u.role = 'SELLER'
+    </select>
+</mapper>

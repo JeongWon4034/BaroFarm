@@ -1,7 +1,9 @@
 package com.freshgrowth.common;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -11,6 +13,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleAppException(AppException e) {
         return ResponseEntity.status(e.getStatus())
                 .body(ApiResponse.fail("요청 처리에 실패했습니다.", e.getCode(), e.getMessage()));
+    }
+
+    // 인증 헤더 누락 등 → 401로 일관 처리(안전망)
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingHeader(MissingRequestHeaderException e) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.fail("요청 처리에 실패했습니다.", "UNAUTHORIZED", "로그인이 필요합니다."));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

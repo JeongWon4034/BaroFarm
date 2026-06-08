@@ -9,6 +9,7 @@ export const useAuthStore = defineStore('auth', {
   getters: {
     isLoggedIn: (s) => !!s.user,
     isSeller: (s) => s.user?.role === 'SELLER',
+    isBuyer: (s) => s.user?.role === 'BUYER',
   },
   actions: {
     persist(user) {

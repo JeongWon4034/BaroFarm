@@ -57,6 +57,40 @@ CREATE TABLE reviews (
     FOREIGN KEY (order_id) REFERENCES orders(order_id)
 );
 
+CREATE TABLE wishlists (
+    wishlist_id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    product_id BIGINT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (wishlist_id),
+    UNIQUE KEY uq_wishlist (user_id, product_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (product_id) REFERENCES products(product_id)
+);
+
+CREATE TABLE follows (
+    follow_id BIGINT NOT NULL AUTO_INCREMENT,
+    follower_id BIGINT NOT NULL,   -- 구매자
+    following_id BIGINT NOT NULL,  -- 판매자
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (follow_id),
+    UNIQUE KEY uq_follow (follower_id, following_id),
+    FOREIGN KEY (follower_id) REFERENCES users(user_id),
+    FOREIGN KEY (following_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE posts (
+    post_id BIGINT NOT NULL AUTO_INCREMENT,
+    author_id BIGINT NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    content TEXT NOT NULL,
+    view_count INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (post_id),
+    FOREIGN KEY (author_id) REFERENCES users(user_id)
+);
+
 INSERT INTO users(role, email, password, name) VALUES
 ('SELLER', 'seller@example.com', '1234', '도연농장'),
 ('BUYER', 'buyer@example.com', '1234', '김도연');

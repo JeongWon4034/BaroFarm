@@ -2,10 +2,14 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useWishlistStore } from '../stores/wishlist'
+import { useFollowStore } from '../stores/follow'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const wishlist = useWishlistStore()
+const follow = useFollowStore()
 
 const email = ref('')
 const password = ref('')
@@ -17,6 +21,10 @@ async function submit() {
   loading.value = true
   try {
     await auth.login({ email: email.value, password: password.value })
+    if (auth.isBuyer) {
+      await wishlist.load()
+      await follow.load()
+    }
     router.push(route.query.redirect || { name: 'products' })
   } catch (e) {
     error.value = e.message
@@ -30,7 +38,7 @@ async function submit() {
   <div class="auth-wrap">
     <div class="auth-card card">
       <h1 class="brand">🥬 로그인</h1>
-      <p class="muted sub">줍줍AI에 오신 것을 환영합니다.</p>
+      <p class="muted sub">FreshGrowth에 오신 것을 환영합니다.</p>
 
       <form @submit.prevent="submit">
         <div class="field">

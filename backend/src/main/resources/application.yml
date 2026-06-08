@@ -2,6 +2,9 @@ server:
   port: 8080
 
 spring:
+  config:
+    # 실제 키는 gitignore된 application-local.yml(또는 환경변수)에서 주입 — 커밋 금지
+    import: optional:file:application-local.yml
   datasource:
     url: jdbc:mysql://localhost:3306/freshgrowth?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     username: root
@@ -17,3 +20,15 @@ mybatis:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+# 생성형 AI (GMS — OpenAI 호환 프록시). 값은 application-local.yml / 환경변수에서 주입.
+ai:
+  base-url: ${AI_BASE_URL:}   # GMS 엔드포인트 (비밀 아님)
+  api-key: ${AI_API_KEY:}     # GMS 키 (비밀! 커밋 금지)
+  model: ${AI_MODEL:gpt-4o-mini}
+
+# KAMIS(농수산물유통정보) 시세 API (추천가 고도화). cert-key/cert-id는 application-local.yml에서 주입.
+kamis:
+  base-url: https://www.kamis.or.kr/service/price/xml.do
+  cert-key: ${KAMIS_CERT_KEY:}   # KAMIS 인증키 (비밀!)
+  cert-id: ${KAMIS_CERT_ID:}     # KAMIS 인증ID (비밀!)

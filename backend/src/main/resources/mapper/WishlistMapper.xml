@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.freshgrowth.wishlist.WishlistMapper">
+    <!-- 이미 찜한 상품이면 무시(멱등) -->
+    <insert id="insert">
+        INSERT IGNORE INTO wishlists(user_id, product_id)
+        VALUES (#{userId}, #{productId})
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM wishlists
+        WHERE user_id = #{userId} AND product_id = #{productId}
+    </delete>
+
+    <select id="findWishedProducts" resultType="com.freshgrowth.product.Product">
+        SELECT p.product_id, p.seller_id, p.name, p.description, p.category,
+               p.price, p.stock_qty, p.thumbnail_url, p.expiration_date,
+               p.created_at, p.updated_at
+        FROM wishlists w
+        JOIN products p ON w.product_id = p.product_id
+        WHERE w.user_id = #{userId}
+        ORDER BY w.wishlist_id DESC
+    </select>
+</mapper>

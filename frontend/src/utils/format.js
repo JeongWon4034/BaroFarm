@@ -11,9 +11,11 @@ const NAME_EMOJI = [
   ['고구마', '🍠'], ['옥수수', '🌽'], ['오이', '🥒'], ['브로콜리', '🥦'], ['버섯', '🍄'],
   ['딸기', '🍓'], ['사과', '🍎'], ['포도', '🍇'], ['수박', '🍉'], ['귤', '🍊'],
   ['바나나', '🍌'], ['복숭아', '🍑'], ['배', '🍐'], ['콩', '🫘'], ['쌀', '🌾'],
+  ['오징어', '🦑'], ['새우', '🦐'], ['생선', '🐟'], ['한우', '🥩'], ['불고기', '🥩'], ['고기', '🥩'],
 ]
 const CATEGORY_EMOJI = {
   vegetable: '🥬', fruit: '🍓', grain: '🌾', root: '🥔', mushroom: '🍄',
+  seafood: '🐟', meat: '🥩',
 }
 
 export function thumbEmoji(product) {
@@ -27,6 +29,7 @@ export function thumbEmoji(product) {
 // 카테고리 코드 → 한글 라벨
 const CATEGORY_LABEL = {
   vegetable: '채소', fruit: '과일', grain: '곡물', root: '구근', mushroom: '버섯',
+  seafood: '해산물', meat: '육류',
 }
 export function categoryLabel(code) {
   return CATEGORY_LABEL[code] || code || '기타'

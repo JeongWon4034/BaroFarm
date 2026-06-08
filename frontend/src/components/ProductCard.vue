@@ -1,6 +1,9 @@
 <script setup>
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { won, thumbEmoji, categoryLabel, dDayLabel, riskMeta } from '../utils/format'
+import { useWishlistStore } from '../stores/wishlist'
+import { useAuthStore } from '../stores/auth'
 import StarRating from './StarRating.vue'
 
 const props = defineProps({
@@ -8,8 +11,21 @@ const props = defineProps({
 })
 const emit = defineEmits(['add'])
 
+const router = useRouter()
+const wishlist = useWishlistStore()
+const auth = useAuthStore()
+
 const emoji = computed(() => thumbEmoji(props.product))
 const soldOut = computed(() => (props.product.stockQty ?? 0) <= 0)
+const wished = computed(() => wishlist.isWished(props.product.productId))
+
+async function toggleWish() {
+  if (!auth.isLoggedIn) {
+    router.push({ name: 'login' })
+    return
+  }
+  await wishlist.toggle(props.product.productId)
+}
 
 const hasDeal = computed(() => (props.product.discountRate ?? 0) > 0)
 const dealPrice = computed(() => props.product.discountedPrice ?? props.product.price)
@@ -32,6 +48,9 @@ function add() {
       <!-- 우상단: 할인율 -->
       <span v-if="hasDeal" class="rate">{{ product.discountRate }}%</span>
       <span v-if="soldOut" class="soldout-tag">품절</span>
+      <button v-if="!auth.isSeller" class="wish" :class="{ on: wished }" :title="wished ? '찜 해제' : '찜하기'" @click.prevent="toggleWish">
+        {{ wished ? '♥' : '♡' }}
+      </button>
     </router-link>
 
     <div class="body">
@@ -100,6 +119,16 @@ function add() {
   background: rgba(0,0,0,0.6); color: #fff; font-size: 12px;
   padding: 2px 8px; border-radius: 6px;
 }
+.wish {
+  position: absolute; bottom: 8px; right: 8px;
+  width: 34px; height: 34px; border-radius: 50%;
+  border: none; background: rgba(255,255,255,0.9); box-shadow: var(--shadow);
+  font-size: 18px; line-height: 1; color: #c9ccd1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.12s ease, color 0.12s ease;
+}
+.wish:hover { transform: scale(1.1); }
+.wish.on { color: #e5484d; }
 
 .body { padding: 14px; display: flex; flex-direction: column; gap: 7px; }
 .tags { display: flex; align-items: center; gap: 6px; }
