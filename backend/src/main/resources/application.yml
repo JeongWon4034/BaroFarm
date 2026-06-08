@@ -32,3 +32,8 @@ kamis:
   base-url: https://www.kamis.or.kr/service/price/xml.do
   cert-key: ${KAMIS_CERT_KEY:}   # KAMIS 인증키 (비밀!)
   cert-id: ${KAMIS_CERT_ID:}     # KAMIS 인증ID (비밀!)
+
+# JWT 인증. 운영에선 JWT_SECRET 환경변수로 override 권장.
+jwt:
+  secret: ${JWT_SECRET:freshgrowth-dev-secret-key-change-me-in-production-0123456789ab}
+  expiry-ms: 86400000   # 24시간

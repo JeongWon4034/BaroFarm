@@ -6,10 +6,10 @@ const http = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// 로그인한 사용자의 userId를 X-USER-ID 헤더로 자동 부착 (JWT는 후순위 항목)
+// JWT 토큰을 Authorization: Bearer 헤더로 자동 부착
 http.interceptors.request.use((config) => {
-  const userId = localStorage.getItem('userId')
-  if (userId) config.headers['X-USER-ID'] = userId
+  const token = localStorage.getItem('token')
+  if (token) config.headers['Authorization'] = `Bearer ${token}`
   return config
 })
 

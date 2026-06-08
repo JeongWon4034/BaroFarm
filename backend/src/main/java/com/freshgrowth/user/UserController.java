@@ -3,7 +3,9 @@ package com.freshgrowth.user;
 import com.freshgrowth.common.ApiResponse;
 import com.freshgrowth.common.auth.LoginRequired;
 import com.freshgrowth.common.auth.LoginUser;
+import com.freshgrowth.common.auth.TokenBlacklist;
 import com.freshgrowth.user.dto.LoginRequest;
+import com.freshgrowth.user.dto.ProfileUpdateRequest;
 import com.freshgrowth.user.dto.SignupRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -14,9 +16,11 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1")
 public class UserController {
     private final UserService userService;
+    private final TokenBlacklist tokenBlacklist;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, TokenBlacklist tokenBlacklist) {
         this.userService = userService;
+        this.tokenBlacklist = tokenBlacklist;
     }
 
     @PostMapping("/auth/signup")
@@ -30,8 +34,12 @@ public class UserController {
         return ApiResponse.ok("로그인에 성공했습니다.", userService.login(request));
     }
 
+    // 토큰 무효화(블랙리스트 등록)
     @PostMapping("/auth/logout")
-    public ApiResponse<Void> logout() {
+    public ApiResponse<Void> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            tokenBlacklist.add(authHeader.substring(7).trim());
+        }
         return ApiResponse.ok("로그아웃되었습니다.", null);
     }
 
@@ -44,7 +52,7 @@ public class UserController {
     @LoginRequired
     @PutMapping("/users/me")
     public ApiResponse<?> updateMe(@LoginUser Long userId,
-                                   @Valid @RequestBody com.freshgrowth.user.dto.ProfileUpdateRequest request) {
+                                   @Valid @RequestBody ProfileUpdateRequest request) {
         return ApiResponse.ok("프로필을 수정했습니다.", userService.updateProfile(userId, request));
     }
 

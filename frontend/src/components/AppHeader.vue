@@ -13,8 +13,8 @@ const wishlist = useWishlistStore()
 const follow = useFollowStore()
 const cartCount = computed(() => cart.count)
 
-function logout() {
-  auth.logout()
+async function logout() {
+  await auth.logout()
   wishlist.clear()
   follow.clear()
   router.push({ name: 'products' })
