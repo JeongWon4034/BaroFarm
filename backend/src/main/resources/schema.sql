@@ -91,6 +91,18 @@ CREATE TABLE posts (
     FOREIGN KEY (author_id) REFERENCES users(user_id)
 );
 
+CREATE TABLE comments (
+    comment_id BIGINT NOT NULL AUTO_INCREMENT,
+    post_id BIGINT NOT NULL,
+    author_id BIGINT NOT NULL,
+    content TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (comment_id),
+    FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE CASCADE,
+    FOREIGN KEY (author_id) REFERENCES users(user_id)
+);
+
 INSERT INTO users(role, email, password, name) VALUES
 ('SELLER', 'seller@example.com', '1234', '도연농장'),
 ('BUYER', 'buyer@example.com', '1234', '김도연');
