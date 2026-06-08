@@ -3,6 +3,7 @@ import { useAuthStore } from '../stores/auth'
 
 const routes = [
   { path: '/', name: 'products', component: () => import('../views/ProductListView.vue') },
+  { path: '/deals', name: 'deals', component: () => import('../views/DealsView.vue') },
   { path: '/products/:id', name: 'product-detail', component: () => import('../views/ProductDetailView.vue') },
   { path: '/cart', name: 'cart', component: () => import('../views/CartView.vue') },
   { path: '/order/complete', name: 'order-complete', component: () => import('../views/OrderCompleteView.vue') },

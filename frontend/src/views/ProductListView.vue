@@ -12,7 +12,7 @@ const loading = ref(true)
 const error = ref('')
 const keyword = ref('')
 const activeCategory = ref('all')
-const sort = ref('urgent')
+const sort = ref('latest')
 
 onMounted(load)
 
@@ -69,8 +69,8 @@ function addToCart(product) {
   <div>
     <!-- 배너 -->
     <div class="banner">
-      ⏰ 곧 버려질 신선식품, AI가 찾아 떨이로 살립니다
-      <span class="banner-badge">마감임박 떨이</span>
+      🥬 산지에서 바로, 신선식품 직거래
+      <router-link :to="{ name: 'deals' }" class="banner-badge deals-link">⏰ 마감임박 특가 →</router-link>
     </div>
 
     <!-- 검색 -->
@@ -129,6 +129,8 @@ function addToCart(product) {
   margin-bottom: 18px;
 }
 .banner-badge { background: var(--color-primary); color: #fff; font-size: 12px; padding: 3px 10px; border-radius: 999px; }
+.deals-link { font-weight: 700; transition: background 0.15s ease; }
+.deals-link:hover { background: var(--color-primary-dark); }
 
 .search-row { margin-bottom: 14px; }
 .search { max-width: 420px; }
