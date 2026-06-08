@@ -18,8 +18,11 @@ public class ProductController {
 
     @GetMapping("/products")
     public ApiResponse<?> findAll(@RequestParam(defaultValue = "0") int page,
-                                  @RequestParam(defaultValue = "10") int size) {
-        return ApiResponse.ok("상품 목록을 조회했습니다.", productService.findAll(page, size));
+                                  @RequestParam(defaultValue = "12") int size,
+                                  @RequestParam(required = false) String keyword,
+                                  @RequestParam(required = false) String category,
+                                  @RequestParam(required = false) String sort) {
+        return ApiResponse.ok("상품 목록을 조회했습니다.", productService.findAll(page, size, keyword, category, sort));
     }
 
     @GetMapping("/products/{productId}")

@@ -13,15 +13,33 @@
         WHERE product_id = #{productId}
     </select>
 
+    <sql id="searchWhere">
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+            <if test="category != null and category != ''">
+                AND category = #{category}
+            </if>
+        </where>
+    </sql>
+
     <select id="findAll" resultType="com.freshgrowth.product.Product">
         SELECT product_id, seller_id, name, description, category, price, stock_qty, thumbnail_url, expiration_date, created_at, updated_at
         FROM products
-        ORDER BY product_id DESC
+        <include refid="searchWhere"/>
+        <choose>
+            <when test="sort == 'priceAsc'">ORDER BY price ASC, product_id DESC</when>
+            <when test="sort == 'priceDesc'">ORDER BY price DESC, product_id DESC</when>
+            <when test="sort == 'expiry'">ORDER BY (expiration_date IS NULL), expiration_date ASC, product_id DESC</when>
+            <otherwise>ORDER BY product_id DESC</otherwise>
+        </choose>
         LIMIT #{size} OFFSET #{offset}
     </select>
 
     <select id="countAll" resultType="long">
         SELECT COUNT(*) FROM products
+        <include refid="searchWhere"/>
     </select>
 
     <select id="findBySellerId" resultType="com.freshgrowth.product.Product">

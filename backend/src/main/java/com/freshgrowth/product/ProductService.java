@@ -26,13 +26,13 @@ public class ProductService {
         return withPricing(productMapper.findById(product.getProductId()));
     }
 
-    public PageResponse<Product> findAll(int page, int size) {
+    public PageResponse<Product> findAll(int page, int size, String keyword, String category, String sort) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 100);
         int offset = safePage * safeSize;
-        List<Product> content = productMapper.findAll(offset, safeSize);
+        List<Product> content = productMapper.findAll(offset, safeSize, keyword, category, sort);
         content.forEach(pricingEngine::apply);
-        long total = productMapper.countAll();
+        long total = productMapper.countAll(keyword, category);
         return new PageResponse<>(content, safePage, safeSize, total);
     }
 
