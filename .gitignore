@@ -1,0 +1,29 @@
+# Build output
+target/
+build/
+out/
+*.class
+
+# Node / Vite (frontend)
+node_modules/
+frontend/dist/
+*.local
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# Logs / OS
+*.log
+.DS_Store
+
+# Batch output (생성되는 PDF 리포트)
+batch/output/
+
+# Env / secrets
+*.env
+application-local.yml

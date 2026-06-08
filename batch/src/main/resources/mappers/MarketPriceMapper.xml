@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.freshgrowth.batch.dao.MarketPriceDao">
+
+  <insert id="insertMarketPriceBatch">
+    INSERT INTO market_price
+      (trade_date, market_name, item_name, item_code, kind_name, grade_name,
+       unit_qty, avg_price, prev_avg_price, prev_year_price, fluctuation_rate, raw_json)
+    VALUES
+    <foreach collection="list" item="p" separator=",">
+      (#{p.tradeDate}, #{p.marketName}, #{p.itemName}, #{p.itemCode}, #{p.kindName}, #{p.gradeName},
+       #{p.unitQty}, #{p.avgPrice}, #{p.prevAvgPrice}, #{p.prevYearPrice}, #{p.fluctuationRate}, #{p.rawJson})
+    </foreach>
+  </insert>
+
+  <insert id="insertMarketReport">
+    INSERT INTO market_report
+      (report_date, summary, pdf_path)
+    VALUES
+      (#{reportDate}, #{summary}, #{pdfPath})
+  </insert>
+</mapper>

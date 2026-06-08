@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.freshgrowth.user.UserMapper">
+    <insert id="insert" parameterType="com.freshgrowth.user.User" useGeneratedKeys="true" keyProperty="userId">
+        INSERT INTO users(role, email, password, name, status)
+        VALUES (#{role}, #{email}, #{password}, #{name}, #{status})
+    </insert>
+
+    <select id="findById" resultType="com.freshgrowth.user.User">
+        SELECT user_id, role, email, password, name, status, created_at
+        FROM users
+        WHERE user_id = #{userId}
+    </select>
+
+    <select id="findByEmail" resultType="com.freshgrowth.user.User">
+        SELECT user_id, role, email, password, name, status, created_at
+        FROM users
+        WHERE email = #{email}
+    </select>
+
+    <update id="deactivate">
+        UPDATE users
+        SET status = 'INACTIVE'
+        WHERE user_id = #{userId}
+    </update>
+</mapper>
