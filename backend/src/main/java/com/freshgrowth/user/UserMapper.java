@@ -8,5 +8,6 @@ public interface UserMapper {
     void insert(User user);
     User findById(@Param("userId") Long userId);
     User findByEmail(@Param("email") String email);
+    int updateProfile(User user);
     int deactivate(@Param("userId") Long userId);
 }

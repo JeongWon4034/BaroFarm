@@ -25,6 +25,11 @@ export const useAuthStore = defineStore('auth', {
     async signup(payload) {
       return authApi.signup(payload)
     },
+    async updateProfile(payload) {
+      const user = await authApi.updateProfile(payload)
+      this.persist(user)
+      return user
+    },
     logout() {
       this.user = null
       localStorage.removeItem('user')

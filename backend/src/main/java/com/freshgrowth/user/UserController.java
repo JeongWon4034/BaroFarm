@@ -42,6 +42,13 @@ public class UserController {
     }
 
     @LoginRequired
+    @PutMapping("/users/me")
+    public ApiResponse<?> updateMe(@LoginUser Long userId,
+                                   @Valid @RequestBody com.freshgrowth.user.dto.ProfileUpdateRequest request) {
+        return ApiResponse.ok("프로필을 수정했습니다.", userService.updateProfile(userId, request));
+    }
+
+    @LoginRequired
     @DeleteMapping("/users/me")
     public ApiResponse<Void> deactivate(@LoginUser Long userId) {
         userService.deactivate(userId);

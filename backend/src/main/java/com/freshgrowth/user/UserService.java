@@ -54,6 +54,20 @@ public class UserService {
         return stored.equals(raw);
     }
 
+    @Transactional
+    public UserResponse updateProfile(Long userId, com.freshgrowth.user.dto.ProfileUpdateRequest request) {
+        User user = userMapper.findById(userId);
+        if (user == null) {
+            throw new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다.");
+        }
+        user.setName(request.getName());
+        user.setIntro(request.getIntro());
+        user.setPhone(request.getPhone());
+        user.setProfileImage(request.getProfileImage());
+        userMapper.updateProfile(user);
+        return new UserResponse(userMapper.findById(userId));
+    }
+
     public UserResponse findMe(Long userId) {
         User user = userMapper.findById(userId);
         if (user == null) {
