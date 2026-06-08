@@ -30,7 +30,7 @@ async function submit() {
   <div class="auth-wrap">
     <div class="auth-card card">
       <h1 class="brand">🥬 회원가입</h1>
-      <p class="muted sub">신선한 직거래, FreshGrowth와 함께해요.</p>
+      <p class="muted sub">마감임박 떨이, 줍줍AI와 함께해요.</p>
 
       <form @submit.prevent="submit">
         <div class="field">

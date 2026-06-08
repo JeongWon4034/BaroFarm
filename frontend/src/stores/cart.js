@@ -19,10 +19,14 @@ export const useCartStore = defineStore('cart', {
       if (found) {
         found.quantity += quantity
       } else {
+        // 결제가 = 떨이가(있으면). 정가는 취소선 표시용으로 같이 보관.
+        const dealPrice = product.discountedPrice ?? product.price
         this.items.push({
           productId: product.productId,
           name: product.name,
-          price: product.price,
+          price: dealPrice,
+          originalPrice: product.price,
+          discountRate: product.discountRate ?? 0,
           category: product.category,
           quantity,
         })

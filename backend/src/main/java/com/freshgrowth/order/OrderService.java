@@ -4,6 +4,7 @@ import com.freshgrowth.common.AppException;
 import com.freshgrowth.order.dto.OrderRequest;
 import com.freshgrowth.product.Product;
 import com.freshgrowth.product.ProductMapper;
+import com.freshgrowth.product.WastePricingEngine;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,10 +14,12 @@ import java.util.List;
 public class OrderService {
     private final OrderMapper orderMapper;
     private final ProductMapper productMapper;
+    private final WastePricingEngine pricingEngine;
 
-    public OrderService(OrderMapper orderMapper, ProductMapper productMapper) {
+    public OrderService(OrderMapper orderMapper, ProductMapper productMapper, WastePricingEngine pricingEngine) {
         this.orderMapper = orderMapper;
         this.productMapper = productMapper;
+        this.pricingEngine = pricingEngine;
     }
 
     @Transactional
@@ -31,11 +34,15 @@ public class OrderService {
             throw new AppException(HttpStatus.BAD_REQUEST, "OUT_OF_STOCK", "재고가 부족합니다.");
         }
 
+        // 결제 금액은 서버가 동적 떨이가로 재계산한다(클라이언트 가격 신뢰 안 함).
+        pricingEngine.apply(product);
+        int unitPrice = product.getDiscountedPrice() != null ? product.getDiscountedPrice() : product.getPrice();
+
         Order order = new Order();
         order.setBuyerId(buyerId);
         order.setProductId(request.getProductId());
         order.setQuantity(request.getQuantity());
-        order.setTotalPrice(product.getPrice() * request.getQuantity());
+        order.setTotalPrice(unitPrice * request.getQuantity());
         order.setStatus("COMPLETED");
         orderMapper.insert(order);
 

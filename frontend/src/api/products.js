@@ -5,4 +5,6 @@ export const productApi = {
   list: (page = 0, size = 100) => http.get('/products', { params: { page, size } }),
   detail: (productId) => http.get(`/products/${productId}`),
   reviews: (productId) => http.get(`/products/${productId}/reviews`),
+  // 판매자 본인 상품 (응답에 폐기위험·떨이가 엔진값 포함). X-USER-ID 헤더 필요.
+  sellerProducts: () => http.get('/seller/products'),
 }

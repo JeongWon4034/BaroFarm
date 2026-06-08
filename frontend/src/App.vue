@@ -9,7 +9,7 @@ import AppHeader from './components/AppHeader.vue'
   </main>
   <footer class="site-footer">
     <div class="container">
-      FreshGrowth — 소상공인 신선식품 직거래 마켓 · 포트폴리오 데모
+      줍줍AI — AI가 찾아주는 마감임박 신선식품 떨이 · 포트폴리오 데모
     </div>
   </footer>
 </template>

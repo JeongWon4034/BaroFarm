@@ -61,6 +61,12 @@ INSERT INTO users(role, email, password, name) VALUES
 ('SELLER', 'seller@example.com', '1234', '도연농장'),
 ('BUYER', 'buyer@example.com', '1234', '김도연');
 
+-- 마감임박/떨이 데모용 시드 (기준일 2026-06-08, 유통기한 D-1~D-12로 분산)
 INSERT INTO products(seller_id, name, description, category, price, stock_qty, thumbnail_url, expiration_date) VALUES
-(1, '무농약 청상추', '아침에 수확한 신선한 청상추입니다.', 'vegetable', 3900, 42, 'https://cdn.example.com/lettuce.png', '2026-05-30'),
-(1, '완숙 토마토', '산지에서 바로 보내는 달콤한 토마토입니다.', 'vegetable', 6500, 28, 'https://cdn.example.com/tomato.png', '2026-05-29');
+(1, '무농약 청상추',      '아침에 수확한 신선한 청상추.',   'vegetable', 3900,  48, NULL, '2026-06-09'), -- D-1, 재고많음 → HIGH
+(1, '친환경 방울토마토',  '간식용 방울토마토.',             'vegetable', 5500,  50, NULL, '2026-06-09'), -- D-1, 재고만땅 → HIGH
+(1, '완숙 토마토',        '산지 직송 달콤한 토마토.',       'vegetable', 6500,  30, NULL, '2026-06-10'), -- D-2
+(1, '제주 노지 감귤 2kg', '새콤달콤 노지 감귤.',            'fruit',    12900,  20, NULL, '2026-06-11'), -- D-3
+(1, '국산 손질 오징어',    '당일 손질한 오징어.',            'seafood',   8900,  15, NULL, '2026-06-13'), -- D-5
+(1, '한우 불고기용 300g', '냉장 한우 불고기감.',            'meat',     18900,   8, NULL, '2026-06-16'), -- D-8
+(1, '유기농 시금치',      '데쳐 먹기 좋은 시금치.',         'vegetable', 4200,  35, NULL, '2026-06-20'); -- D-12 → LOW

@@ -53,7 +53,13 @@ async function checkout() {
           <span class="thumb">{{ thumbEmoji(item) }}</span>
           <div class="info">
             <router-link :to="{ name: 'product-detail', params: { id: item.productId } }" class="name">{{ item.name }}</router-link>
-            <span class="price">{{ won(item.price) }}</span>
+            <div class="price-line">
+              <span class="price">{{ won(item.price) }}</span>
+              <template v-if="item.discountRate">
+                <span class="orig">{{ won(item.originalPrice) }}</span>
+                <span class="rate">{{ item.discountRate }}%</span>
+              </template>
+            </div>
           </div>
           <div class="stepper">
             <button @click="cart.updateQty(item.productId, item.quantity - 1)" :disabled="item.quantity <= 1">−</button>
@@ -96,6 +102,10 @@ async function checkout() {
 .line .info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
 .line .name { font-weight: 700; }
 .line .name:hover { color: var(--color-primary-dark); }
+.price-line { display: flex; align-items: baseline; gap: 8px; }
+.price-line .price { font-weight: 700; }
+.price-line .orig { font-size: 13px; color: var(--color-muted); text-decoration: line-through; }
+.price-line .rate { font-size: 13px; font-weight: 700; color: #e5484d; }
 
 .stepper { display: inline-flex; align-items: center; border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
 .stepper button { width: 34px; height: 34px; border: none; background: #fff; font-size: 18px; }

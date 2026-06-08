@@ -5,7 +5,7 @@ import { productApi } from '../api/products'
 import { orderApi } from '../api/orders'
 import { useCartStore } from '../stores/cart'
 import { useAuthStore } from '../stores/auth'
-import { won, thumbEmoji, categoryLabel, dateOnly } from '../utils/format'
+import { won, thumbEmoji, categoryLabel, dateOnly, dDayLabel, riskMeta } from '../utils/format'
 import StarRating from '../components/StarRating.vue'
 
 const route = useRoute()
@@ -40,7 +40,10 @@ async function loadAll() {
 const emoji = computed(() => (product.value ? thumbEmoji(product.value) : '🥗'))
 const soldOut = computed(() => (product.value?.stockQty ?? 0) <= 0)
 const maxQty = computed(() => product.value?.stockQty ?? 1)
-const estimated = computed(() => (product.value ? product.value.price * qty.value : 0))
+const hasDeal = computed(() => (product.value?.discountRate ?? 0) > 0)
+const unitPrice = computed(() => product.value?.discountedPrice ?? product.value?.price ?? 0)
+const risk = computed(() => riskMeta(product.value?.riskLevel))
+const estimated = computed(() => unitPrice.value * qty.value)
 const avgRating = computed(() => {
   if (!reviews.value.length) return product.value?.averageRating || 0
   return reviews.value.reduce((s, r) => s + (r.rating || 0), 0) / reviews.value.length
@@ -87,6 +90,9 @@ async function buyNow() {
         <div class="thumb-badges">
           <span class="badge">{{ categoryLabel(product.category) }}</span>
           <span v-if="product.expirationDate" class="badge badge-accent">유통기한 {{ dateOnly(product.expirationDate) }}</span>
+          <span v-if="product.daysToExpiry != null" class="badge dday-badge" :class="risk.cls">
+            {{ dDayLabel(product.daysToExpiry) }} · {{ risk.label }}
+          </span>
         </div>
       </div>
 
@@ -107,7 +113,14 @@ async function buyNow() {
         <div class="price-row">
           <div>
             <div class="muted sm">판매가격</div>
-            <div class="big-price">{{ won(product.price) }}</div>
+            <template v-if="hasDeal">
+              <div class="deal-line">
+                <span class="deal-rate">{{ product.discountRate }}%</span>
+                <span class="big-price">{{ won(unitPrice) }}</span>
+              </div>
+              <div class="orig-line muted sm">정가 <span class="orig">{{ won(product.price) }}</span></div>
+            </template>
+            <div v-else class="big-price">{{ won(product.price) }}</div>
           </div>
           <div class="stock">
             <div class="muted sm">현재 재고</div>
@@ -182,6 +195,14 @@ async function buyNow() {
 .price-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 14px; }
 .sm { font-size: 13px; }
 .big-price { font-size: 32px; font-weight: 800; color: var(--color-accent-dark); }
+.deal-line { display: flex; align-items: baseline; gap: 10px; }
+.deal-rate { font-size: 24px; font-weight: 800; color: #e5484d; }
+.orig-line { margin-top: 2px; }
+.orig-line .orig { text-decoration: line-through; }
+.dday-badge { color: #fff; background: #9aa0a6; }
+.dday-badge.risk-high { background: #e5484d; }
+.dday-badge.risk-medium { background: #f59e0b; }
+.dday-badge.risk-low { background: #7a8085; }
 .stock { text-align: right; }
 .stock-val { font-size: 22px; font-weight: 700; color: var(--color-primary-dark); }
 .stock-val.low { color: var(--color-accent-dark); }

@@ -20,8 +20,8 @@ function logout() {
     <div class="top-bar">
       <div class="container top-inner">
         <router-link :to="{ name: 'products' }" class="brand">
-          <span class="logo">🥬 FreshGrowth</span>
-          <span class="tagline">소상공인 신선식품 직거래 마켓</span>
+          <span class="logo">🥬 줍줍AI</span>
+          <span class="tagline">AI가 찾아주는 마감임박 떨이</span>
         </router-link>
 
         <div class="top-right">
@@ -46,6 +46,7 @@ function logout() {
         <router-link :to="{ name: 'products' }" class="nav-item" active-class="active" exact-active-class="active">🏠 홈 / 상품 목록</router-link>
         <router-link :to="{ name: 'cart' }" class="nav-item" active-class="active">🧺 장바구니 & 결제</router-link>
         <router-link :to="{ name: 'mypage' }" class="nav-item" active-class="active">👤 마이페이지</router-link>
+        <router-link v-if="auth.isSeller" :to="{ name: 'seller-dashboard' }" class="nav-item" active-class="active">📊 판매자 대시보드</router-link>
       </div>
     </nav>
   </header>

@@ -36,3 +36,22 @@ export function dateOnly(value) {
   if (!value) return '-'
   return String(value).slice(0, 10)
 }
+
+// 유통기한 D-day 라벨: 0 → "오늘 마감", 1 → "D-1" …
+export function dDayLabel(days) {
+  if (days == null) return ''
+  if (days < 0) return '마감'
+  if (days === 0) return '오늘 마감'
+  return 'D-' + days
+}
+
+// 폐기위험 등급 → 표시 메타 (라벨/뱃지 클래스)
+const RISK_META = {
+  HIGH: { label: '폐기 임박', cls: 'risk-high' },
+  MEDIUM: { label: '서두르세요', cls: 'risk-medium' },
+  LOW: { label: '여유', cls: 'risk-low' },
+  EXPIRED: { label: '판매종료', cls: 'risk-expired' },
+}
+export function riskMeta(level) {
+  return RISK_META[level] || RISK_META.LOW
+}

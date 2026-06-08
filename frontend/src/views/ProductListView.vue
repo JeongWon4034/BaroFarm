@@ -12,7 +12,7 @@ const loading = ref(true)
 const error = ref('')
 const keyword = ref('')
 const activeCategory = ref('all')
-const sort = ref('latest')
+const sort = ref('urgent')
 
 onMounted(load)
 
@@ -45,8 +45,12 @@ const filtered = computed(() => {
     list = list.filter((p) => p.name?.toLowerCase().includes(kw))
   }
   const sorted = [...list]
-  if (sort.value === 'priceAsc') sorted.sort((a, b) => a.price - b.price)
-  else if (sort.value === 'priceDesc') sorted.sort((a, b) => b.price - a.price)
+  const dday = (p) => (p.daysToExpiry == null ? 9999 : p.daysToExpiry)
+  const deal = (p) => p.discountedPrice ?? p.price
+  if (sort.value === 'urgent') sorted.sort((a, b) => dday(a) - dday(b) || (b.discountRate ?? 0) - (a.discountRate ?? 0))
+  else if (sort.value === 'discount') sorted.sort((a, b) => (b.discountRate ?? 0) - (a.discountRate ?? 0))
+  else if (sort.value === 'priceAsc') sorted.sort((a, b) => deal(a) - deal(b))
+  else if (sort.value === 'priceDesc') sorted.sort((a, b) => deal(b) - deal(a))
   else sorted.sort((a, b) => b.productId - a.productId)
   return sorted
 })
@@ -65,8 +69,8 @@ function addToCart(product) {
   <div>
     <!-- 배너 -->
     <div class="banner">
-      🥬 오늘의 신선식품, 산지에서 바로 직송
-      <span class="banner-badge">산지직송</span>
+      ⏰ 곧 버려질 신선식품, AI가 찾아 떨이로 살립니다
+      <span class="banner-badge">마감임박 떨이</span>
     </div>
 
     <!-- 검색 -->
@@ -88,9 +92,11 @@ function addToCart(product) {
       <div class="sort">
         <label class="muted">정렬</label>
         <select v-model="sort" class="select">
-          <option value="latest">최신순</option>
+          <option value="urgent">마감임박순</option>
+          <option value="discount">할인율순</option>
           <option value="priceAsc">가격 낮은순</option>
           <option value="priceDesc">가격 높은순</option>
+          <option value="latest">최신순</option>
         </select>
       </div>
     </div>

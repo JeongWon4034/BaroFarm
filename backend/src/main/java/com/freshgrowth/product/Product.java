@@ -16,6 +16,13 @@ public class Product {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    // --- 폐기위험·동적가격 엔진 산출값 (DB 비저장, 조회 시 WastePricingEngine이 계산) ---
+    private Integer daysToExpiry;    // 유통기한까지 남은 일수 (음수면 경과)
+    private String riskLevel;        // HIGH | MEDIUM | LOW | EXPIRED
+    private Double riskScore;        // 0.0 ~ 1.0
+    private Integer discountRate;    // 추천 할인율(%)
+    private Integer discountedPrice; // 동적 떨이가
+
     public Long getProductId() { return productId; }
     public void setProductId(Long productId) { this.productId = productId; }
     public Long getSellerId() { return sellerId; }
@@ -38,4 +45,14 @@ public class Product {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public Integer getDaysToExpiry() { return daysToExpiry; }
+    public void setDaysToExpiry(Integer daysToExpiry) { this.daysToExpiry = daysToExpiry; }
+    public String getRiskLevel() { return riskLevel; }
+    public void setRiskLevel(String riskLevel) { this.riskLevel = riskLevel; }
+    public Double getRiskScore() { return riskScore; }
+    public void setRiskScore(Double riskScore) { this.riskScore = riskScore; }
+    public Integer getDiscountRate() { return discountRate; }
+    public void setDiscountRate(Integer discountRate) { this.discountRate = discountRate; }
+    public Integer getDiscountedPrice() { return discountedPrice; }
+    public void setDiscountedPrice(Integer discountedPrice) { this.discountedPrice = discountedPrice; }
 }
