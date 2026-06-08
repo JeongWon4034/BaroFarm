@@ -9,12 +9,16 @@ const products = ref([])
 const loading = ref(true)
 const error = ref('')
 
+const aiReport = ref(null)
+
 onMounted(load)
 async function load() {
   loading.value = true
   error.value = ''
   try {
     products.value = (await productApi.sellerProducts()) || []
+    // 진짜 LLM 요약(실패/미설정 시 규칙기반 summary로 폴백)
+    aiReport.value = await productApi.sellerReport().catch(() => null)
   } catch (e) {
     error.value = e.message
   } finally {
@@ -80,9 +84,10 @@ const summary = computed(() => {
     <template v-else>
       <!-- AI 요약 리포트 -->
       <div class="report card">
-        <div class="report-tag">🤖 AI 요약 리포트</div>
-        <p class="report-body">{{ summary }}</p>
-        <p class="report-note muted">※ 현재는 규칙 기반 자동 생성, 추후 배치 LLM 요약으로 고도화 예정</p>
+        <div class="report-tag">🤖 AI 요약 리포트<span v-if="aiReport" class="report-badge">GMS</span></div>
+        <p class="report-body">{{ aiReport?.summary || summary }}</p>
+        <p v-if="aiReport?.usedData?.length" class="report-ctx muted">🔎 AI가 참고한 데이터: {{ aiReport.usedData.join(' · ') }}</p>
+        <p v-else class="report-note muted">※ AI 연결 전이라 규칙 기반 요약입니다.</p>
       </div>
 
       <!-- KPI -->
@@ -160,6 +165,8 @@ const summary = computed(() => {
 .report-tag { font-weight: 800; color: var(--color-primary-dark); font-size: 14px; margin-bottom: 6px; }
 .report-body { margin: 0; font-size: 15px; line-height: 1.5; font-weight: 600; }
 .report-note { margin: 8px 0 0; font-size: 12px; }
+.report-ctx { margin: 8px 0 0; font-size: 12px; }
+.report-badge { margin-left: 8px; font-size: 11px; font-weight: 700; color: #fff; background: var(--color-primary); padding: 2px 7px; border-radius: 999px; vertical-align: middle; }
 
 .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
 @media (max-width: 760px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }

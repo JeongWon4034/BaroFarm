@@ -1,10 +1,13 @@
 package com.freshgrowth.product.ai;
 
+import com.freshgrowth.product.Product;
 import com.freshgrowth.product.ProductMapper;
+import com.freshgrowth.product.ProductService;
 import com.freshgrowth.product.ai.dto.DescriptionResult;
 import com.freshgrowth.product.ai.dto.KamisItem;
 import com.freshgrowth.product.ai.dto.PriceStats;
 import com.freshgrowth.product.ai.dto.PriceSuggestion;
+import com.freshgrowth.product.ai.dto.SellerReport;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -18,6 +21,7 @@ public class ProductAiService {
     private final AiClient aiClient;
     private final KamisClient kamisClient;
     private final ProductMapper productMapper;
+    private final ProductService productService;
 
     // 우리 카테고리 → KAMIS category_name (소프트 매칭 보정)
     private static final Map<String, String> CAT_MAP = Map.of(
@@ -37,10 +41,56 @@ public class ProductAiService {
 
     private static final double FAST_SALE_FACTOR = 0.92; // 빠른 판매: 시세보다 8% 낮게
 
-    public ProductAiService(AiClient aiClient, KamisClient kamisClient, ProductMapper productMapper) {
+    public ProductAiService(AiClient aiClient, KamisClient kamisClient,
+                            ProductMapper productMapper, ProductService productService) {
         this.aiClient = aiClient;
         this.kamisClient = kamisClient;
         this.productMapper = productMapper;
+        this.productService = productService;
+    }
+
+    /** 판매자 폐기위험 데이터를 LLM에 넣어 운영 요약 리포트 생성 (입력 데이터도 함께 반환) */
+    public SellerReport generateSellerReport(Long sellerId) {
+        List<Product> products = productService.findSellerProducts(sellerId);
+        long high = 0, med = 0, wasteLoss = 0, recovered = 0;
+        List<Product> atRisk = new ArrayList<>();
+        for (Product p : products) {
+            String r = p.getRiskLevel();
+            if ("HIGH".equals(r)) high++;
+            if ("MEDIUM".equals(r)) med++;
+            if ("HIGH".equals(r) || "MEDIUM".equals(r)) {
+                atRisk.add(p);
+                int stock = p.getStockQty() == null ? 0 : p.getStockQty();
+                int price = p.getPrice() == null ? 0 : p.getPrice();
+                int deal = p.getDiscountedPrice() == null ? price : p.getDiscountedPrice();
+                wasteLoss += (long) stock * price;
+                recovered += (long) stock * deal;
+            }
+        }
+
+        List<String> usedData = new ArrayList<>();
+        usedData.add("전체 상품 " + products.size() + "개");
+        usedData.add("폐기위험 상품 " + atRisk.size() + "개 (HIGH " + high + " · MEDIUM " + med + ")");
+        usedData.add("방치 시 예상 폐기손실 약 " + wonL(wasteLoss) + "원");
+        usedData.add("AI 떨이가 적용 시 회수 예상 약 " + wonL(recovered) + "원");
+
+        SellerReport report = new SellerReport();
+        report.setUsedData(usedData);
+        if (atRisk.isEmpty()) {
+            report.setSummary("오늘 폐기위험 상품이 없습니다. 재고 상태가 양호합니다.");
+            return report;
+        }
+
+        String system = "너는 신선식품 마켓 판매자의 운영 어시스턴트다. 주어진 폐기위험 데이터를 바탕으로 "
+                + "판매자가 오늘 알아야 할 핵심과 추천 행동을 1~2문장의 한국어로 담백하게 요약한다. 이모지·과장 없이.";
+        String user = "판매자 재고 폐기위험 현황:\n" + String.join("\n", usedData)
+                + "\n위 데이터를 바탕으로 핵심 요약과 추천 행동을 1~2문장으로 작성해줘.";
+        report.setSummary(aiClient.chat(system, user, 250));
+        return report;
+    }
+
+    private static String wonL(long v) {
+        return String.format("%,d", v);
     }
 
     /**
