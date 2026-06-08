@@ -1,0 +1,58 @@
+package com.freshgrowth.product;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+public class Product {
+    private Long productId;
+    private Long sellerId;
+    private String name;
+    private String description;
+    private String category;
+    private Integer price;
+    private Integer stockQty;
+    private String thumbnailUrl;
+    private LocalDate expirationDate;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    // --- 폐기위험·동적가격 엔진 산출값 (DB 비저장, 조회 시 WastePricingEngine이 계산) ---
+    private Integer daysToExpiry;    // 유통기한까지 남은 일수 (음수면 경과)
+    private String riskLevel;        // HIGH | MEDIUM | LOW | EXPIRED
+    private Double riskScore;        // 0.0 ~ 1.0
+    private Integer discountRate;    // 추천 할인율(%)
+    private Integer discountedPrice; // 동적 떨이가
+
+    public Long getProductId() { return productId; }
+    public void setProductId(Long productId) { this.productId = productId; }
+    public Long getSellerId() { return sellerId; }
+    public void setSellerId(Long sellerId) { this.sellerId = sellerId; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
+    public Integer getPrice() { return price; }
+    public void setPrice(Integer price) { this.price = price; }
+    public Integer getStockQty() { return stockQty; }
+    public void setStockQty(Integer stockQty) { this.stockQty = stockQty; }
+    public String getThumbnailUrl() { return thumbnailUrl; }
+    public void setThumbnailUrl(String thumbnailUrl) { this.thumbnailUrl = thumbnailUrl; }
+    public LocalDate getExpirationDate() { return expirationDate; }
+    public void setExpirationDate(LocalDate expirationDate) { this.expirationDate = expirationDate; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public Integer getDaysToExpiry() { return daysToExpiry; }
+    public void setDaysToExpiry(Integer daysToExpiry) { this.daysToExpiry = daysToExpiry; }
+    public String getRiskLevel() { return riskLevel; }
+    public void setRiskLevel(String riskLevel) { this.riskLevel = riskLevel; }
+    public Double getRiskScore() { return riskScore; }
+    public void setRiskScore(Double riskScore) { this.riskScore = riskScore; }
+    public Integer getDiscountRate() { return discountRate; }
+    public void setDiscountRate(Integer discountRate) { this.discountRate = discountRate; }
+    public Integer getDiscountedPrice() { return discountedPrice; }
+    public void setDiscountedPrice(Integer discountedPrice) { this.discountedPrice = discountedPrice; }
+}
