@@ -8,6 +8,7 @@
             o.buyer_id,
             o.product_id,
             p.name AS product_name,
+            p.category AS category,
             o.quantity,
             o.total_price,
             o.status,

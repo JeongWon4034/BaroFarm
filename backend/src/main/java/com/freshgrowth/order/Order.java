@@ -7,6 +7,7 @@ public class Order {
     private Long buyerId;
     private Long productId;
     private String productName;
+    private String category;
     private Integer quantity;
     private Integer totalPrice;
     private String status;
@@ -21,6 +22,8 @@ public class Order {
     public void setProductId(Long productId) { this.productId = productId; }
     public String getProductName() { return productName; }
     public void setProductName(String productName) { this.productName = productName; }
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
     public Integer getQuantity() { return quantity; }
     public void setQuantity(Integer quantity) { this.quantity = quantity; }
     public Integer getTotalPrice() { return totalPrice; }

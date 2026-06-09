@@ -127,7 +127,10 @@ async function submitReview(order) {
       </div>
     </div>
 
-    <h2 class="section-title">📦 구매 내역</h2>
+    <div class="orders-head">
+      <h2 class="section-title">📦 구매 내역</h2>
+      <router-link v-if="orders.length" class="btn btn-outline sm-btn" :to="{ name: 'purchase-insights' }">📊 내 구매 분석</router-link>
+    </div>
 
     <div v-if="loading" class="empty"><span class="emoji">⏳</span>불러오는 중…</div>
     <div v-else-if="error" class="empty"><span class="emoji">⚠️</span>{{ error }}</div>
@@ -196,6 +199,8 @@ async function submitReview(order) {
 @media (max-width: 560px) { .edit-grid { flex-direction: column; align-items: stretch; } }
 
 .section-title { font-size: 20px; margin-bottom: 16px; }
+.orders-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.orders-head .section-title { margin-bottom: 0; }
 .orders { display: flex; flex-direction: column; gap: 12px; }
 .order { padding: 16px; }
 .order-main { display: flex; align-items: center; gap: 14px; }
