@@ -12,6 +12,15 @@
         p.title, p.content, p.view_count, p.created_at, p.updated_at
     </sql>
 
+    <sql id="searchWhere">
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (p.title LIKE CONCAT('%', #{keyword}, '%')
+                     OR p.content LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+    </sql>
+
     <select id="findById" resultType="com.freshgrowth.post.Post">
         SELECT <include refid="cols"/>
         FROM posts p JOIN users u ON p.author_id = u.user_id
@@ -21,12 +30,17 @@
     <select id="findAll" resultType="com.freshgrowth.post.Post">
         SELECT <include refid="cols"/>
         FROM posts p JOIN users u ON p.author_id = u.user_id
-        ORDER BY p.post_id DESC
+        <include refid="searchWhere"/>
+        <choose>
+            <when test="sort == 'views'">ORDER BY p.view_count DESC, p.post_id DESC</when>
+            <otherwise>ORDER BY p.post_id DESC</otherwise>
+        </choose>
         LIMIT #{size} OFFSET #{offset}
     </select>
 
     <select id="countAll" resultType="long">
-        SELECT COUNT(*) FROM posts
+        SELECT COUNT(*) FROM posts p
+        <include refid="searchWhere"/>
     </select>
 
     <update id="update" parameterType="com.freshgrowth.post.Post">
