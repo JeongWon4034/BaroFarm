@@ -33,8 +33,13 @@ async function loadAll() {
   qty.value = 1
   try {
     product.value = await productApi.detail(route.params.id)
-    reviews.value = await productApi.reviews(route.params.id).catch(() => [])
-    seller.value = await followApi.seller(product.value.sellerId).catch(() => null)
+    // 리뷰·판매자는 서로 의존이 없어 병렬로 조회
+    const [rv, sl] = await Promise.all([
+      productApi.reviews(route.params.id).catch(() => []),
+      followApi.seller(product.value.sellerId).catch(() => null),
+    ])
+    reviews.value = rv
+    seller.value = sl
   } catch (e) {
     error.value = e.message
   } finally {
@@ -44,6 +49,7 @@ async function loadAll() {
 
 const emoji = computed(() => (product.value ? thumbEmoji(product.value) : '🥗'))
 const soldOut = computed(() => (product.value?.stockQty ?? 0) <= 0)
+const isExpired = computed(() => product.value?.riskLevel === 'EXPIRED' || (product.value?.daysToExpiry ?? 0) < 0)
 const maxQty = computed(() => product.value?.stockQty ?? 1)
 const hasDeal = computed(() => (product.value?.discountRate ?? 0) > 0)
 const unitPrice = computed(() => product.value?.discountedPrice ?? product.value?.price ?? 0)
@@ -59,6 +65,7 @@ function changeQty(delta) {
 }
 
 function addToCart() {
+  if (isExpired.value) return
   cart.add(product.value, qty.value)
   router.push({ name: 'cart' })
 }
@@ -77,6 +84,7 @@ async function toggleFollow() {
 }
 
 async function buyNow() {
+  if (isExpired.value) return
   if (!auth.isLoggedIn) {
     router.push({ name: 'login', query: { redirect: route.fullPath } })
     return
@@ -171,11 +179,12 @@ async function buyNow() {
         <p class="estimated">결제 예정 금액: <span class="price">{{ won(estimated) }}</span></p>
 
         <p v-if="error" class="err">{{ error }}</p>
+        <p v-if="isExpired" class="expired-notice">⛔ 유통기한이 지나 판매가 종료된 상품입니다.</p>
 
         <div class="actions">
-          <button class="btn btn-outline" :disabled="soldOut" @click="addToCart">🧺 장바구니 담기</button>
-          <button class="btn btn-accent" :disabled="soldOut || submitting" @click="buyNow">
-            {{ soldOut ? '품절' : (submitting ? '처리 중…' : '💳 결제하기') }}
+          <button class="btn btn-outline" :disabled="soldOut || isExpired" @click="addToCart">🧺 장바구니 담기</button>
+          <button class="btn btn-accent" :disabled="soldOut || isExpired || submitting" @click="buyNow">
+            {{ isExpired ? '판매종료' : soldOut ? '품절' : (submitting ? '처리 중…' : '💳 결제하기') }}
           </button>
         </div>
       </div>
@@ -256,6 +265,7 @@ async function buyNow() {
 .estimated { font-size: 16px; margin-bottom: 8px; }
 .estimated .price { font-size: 20px; }
 .err { color: var(--color-accent-dark); font-size: 14px; margin: 4px 0; }
+.expired-notice { color: #c0392b; background: #fdeaea; border-radius: var(--radius-sm); padding: 10px 14px; font-size: 14px; font-weight: 600; margin: 4px 0 8px; }
 
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
 .actions .btn { padding: 15px; font-size: 16px; }

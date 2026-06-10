@@ -29,13 +29,18 @@ public class OrderService {
             throw new AppException(HttpStatus.NOT_FOUND, "PRODUCT_NOT_FOUND", "상품을 찾을 수 없습니다.");
         }
 
+        // 폐기위험·떨이가 계산(서버 권위) — 유통기한 지난 상품은 재고 차감 전에 차단한다.
+        pricingEngine.apply(product);
+        if ("EXPIRED".equals(product.getRiskLevel())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "PRODUCT_EXPIRED", "유통기한이 지나 구매할 수 없는 상품입니다.");
+        }
+
         int updated = productMapper.decreaseStock(request.getProductId(), request.getQuantity());
         if (updated == 0) {
             throw new AppException(HttpStatus.BAD_REQUEST, "OUT_OF_STOCK", "재고가 부족합니다.");
         }
 
         // 결제 금액은 서버가 동적 떨이가로 재계산한다(클라이언트 가격 신뢰 안 함).
-        pricingEngine.apply(product);
         int unitPrice = product.getDiscountedPrice() != null ? product.getDiscountedPrice() : product.getPrice();
 
         Order order = new Order();
