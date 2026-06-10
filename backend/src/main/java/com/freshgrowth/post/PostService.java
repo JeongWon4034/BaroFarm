@@ -27,12 +27,12 @@ public class PostService {
         return postMapper.findById(post.getPostId());
     }
 
-    public PageResponse<Post> findAll(int page, int size) {
+    public PageResponse<Post> findAll(int page, int size, String keyword, String sort) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 100);
         int offset = safePage * safeSize;
-        List<Post> content = postMapper.findAll(offset, safeSize);
-        long total = postMapper.countAll();
+        List<Post> content = postMapper.findAll(offset, safeSize, keyword, sort);
+        long total = postMapper.countAll(keyword);
         return new PageResponse<>(content, safePage, safeSize, total);
     }
 

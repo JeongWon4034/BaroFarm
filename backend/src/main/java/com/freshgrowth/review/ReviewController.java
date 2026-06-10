@@ -2,6 +2,7 @@ package com.freshgrowth.review;
 
 import com.freshgrowth.common.ApiResponse;
 import com.freshgrowth.common.auth.LoginRequired;
+import com.freshgrowth.common.auth.LoginUser;
 import com.freshgrowth.review.dto.ReviewRequest;
 import com.freshgrowth.review.dto.ReviewUpdateRequest;
 import jakarta.validation.Valid;
@@ -18,8 +19,8 @@ public class ReviewController {
 
     @LoginRequired(role = "BUYER")
     @PostMapping("/reviews")
-    public ApiResponse<?> create(@Valid @RequestBody ReviewRequest request) {
-        return ApiResponse.ok("리뷰가 작성되었습니다.", reviewService.create(request));
+    public ApiResponse<?> create(@LoginUser Long buyerId, @Valid @RequestBody ReviewRequest request) {
+        return ApiResponse.ok("리뷰가 작성되었습니다.", reviewService.create(buyerId, request));
     }
 
     @GetMapping("/products/{productId}/reviews")
@@ -29,15 +30,15 @@ public class ReviewController {
 
     @LoginRequired
     @PutMapping("/reviews/{reviewId}")
-    public ApiResponse<?> update(@PathVariable Long reviewId,
+    public ApiResponse<?> update(@LoginUser Long buyerId, @PathVariable Long reviewId,
                                  @Valid @RequestBody ReviewUpdateRequest request) {
-        return ApiResponse.ok("리뷰가 수정되었습니다.", reviewService.update(reviewId, request));
+        return ApiResponse.ok("리뷰가 수정되었습니다.", reviewService.update(buyerId, reviewId, request));
     }
 
     @LoginRequired
     @DeleteMapping("/reviews/{reviewId}")
-    public ApiResponse<Void> delete(@PathVariable Long reviewId) {
-        reviewService.delete(reviewId);
+    public ApiResponse<Void> delete(@LoginUser Long buyerId, @PathVariable Long reviewId) {
+        reviewService.delete(buyerId, reviewId);
         return ApiResponse.ok("리뷰가 삭제되었습니다.", null);
     }
 }
