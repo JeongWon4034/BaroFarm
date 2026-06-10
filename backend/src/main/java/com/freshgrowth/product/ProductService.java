@@ -7,9 +7,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class ProductService {
+    private static final Set<String> VALID_SORTS = Set.of("latest", "priceAsc", "priceDesc", "expiry");
+
     private final ProductMapper productMapper;
     private final WastePricingEngine pricingEngine;
 
@@ -30,9 +33,12 @@ public class ProductService {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 100);
         int offset = safePage * safeSize;
-        List<Product> content = productMapper.findAll(offset, safeSize, keyword, category, sort);
+        String safeKeyword = (keyword != null && !keyword.isBlank()) ? keyword.trim() : null;
+        String safeCategory = (category != null && !category.isBlank()) ? category.trim() : null;
+        String safeSort = VALID_SORTS.contains(sort) ? sort : "latest";
+        List<Product> content = productMapper.findAll(offset, safeSize, safeKeyword, safeCategory, safeSort);
         content.forEach(pricingEngine::apply);
-        long total = productMapper.countAll(keyword, category);
+        long total = productMapper.countAll(safeKeyword, safeCategory);
         return new PageResponse<>(content, safePage, safeSize, total);
     }
 
@@ -52,14 +58,17 @@ public class ProductService {
 
     @Transactional
     public Product update(Long sellerId, Long productId, ProductRequest request) {
-        findById(productId);
+        Product existing = productMapper.findById(productId);
+        if (existing == null) {
+            throw new AppException(HttpStatus.NOT_FOUND, "PRODUCT_NOT_FOUND", "상품을 찾을 수 없습니다.");
+        }
+        if (!existing.getSellerId().equals(sellerId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "수정 권한이 없습니다.");
+        }
         Product product = toProduct(request);
         product.setProductId(productId);
         product.setSellerId(sellerId);
-        int updated = productMapper.update(product);
-        if (updated == 0) {
-            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "수정 권한이 없습니다.");
-        }
+        productMapper.update(product);
         return withPricing(productMapper.findById(productId));
     }
 
