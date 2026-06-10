@@ -35,7 +35,7 @@ public class ProductService {
         int offset = safePage * safeSize;
         String safeKeyword = (keyword != null && !keyword.isBlank()) ? keyword.trim() : null;
         String safeCategory = (category != null && !category.isBlank()) ? category.trim() : null;
-        String safeSort = VALID_SORTS.contains(sort) ? sort : "latest";
+        String safeSort = sort != null && VALID_SORTS.contains(sort) ? sort : "latest";
         List<Product> content = productMapper.findAll(offset, safeSize, safeKeyword, safeCategory, safeSort);
         content.forEach(pricingEngine::apply);
         long total = productMapper.countAll(safeKeyword, safeCategory);
@@ -74,10 +74,14 @@ public class ProductService {
 
     @Transactional
     public void delete(Long sellerId, Long productId) {
-        int deleted = productMapper.delete(productId, sellerId);
-        if (deleted == 0) {
-            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "삭제 권한이 없거나 상품이 없습니다.");
+        Product existing = productMapper.findById(productId);
+        if (existing == null) {
+            throw new AppException(HttpStatus.NOT_FOUND, "PRODUCT_NOT_FOUND", "상품을 찾을 수 없습니다.");
         }
+        if (!existing.getSellerId().equals(sellerId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "삭제 권한이 없습니다.");
+        }
+        productMapper.delete(productId, sellerId);
     }
 
     private Product withPricing(Product product) {
