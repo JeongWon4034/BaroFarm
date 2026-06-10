@@ -4,6 +4,8 @@ import { useAuthStore } from '../stores/auth'
 const routes = [
   { path: '/', name: 'products', component: () => import('../views/ProductListView.vue') },
   { path: '/deals', name: 'deals', component: () => import('../views/DealsView.vue') },
+  { path: '/challenges', name: 'challenges', component: () => import('../views/ChallengeListView.vue') },
+  { path: '/challenges/:id', name: 'challenge-detail', component: () => import('../views/ChallengeDetailView.vue') },
   { path: '/board', name: 'board', component: () => import('../views/BoardListView.vue') },
   { path: '/board/write', name: 'board-write', component: () => import('../views/BoardFormView.vue'), meta: { auth: true } },
   { path: '/board/:id', name: 'board-detail', component: () => import('../views/BoardDetailView.vue') },
