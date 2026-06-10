@@ -6,4 +6,5 @@ export const authApi = {
   logout: () => http.post('/auth/logout'),
   me: () => http.get('/users/me'),
   updateProfile: (payload) => http.put('/users/me', payload), // {name, intro, phone, profileImage}
+  deactivate: (payload) => http.delete('/users/me', { data: payload }), // {password}
 }

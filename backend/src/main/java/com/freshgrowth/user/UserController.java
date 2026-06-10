@@ -4,6 +4,7 @@ import com.freshgrowth.common.ApiResponse;
 import com.freshgrowth.common.auth.LoginRequired;
 import com.freshgrowth.common.auth.LoginUser;
 import com.freshgrowth.common.auth.TokenBlacklist;
+import com.freshgrowth.user.dto.DeactivateRequest;
 import com.freshgrowth.user.dto.LoginRequest;
 import com.freshgrowth.user.dto.ProfileUpdateRequest;
 import com.freshgrowth.user.dto.SignupRequest;
@@ -59,8 +60,9 @@ public class UserController {
     @LoginRequired
     @DeleteMapping("/users/me")
     public ApiResponse<Void> deactivate(@LoginUser Long userId,
+                                        @Valid @RequestBody DeactivateRequest request,
                                         @RequestHeader(value = "Authorization", required = false) String authHeader) {
-        userService.deactivate(userId);
+        userService.deactivate(userId, request.getPassword());
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             tokenBlacklist.add(authHeader.substring(7).trim());
         }
