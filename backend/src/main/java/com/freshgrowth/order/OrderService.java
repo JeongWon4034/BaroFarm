@@ -1,5 +1,6 @@
 package com.freshgrowth.order;
 
+import com.freshgrowth.challenge.ChallengeService;
 import com.freshgrowth.common.AppException;
 import com.freshgrowth.order.dto.OrderRequest;
 import com.freshgrowth.product.Product;
@@ -15,11 +16,14 @@ public class OrderService {
     private final OrderMapper orderMapper;
     private final ProductMapper productMapper;
     private final WastePricingEngine pricingEngine;
+    private final ChallengeService challengeService;
 
-    public OrderService(OrderMapper orderMapper, ProductMapper productMapper, WastePricingEngine pricingEngine) {
+    public OrderService(OrderMapper orderMapper, ProductMapper productMapper,
+                        WastePricingEngine pricingEngine, ChallengeService challengeService) {
         this.orderMapper = orderMapper;
         this.productMapper = productMapper;
         this.pricingEngine = pricingEngine;
+        this.challengeService = challengeService;
     }
 
     @Transactional
@@ -50,6 +54,11 @@ public class OrderService {
         order.setTotalPrice(unitPrice * request.getQuantity());
         order.setStatus("COMPLETED");
         orderMapper.insert(order);
+
+        // 마감임박(떨이) 상품 구매면 폐기 절감 챌린지 진행도 반영
+        if (product.getDiscountRate() != null && product.getDiscountRate() > 0) {
+            challengeService.recordDeadlinePurchase(buyerId);
+        }
 
         return orderMapper.findById(order.getOrderId());
     }

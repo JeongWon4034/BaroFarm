@@ -143,3 +143,35 @@ INSERT INTO comments(post_id, author_id, content) VALUES
 (4, 1, '떨이 탭 반응이 좋아서 뿌듯합니다 :)'),
 (9, 2, '확실히 직거래가 신선도가 다르긴 해요.'),
 (10, 1, '감귤청 좋네요. 껍질 세척만 잘 하면 됩니다.');
+
+-- ── 폐기 절감 챌린지 (마감임박 상품 구매로 음식물 폐기 줄이기) ─────────────
+CREATE TABLE challenges (
+    challenge_id BIGINT NOT NULL AUTO_INCREMENT,
+    title        VARCHAR(200) NOT NULL,
+    description  VARCHAR(500),
+    goal_type    VARCHAR(40) NOT NULL DEFAULT 'DEADLINE_PURCHASE', -- 목표 유형(마감임박 상품 구매)
+    goal_count   INT NOT NULL,                                     -- 달성 목표 횟수
+    period_days  INT NOT NULL DEFAULT 7,
+    badge_emoji  VARCHAR(8) DEFAULT '🥬',
+    created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (challenge_id)
+);
+
+CREATE TABLE user_challenges (
+    user_challenge_id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id      BIGINT NOT NULL,
+    challenge_id BIGINT NOT NULL,
+    status       VARCHAR(20) NOT NULL DEFAULT 'ONGOING',  -- ONGOING / COMPLETED
+    progress     INT NOT NULL DEFAULT 0,
+    joined_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME,
+    PRIMARY KEY (user_challenge_id),
+    UNIQUE KEY uq_user_challenge (user_id, challenge_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (challenge_id) REFERENCES challenges(challenge_id)
+);
+
+INSERT INTO challenges(title, description, goal_type, goal_count, period_days, badge_emoji) VALUES
+('알뜰 장보기 입문',   '마감임박 떨이 상품 1개 구매하기. 첫 폐기 절감 도전!',   'DEADLINE_PURCHASE', 1,  7,  '🌱'),
+('이번 주 폐기 구원자', '마감임박 상품 3개를 구매해 음식물 폐기를 줄여보세요.',  'DEADLINE_PURCHASE', 3,  7,  '🦸'),
+('폐기 절감 마스터',   '마감임박 상품 10개 구매로 진짜 절약왕 등극.',          'DEADLINE_PURCHASE', 10, 30, '🏆');
