@@ -1,29 +1,45 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { productApi } from '../api/products'
 import { useCartStore } from '../stores/cart'
 import { categoryLabel } from '../utils/format'
 import ProductCard from '../components/ProductCard.vue'
 
 const cart = useCartStore()
+const route = useRoute()
+const router = useRouter()
 const CATEGORIES = ['all', 'vegetable', 'fruit', 'seafood', 'meat', 'grain', 'mushroom', 'root']
+const SORTS = ['latest', 'expiry', 'priceAsc', 'priceDesc']
 const SIZE = 12
 
 const products = ref([])
 const loading = ref(true)
 const error = ref('')
-const keyword = ref('')
-const activeCategory = ref('all')
-const sort = ref('latest')
-const page = ref(0)
+// 초기 상태를 URL 쿼리에서 복원 → 새로고침·뒤로가기·링크 공유에도 검색조건 유지
+const keyword = ref(route.query.keyword || '')
+const activeCategory = ref(CATEGORIES.includes(route.query.category) ? route.query.category : 'all')
+const sort = ref(SORTS.includes(route.query.sort) ? route.query.sort : 'latest')
+const page = ref(Math.max(0, (parseInt(route.query.page) || 1) - 1))
 const totalPages = ref(0)
 const totalElements = ref(0)
 
 onMounted(load)
 
+// 현재 검색 상태를 URL 쿼리에 반영(기본값은 생략해 깔끔하게)
+function syncUrl() {
+  const q = {}
+  if (keyword.value.trim()) q.keyword = keyword.value.trim()
+  if (activeCategory.value !== 'all') q.category = activeCategory.value
+  if (sort.value !== 'latest') q.sort = sort.value
+  if (page.value > 0) q.page = page.value + 1
+  router.replace({ query: q }).catch(() => {})
+}
+
 async function load() {
   loading.value = true
   error.value = ''
+  syncUrl()
   try {
     const res = await productApi.list({
       page: page.value,

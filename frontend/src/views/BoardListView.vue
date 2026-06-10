@@ -1,15 +1,25 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { postApi } from '../api/posts'
 import { useAuthStore } from '../stores/auth'
 import { dateOnly } from '../utils/format'
 
+const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const SORTS = ['latest', 'views']
+const SIZE = 10
+
 const posts = ref([])
 const loading = ref(true)
 const error = ref('')
+// 초기 상태를 URL 쿼리에서 복원 → 새로고침·뒤로가기·링크 공유에도 검색조건 유지
+const keyword = ref(route.query.keyword || '')
+const sort = ref(SORTS.includes(route.query.sort) ? route.query.sort : 'latest')
+const page = ref(Math.max(0, (parseInt(route.query.page) || 1) - 1))
+const totalPages = ref(0)
+const totalElements = ref(0)
 
 // AI 식료품 트렌드 카드
 const trend = ref(null)
@@ -20,18 +30,59 @@ onMounted(() => {
   load()
   loadTrend()
 })
+// 현재 검색 상태를 URL 쿼리에 반영(기본값은 생략해 깔끔하게)
+function syncUrl() {
+  const q = {}
+  if (keyword.value.trim()) q.keyword = keyword.value.trim()
+  if (sort.value !== 'latest') q.sort = sort.value
+  if (page.value > 0) q.page = page.value + 1
+  router.replace({ query: q }).catch(() => {})
+}
+
 async function load() {
   loading.value = true
   error.value = ''
+  syncUrl()
   try {
-    const res = await postApi.list(0, 50)
+    const res = await postApi.list({
+      page: page.value,
+      size: SIZE,
+      keyword: keyword.value.trim() || undefined,
+      sort: sort.value,
+    })
     posts.value = res.content || []
+    totalPages.value = res.totalPages || 0
+    totalElements.value = res.totalElements || 0
   } catch (e) {
     error.value = e.message
   } finally {
     loading.value = false
   }
 }
+
+// 검색은 디바운스, 정렬 변경 시 첫 페이지로 리셋 후 재조회
+let searchTimer
+watch(keyword, () => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => { page.value = 0; load() }, 350)
+})
+watch(sort, () => { page.value = 0; load() })
+
+function goPage(p) {
+  if (p < 0 || p >= totalPages.value || p === page.value) return
+  page.value = p
+  load()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const pageWindow = computed(() => {
+  const tp = totalPages.value
+  if (tp <= 1) return []
+  let start = Math.max(0, page.value - 2)
+  const end = Math.min(tp, start + 5)
+  start = Math.max(0, end - 5)
+  return Array.from({ length: end - start }, (_, i) => start + i)
+})
 
 async function loadTrend() {
   trendLoading.value = true
@@ -76,32 +127,73 @@ function pct(v) {
       <p v-if="trendOpen" class="trend-basis">{{ trend.basis }}</p>
     </section>
 
+    <div class="search-row">
+      <input v-model="keyword" class="input search" placeholder="제목·내용으로 검색하세요" />
+      <div class="sort">
+        <label class="muted">정렬</label>
+        <select v-model="sort" class="select">
+          <option value="latest">최신순</option>
+          <option value="views">조회순</option>
+        </select>
+      </div>
+    </div>
+
+    <p class="count muted">총 {{ totalElements }}개 글 · {{ page + 1 }}/{{ Math.max(totalPages, 1) }} 페이지</p>
+
     <div v-if="loading" class="empty"><span class="emoji">⏳</span>불러오는 중…</div>
     <div v-else-if="error" class="empty"><span class="emoji">⚠️</span>{{ error }}</div>
+    <div v-else-if="posts.length === 0 && keyword.trim()" class="empty">
+      <span class="emoji">🔍</span>'{{ keyword.trim() }}'에 대한 검색 결과가 없어요.
+    </div>
     <div v-else-if="posts.length === 0" class="empty">
       <span class="emoji">📭</span>아직 게시글이 없어요.
       <br v-if="auth.isLoggedIn" /><router-link v-if="auth.isLoggedIn" class="btn btn-outline" style="margin-top:14px" :to="{ name: 'board-write' }">첫 글 쓰기</router-link>
     </div>
 
-    <table v-else class="tbl">
-      <thead>
-        <tr><th>제목</th><th>작성자</th><th class="num">조회</th><th>작성일</th></tr>
-      </thead>
-      <tbody>
-        <tr v-for="p in posts" :key="p.postId" @click="router.push({ name: 'board-detail', params: { id: p.postId } })">
-          <td class="title">{{ p.title }}</td>
-          <td>{{ p.authorName }}</td>
-          <td class="num">{{ p.viewCount }}</td>
-          <td class="muted">{{ dateOnly(p.createdAt) }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <template v-else>
+      <table class="tbl">
+        <thead>
+          <tr><th>제목</th><th>작성자</th><th class="num">조회</th><th>작성일</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="p in posts" :key="p.postId" @click="router.push({ name: 'board-detail', params: { id: p.postId } })">
+            <td class="title">{{ p.title }}</td>
+            <td>{{ p.authorName }}</td>
+            <td class="num">{{ p.viewCount }}</td>
+            <td class="muted">{{ dateOnly(p.createdAt) }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div v-if="totalPages > 1" class="pagination">
+        <button class="pg-btn" :disabled="page === 0" @click="goPage(page - 1)">‹</button>
+        <button v-for="p in pageWindow" :key="p" class="pg-btn" :class="{ active: p === page }" @click="goPage(p)">{{ p + 1 }}</button>
+        <button class="pg-btn" :disabled="page >= totalPages - 1" @click="goPage(page + 1)">›</button>
+      </div>
+    </template>
   </div>
 </template>
 
 <style scoped>
 .page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .page-head h1 { font-size: 22px; margin: 0; }
+
+.search-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.search { max-width: 420px; flex: 1; }
+.sort { display: flex; align-items: center; gap: 8px; }
+.sort .select { width: auto; padding: 8px 12px; }
+.count { margin: 12px 0 16px; font-size: 14px; }
+
+.pagination { display: flex; justify-content: center; gap: 6px; margin: 28px 0 8px; }
+.pg-btn {
+  min-width: 36px; height: 36px; padding: 0 10px;
+  border: 1px solid var(--color-border); background: #fff; border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 600; color: var(--color-text); cursor: pointer;
+}
+.pg-btn:hover:not(:disabled) { border-color: var(--color-primary); }
+.pg-btn.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+.pg-btn:disabled { opacity: 0.4; cursor: default; }
+
 .tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .tbl th, .tbl td { padding: 12px 10px; border-bottom: 1px solid var(--color-border); text-align: left; }
 .tbl th { font-size: 12px; color: var(--color-muted); font-weight: 700; }
