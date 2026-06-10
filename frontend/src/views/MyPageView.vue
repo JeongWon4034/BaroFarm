@@ -196,7 +196,7 @@ async function submitReview(order) {
     </ul>
     <!-- 회원 탈퇴 -->
     <div class="withdraw-section">
-      <button v-if="!withdrawing" class="btn btn-ghost withdraw-btn" @click="withdrawing = true">회원 탈퇴</button>
+      <button v-if="!withdrawing" class="withdraw-btn" @click="withdrawing = true">👋 회원 탈퇴</button>
       <div v-else class="card withdraw-card">
         <h3 class="withdraw-title">⚠️ 회원 탈퇴</h3>
         <p class="muted withdraw-desc">탈퇴하면 계정이 비활성화되고 복구할 수 없습니다.<br />비밀번호를 입력해 본인 확인 후 탈퇴하세요.</p>
@@ -256,8 +256,13 @@ async function submitReview(order) {
 .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
 .err { color: var(--color-accent-dark); font-size: 14px; }
 
-.withdraw-section { margin-top: 40px; }
-.withdraw-btn { color: var(--color-muted); font-size: 13px; padding: 6px 0; }
+.withdraw-section { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--color-border); }
+.withdraw-btn {
+  color: var(--color-muted); font-size: 14px; font-weight: 600;
+  padding: 9px 16px; border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+  background: #fff; cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease;
+}
+.withdraw-btn:hover { border-color: #e5a0a0; color: #c0392b; }
 .withdraw-card { padding: 20px; border: 1px solid #f5c6c6; }
 .withdraw-title { font-size: 16px; margin: 0 0 8px; color: #c0392b; }
 .withdraw-desc { font-size: 13px; margin: 0 0 14px; line-height: 1.6; }
