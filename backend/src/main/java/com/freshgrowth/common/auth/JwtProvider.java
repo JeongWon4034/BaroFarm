@@ -39,6 +39,14 @@ public class JwtProvider {
         return Long.valueOf(claims.getSubject());
     }
 
+    /** 토큰의 만료시각 반환 (블랙리스트 expires_at 저장용) */
+    public java.time.LocalDateTime getExpiration(String token) {
+        Claims claims = Jwts.parser().verifyWith(key).build()
+                .parseSignedClaims(token).getPayload();
+        return claims.getExpiration().toInstant()
+                .atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
+    }
+
     /** Authorization 헤더에서 userId 추출(없거나 무효면 null) — 선택적 인증용 */
     public Long optionalUserId(String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
