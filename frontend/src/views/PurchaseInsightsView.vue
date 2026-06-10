@@ -105,12 +105,28 @@ function monthLabel(ym) {
     <template v-else>
       <!-- AI 인사이트 -->
       <div class="report card">
-        <div class="report-tag">🤖 AI 구매 인사이트<span v-if="aiInsight" class="report-badge">GMS</span></div>
+        <div class="report-tag">
+          🤖 AI 구매 인사이트
+          <span v-if="aiInsight" class="report-badge">GMS</span>
+          <span v-if="aiInsight?.spendingType" class="type-badge">{{ aiInsight.spendingType }}</span>
+        </div>
         <p class="report-body">
           {{ aiInsight?.summary || `총 ${orders.length}건 · ${won(totalSpend)}을 지출했고, 평균 주문액은 ${won(avgOrder)}입니다.` }}
         </p>
         <p v-if="aiInsight?.usedData?.length" class="report-ctx muted">🔎 AI가 참고한 데이터: {{ aiInsight.usedData.join(' · ') }}</p>
         <p v-else class="report-note muted">※ AI 연결 전이라 규칙 기반 요약입니다.</p>
+      </div>
+
+      <!-- AI 다음 장보기 추천 -->
+      <div v-if="aiInsight?.recommendations?.length" class="rec-card card">
+        <div class="rec-title">🛒 AI 맞춤 추천 — 다음 장보기</div>
+        <p class="rec-desc muted">구매 패턴을 분석해 AI가 직접 고른 신선식품이에요.</p>
+        <ul class="rec-list">
+          <li v-for="(rec, i) in aiInsight.recommendations" :key="i" class="rec-item">
+            <span class="rec-num">{{ i + 1 }}</span>
+            <span class="rec-text">{{ rec }}</span>
+          </li>
+        </ul>
       </div>
 
       <!-- KPI -->
@@ -208,6 +224,15 @@ function monthLabel(ym) {
 .report-body { margin: 0; font-size: 15px; line-height: 1.5; font-weight: 600; }
 .report-note, .report-ctx { margin: 8px 0 0; font-size: 12px; }
 .report-badge { margin-left: 8px; font-size: 11px; font-weight: 700; color: #fff; background: var(--color-primary); padding: 2px 7px; border-radius: 999px; vertical-align: middle; }
+.type-badge { margin-left: 6px; font-size: 11px; font-weight: 700; color: var(--color-primary-dark); background: var(--color-primary-soft); padding: 2px 9px; border-radius: 999px; vertical-align: middle; }
+
+.rec-card { padding: 18px; margin-bottom: 18px; border-left: 4px solid #f39c12; }
+.rec-title { font-size: 14px; font-weight: 800; color: #d68910; margin-bottom: 4px; }
+.rec-desc { font-size: 12px; margin: 0 0 14px; }
+.rec-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.rec-item { display: flex; align-items: flex-start; gap: 10px; }
+.rec-num { width: 22px; height: 22px; flex-shrink: 0; background: #f39c12; color: #fff; border-radius: 50%; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.rec-text { font-size: 14px; line-height: 1.5; flex: 1; }
 
 .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
 @media (max-width: 760px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
