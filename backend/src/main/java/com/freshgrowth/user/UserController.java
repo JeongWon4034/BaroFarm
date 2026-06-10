@@ -58,8 +58,12 @@ public class UserController {
 
     @LoginRequired
     @DeleteMapping("/users/me")
-    public ApiResponse<Void> deactivate(@LoginUser Long userId) {
+    public ApiResponse<Void> deactivate(@LoginUser Long userId,
+                                        @RequestHeader(value = "Authorization", required = false) String authHeader) {
         userService.deactivate(userId);
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            tokenBlacklist.add(authHeader.substring(7).trim());
+        }
         return ApiResponse.ok("회원 탈퇴가 완료되었습니다.", null);
     }
 }

@@ -62,6 +62,9 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (user == null) {
             throw new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "존재하지 않는 사용자입니다.");
         }
+        if ("INACTIVE".equals(user.getStatus())) {
+            throw new AppException(HttpStatus.UNAUTHORIZED, "ACCOUNT_INACTIVE", "탈퇴하거나 비활성화된 계정입니다.");
+        }
 
         String requiredRole = loginRequired.role();
         if (!requiredRole.isEmpty() && !requiredRole.equals(user.getRole())) {
