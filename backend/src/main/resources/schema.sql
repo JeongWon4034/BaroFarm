@@ -171,6 +171,14 @@ CREATE TABLE user_challenges (
     FOREIGN KEY (challenge_id) REFERENCES challenges(challenge_id)
 );
 
+-- 로그아웃·탈퇴 토큰 무효화 (DB 기반, 재시작·다중 인스턴스 안전)
+CREATE TABLE IF NOT EXISTS invalidated_tokens (
+    token_hash  VARCHAR(64)  NOT NULL,   -- SHA-256 hex (토큰 원문 저장 지양)
+    expires_at  DATETIME     NOT NULL,   -- JWT 만료시각 — 이후 행 자동 정리 가능
+    PRIMARY KEY (token_hash),
+    INDEX idx_expires_at (expires_at)
+);
+
 INSERT INTO challenges(title, description, goal_type, goal_count, period_days, badge_emoji) VALUES
 ('알뜰 장보기 입문',   '마감임박 떨이 상품 1개 구매하기. 첫 폐기 절감 도전!',   'DEADLINE_PURCHASE', 1,  7,  '🌱'),
 ('이번 주 폐기 구원자', '마감임박 상품 3개를 구매해 음식물 폐기를 줄여보세요.',  'DEADLINE_PURCHASE', 3,  7,  '🦸'),
