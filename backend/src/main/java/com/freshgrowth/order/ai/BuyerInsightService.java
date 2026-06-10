@@ -9,9 +9,11 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 구매자 주문 내역을 집계해 '내 구매 분석' AI 인사이트를 만든다.
@@ -93,14 +95,38 @@ public class BuyerInsightService {
 
         insight.setUsedData(used);
 
-        String system = "너는 신선식품 산지직거래 마켓의 구매 분석 어시스턴트다. "
+        String dataBlock = "내 구매 집계 데이터:\n- " + String.join("\n- ", used);
+
+        // ── 1) 구매 패턴 요약 (기존) ──────────────────────────────────────────
+        String summarySystem = "너는 신선식품 산지직거래 마켓의 구매 분석 어시스턴트다. "
                 + "주어진 구매자 집계 데이터를 바탕으로, 소비자가 자신의 소비 패턴을 이해하고 "
                 + "다음 장보기에 참고할 수 있도록 2~3문장의 한국어로 담백하게 요약한다. "
                 + "이모지·과장 없이. 수치는 주어진 데이터만 사용하고 지어내지 않는다. "
                 + "지출이 늘었으면 절약 팁을, 특정 카테고리에 치우쳤으면 균형 잡힌 장보기 제안을 자연스럽게 곁들인다.";
-        String user = "내 구매 집계 데이터:\n- " + String.join("\n- ", used)
-                + "\n위 데이터를 바탕으로 구매 패턴 요약과 가벼운 제안을 2~3문장으로 작성해줘.";
-        insight.setSummary(aiClient.chat(system, user, 300));
+        insight.setSummary(aiClient.chat(summarySystem,
+                dataBlock + "\n위 데이터를 바탕으로 구매 패턴 요약과 가벼운 제안을 2~3문장으로 작성해줘.", 300));
+
+        // ── 2) 다음 장보기 추천 상품 3개 생성 (생성형 핵심) ──────────────────
+        String recSystem = "너는 신선식품 마켓 큐레이터다. 구매자의 소비 패턴 데이터를 보고, "
+                + "다음 장보기에 도움이 될 신선식품 3가지를 추천한다. "
+                + "각 추천은 '상품명: 추천 이유' 형식으로 한 줄씩, 총 3줄만 출력한다. "
+                + "번호·이모지 없이. 실제 존재하는 신선식품만 추천한다.";
+        String recRaw = aiClient.chat(recSystem,
+                dataBlock + "\n이 구매자에게 어울리는 다음 장보기 신선식품 3가지를 추천해줘.", 250);
+        List<String> recs = Arrays.stream(recRaw.split("\n"))
+                .map(String::trim).filter(s -> !s.isBlank()).limit(3)
+                .collect(Collectors.toList());
+        insight.setRecommendations(recs);
+
+        // ── 3) 소비 성향 라벨 생성 ────────────────────────────────────────────
+        String typeSystem = "너는 신선식품 소비 패턴 분류 전문가다. "
+                + "구매 데이터를 보고 이 소비자를 가장 잘 표현하는 5글자 이내의 한국어 성향 라벨 하나만 출력한다. "
+                + "예: '채소 마니아', '알뜰 구매러', '균형 식탁파', '해산물 애호가' 등. "
+                + "라벨 외 다른 텍스트는 절대 출력하지 않는다.";
+        String spendingType = aiClient.chat(typeSystem,
+                dataBlock + "\n이 구매자의 소비 성향 라벨을 한 단어로 출력해줘.", 30);
+        insight.setSpendingType(spendingType.trim());
+
         return insight;
     }
 
