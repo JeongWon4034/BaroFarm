@@ -21,10 +21,13 @@ public class ReviewService {
     }
 
     @Transactional
-    public Review create(ReviewRequest request) {
+    public Review create(Long buyerId, ReviewRequest request) {
         Order order = orderMapper.findById(request.getOrderId());
         if (order == null) {
             throw new AppException(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", "주문을 찾을 수 없습니다.");
+        }
+        if (!order.getBuyerId().equals(buyerId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "본인 주문만 리뷰할 수 있습니다.");
         }
         if (reviewMapper.findByOrderId(request.getOrderId()) != null) {
             throw new AppException(HttpStatus.CONFLICT, "DUPLICATED_REVIEW", "이미 리뷰를 작성한 주문입니다.");
@@ -43,19 +46,26 @@ public class ReviewService {
     }
 
     @Transactional
-    public Review update(Long reviewId, ReviewUpdateRequest request) {
-        int updated = reviewMapper.update(reviewId, request.getRating(), request.getContent());
-        if (updated == 0) {
-            throw new AppException(HttpStatus.NOT_FOUND, "REVIEW_NOT_FOUND", "리뷰를 찾을 수 없습니다.");
-        }
+    public Review update(Long buyerId, Long reviewId, ReviewUpdateRequest request) {
+        requireOwnedReview(buyerId, reviewId);
+        reviewMapper.update(reviewId, request.getRating(), request.getContent());
         return reviewMapper.findById(reviewId);
     }
 
     @Transactional
-    public void delete(Long reviewId) {
-        int deleted = reviewMapper.delete(reviewId);
-        if (deleted == 0) {
+    public void delete(Long buyerId, Long reviewId) {
+        requireOwnedReview(buyerId, reviewId);
+        reviewMapper.delete(reviewId);
+    }
+
+    // 리뷰 존재 + 본인(주문 구매자) 소유 검증
+    private void requireOwnedReview(Long buyerId, Long reviewId) {
+        Review review = reviewMapper.findById(reviewId);
+        if (review == null) {
             throw new AppException(HttpStatus.NOT_FOUND, "REVIEW_NOT_FOUND", "리뷰를 찾을 수 없습니다.");
+        }
+        if (!review.getBuyerId().equals(buyerId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "본인 리뷰만 수정·삭제할 수 있습니다.");
         }
     }
 }
