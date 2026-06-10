@@ -106,9 +106,10 @@ CREATE TABLE comments (
     FOREIGN KEY (author_id) REFERENCES users(user_id)
 );
 
+-- 시드 비밀번호: '1234' (BCrypt cost=10, python bcrypt 생성)
 INSERT INTO users(role, email, password, name) VALUES
-('SELLER', 'seller@example.com', '1234', '도연농장'),
-('BUYER', 'buyer@example.com', '1234', '김도연');
+('SELLER', 'seller@example.com', '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '도연농장'),
+('BUYER',  'buyer@example.com',  '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '김도연');
 
 -- 마감임박/떨이 데모용 시드 (기준일 2026-06-08, 유통기한 D-1~D-12로 분산)
 INSERT INTO products(seller_id, name, description, category, price, stock_qty, thumbnail_url, expiration_date) VALUES

@@ -41,22 +41,14 @@ public class UserService {
 
     public LoginResponse login(LoginRequest request) {
         User user = userMapper.findByEmail(request.getEmail());
-        if (user == null || !passwordMatches(request.getPassword(), user.getPassword())) {
+        if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new AppException(HttpStatus.UNAUTHORIZED, "LOGIN_FAILED", "이메일 또는 비밀번호가 올바르지 않습니다.");
+        }
+        if ("INACTIVE".equals(user.getStatus())) {
+            throw new AppException(HttpStatus.UNAUTHORIZED, "ACCOUNT_INACTIVE", "탈퇴하거나 비활성화된 계정입니다.");
         }
         String token = jwtProvider.generate(user.getUserId(), user.getRole());
         return new LoginResponse(token, new UserResponse(user));
-    }
-
-    // BCrypt 해시면 검증, 아니면(시드 평문 계정) 평문 비교로 호환
-    private boolean passwordMatches(String raw, String stored) {
-        if (stored == null) {
-            return false;
-        }
-        if (stored.startsWith("$2")) {
-            return passwordEncoder.matches(raw, stored);
-        }
-        return stored.equals(raw);
     }
 
     @Transactional
