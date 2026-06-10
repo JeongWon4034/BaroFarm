@@ -111,15 +111,15 @@ INSERT INTO users(role, email, password, name) VALUES
 ('SELLER', 'seller@example.com', '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '도연농장'),
 ('BUYER',  'buyer@example.com',  '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '김도연');
 
--- 마감임박/떨이 데모용 시드 (기준일 2026-06-08, 유통기한 D-1~D-12로 분산)
+-- 마감임박/떨이 데모용 시드 (유통기한을 오늘 기준 상대값으로 → 언제 실행해도 D-1~D-12 유지)
 INSERT INTO products(seller_id, name, description, category, price, stock_qty, thumbnail_url, expiration_date) VALUES
-(1, '무농약 청상추',      '아침에 수확한 신선한 청상추.',   'vegetable', 3900,  48, NULL, '2026-06-09'), -- D-1, 재고많음 → HIGH
-(1, '친환경 방울토마토',  '간식용 방울토마토.',             'vegetable', 5500,  50, NULL, '2026-06-09'), -- D-1, 재고만땅 → HIGH
-(1, '완숙 토마토',        '산지 직송 달콤한 토마토.',       'vegetable', 6500,  30, NULL, '2026-06-10'), -- D-2
-(1, '제주 노지 감귤 2kg', '새콤달콤 노지 감귤.',            'fruit',    12900,  20, NULL, '2026-06-11'), -- D-3
-(1, '국산 손질 오징어',    '당일 손질한 오징어.',            'seafood',   8900,  15, NULL, '2026-06-13'), -- D-5
-(1, '한우 불고기용 300g', '냉장 한우 불고기감.',            'meat',     18900,   8, NULL, '2026-06-16'), -- D-8
-(1, '유기농 시금치',      '데쳐 먹기 좋은 시금치.',         'vegetable', 4200,  35, NULL, '2026-06-20'); -- D-12 → LOW
+(1, '무농약 청상추',      '아침에 수확한 신선한 청상추.',   'vegetable', 3900,  48, NULL, CURDATE() + INTERVAL 1 DAY),  -- D-1, 재고많음 → HIGH
+(1, '친환경 방울토마토',  '간식용 방울토마토.',             'vegetable', 5500,  50, NULL, CURDATE() + INTERVAL 1 DAY),  -- D-1, 재고만땅 → HIGH
+(1, '완숙 토마토',        '산지 직송 달콤한 토마토.',       'vegetable', 6500,  30, NULL, CURDATE() + INTERVAL 2 DAY),  -- D-2
+(1, '제주 노지 감귤 2kg', '새콤달콤 노지 감귤.',            'fruit',    12900,  20, NULL, CURDATE() + INTERVAL 3 DAY),  -- D-3
+(1, '국산 손질 오징어',    '당일 손질한 오징어.',            'seafood',   8900,  15, NULL, CURDATE() + INTERVAL 5 DAY),  -- D-5
+(1, '한우 불고기용 300g', '냉장 한우 불고기감.',            'meat',     18900,   8, NULL, CURDATE() + INTERVAL 8 DAY),  -- D-8
+(1, '유기농 시금치',      '데쳐 먹기 좋은 시금치.',         'vegetable', 4200,  35, NULL, CURDATE() + INTERVAL 12 DAY); -- D-12 → LOW
 
 -- 게시판 데모 시드 (조회수·작성자·키워드 분산 → 검색/정렬/페이징 확인용)
 INSERT INTO posts(author_id, title, content, view_count) VALUES
