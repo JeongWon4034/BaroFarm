@@ -8,6 +8,7 @@ public interface UserMapper {
     void insert(User user);
     User findById(@Param("userId") Long userId);
     User findByEmail(@Param("email") String email);
+    boolean existsByName(@Param("name") String name);
     int updateProfile(User user);
     int deactivate(@Param("userId") Long userId);
 }

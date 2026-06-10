@@ -46,5 +46,13 @@ export const useAuthStore = defineStore('auth', {
       localStorage.removeItem('token')
       localStorage.removeItem('userId') // 레거시 정리
     },
+    async deactivate(password) {
+      await authApi.deactivate({ password }) // 서버에서 비밀번호 검증 + 토큰 무효화
+      this.user = null
+      this.token = null
+      localStorage.removeItem('user')
+      localStorage.removeItem('token')
+      localStorage.removeItem('userId')
+    },
   },
 })

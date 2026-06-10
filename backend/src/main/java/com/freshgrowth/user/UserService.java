@@ -27,6 +27,9 @@ public class UserService {
         if (userMapper.findByEmail(request.getEmail()) != null) {
             throw new AppException(HttpStatus.CONFLICT, "DUPLICATED_EMAIL", "이미 사용 중인 이메일입니다.");
         }
+        if (userMapper.existsByName(request.getName())) {
+            throw new AppException(HttpStatus.CONFLICT, "DUPLICATED_NAME", "이미 사용 중인 닉네임입니다.");
+        }
 
         User user = new User();
         user.setEmail(request.getEmail());
@@ -53,9 +56,15 @@ public class UserService {
 
     @Transactional
     public UserResponse updateProfile(Long userId, com.freshgrowth.user.dto.ProfileUpdateRequest request) {
+        // userId는 JWT에서 추출된 값 — 본인 프로필만 수정 가능
         User user = userMapper.findById(userId);
         if (user == null) {
             throw new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다.");
+        }
+        // 닉네임 변경 시 타인과 중복 여부 확인
+        if (request.getName() != null && !request.getName().equals(user.getName())
+                && userMapper.existsByName(request.getName())) {
+            throw new AppException(HttpStatus.CONFLICT, "DUPLICATED_NAME", "이미 사용 중인 닉네임입니다.");
         }
         user.setName(request.getName());
         user.setIntro(request.getIntro());
@@ -74,9 +83,14 @@ public class UserService {
     }
 
     @Transactional
-    public void deactivate(Long userId) {
-        if (userMapper.deactivate(userId) == 0) {
+    public void deactivate(Long userId, String password) {
+        User user = userMapper.findById(userId);
+        if (user == null) {
             throw new AppException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다.");
         }
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new AppException(HttpStatus.UNAUTHORIZED, "WRONG_PASSWORD", "비밀번호가 올바르지 않습니다.");
+        }
+        userMapper.deactivate(userId);
     }
 }

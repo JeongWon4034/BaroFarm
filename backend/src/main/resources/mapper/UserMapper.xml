@@ -19,6 +19,10 @@
         WHERE email = #{email}
     </select>
 
+    <select id="existsByName" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM users WHERE name = #{name}
+    </select>
+
     <update id="updateProfile" parameterType="com.freshgrowth.user.User">
         UPDATE users
         SET name = #{name}, intro = #{intro}, phone = #{phone}, profile_image = #{profileImage}
