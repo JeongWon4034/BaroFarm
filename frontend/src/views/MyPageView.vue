@@ -49,6 +49,26 @@ async function saveProfile() {
   }
 }
 
+// 회원 탈퇴
+const withdrawing = ref(false)
+const withdrawPassword = ref('')
+const withdrawMsg = ref('')
+const withdrawLoading = ref(false)
+
+async function submitWithdraw() {
+  withdrawMsg.value = ''
+  if (!withdrawPassword.value) { withdrawMsg.value = '비밀번호를 입력하세요.'; return }
+  withdrawLoading.value = true
+  try {
+    await auth.deactivate(withdrawPassword.value)
+    router.push({ name: 'login' })
+  } catch (e) {
+    withdrawMsg.value = e.code === 'WRONG_PASSWORD' ? '비밀번호가 올바르지 않습니다.' : e.message
+  } finally {
+    withdrawLoading.value = false
+  }
+}
+
 // 리뷰 작성 상태
 const reviewing = ref(null) // orderId
 const reviewRating = ref(5)
@@ -174,6 +194,20 @@ async function submitReview(order) {
         </div>
       </li>
     </ul>
+    <!-- 회원 탈퇴 -->
+    <div class="withdraw-section">
+      <button v-if="!withdrawing" class="btn btn-ghost withdraw-btn" @click="withdrawing = true">회원 탈퇴</button>
+      <div v-else class="card withdraw-card">
+        <h3 class="withdraw-title">⚠️ 회원 탈퇴</h3>
+        <p class="muted withdraw-desc">탈퇴하면 계정이 비활성화되고 복구할 수 없습니다.<br />비밀번호를 입력해 본인 확인 후 탈퇴하세요.</p>
+        <input v-model="withdrawPassword" type="password" class="input" placeholder="현재 비밀번호 입력" />
+        <p v-if="withdrawMsg" class="err">{{ withdrawMsg }}</p>
+        <div class="withdraw-actions">
+          <button class="btn btn-outline" @click="withdrawing = false; withdrawPassword = ''; withdrawMsg = ''">취소</button>
+          <button class="btn btn-danger" :disabled="withdrawLoading" @click="submitWithdraw">{{ withdrawLoading ? '처리 중…' : '탈퇴 확인' }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -221,4 +255,14 @@ async function submitReview(order) {
 .star-btn.on { color: var(--color-star); }
 .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
 .err { color: var(--color-accent-dark); font-size: 14px; }
+
+.withdraw-section { margin-top: 40px; }
+.withdraw-btn { color: var(--color-muted); font-size: 13px; padding: 6px 0; }
+.withdraw-card { padding: 20px; border: 1px solid #f5c6c6; }
+.withdraw-title { font-size: 16px; margin: 0 0 8px; color: #c0392b; }
+.withdraw-desc { font-size: 13px; margin: 0 0 14px; line-height: 1.6; }
+.withdraw-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+.btn-danger { background: #e74c3c; color: #fff; border: none; border-radius: var(--radius-sm); padding: 10px 18px; font-weight: 600; cursor: pointer; }
+.btn-danger:hover { background: #c0392b; }
+.btn-ghost { background: transparent; border: none; cursor: pointer; text-decoration: underline; }
 </style>
