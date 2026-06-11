@@ -1,6 +1,13 @@
 CREATE DATABASE IF NOT EXISTS freshgrowth CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE freshgrowth;
 
+DROP TABLE IF EXISTS invalidated_tokens;
+DROP TABLE IF EXISTS user_challenges;
+DROP TABLE IF EXISTS challenges;
+DROP TABLE IF EXISTS comments;
+DROP TABLE IF EXISTS posts;
+DROP TABLE IF EXISTS wishlists;
+DROP TABLE IF EXISTS follows;
 DROP TABLE IF EXISTS reviews;
 DROP TABLE IF EXISTS orders;
 DROP TABLE IF EXISTS products;
