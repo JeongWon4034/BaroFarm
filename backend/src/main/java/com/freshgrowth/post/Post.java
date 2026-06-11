@@ -6,6 +6,7 @@ public class Post {
     private Long postId;
     private Long authorId;
     private String authorName;
+    private String category;
     private String title;
     private String content;
     private Integer viewCount;
@@ -18,6 +19,8 @@ public class Post {
     public void setAuthorId(Long authorId) { this.authorId = authorId; }
     public String getAuthorName() { return authorName; }
     public void setAuthorName(String authorName) { this.authorName = authorName; }
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
     public String getContent() { return content; }

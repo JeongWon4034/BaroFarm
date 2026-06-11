@@ -9,6 +9,14 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const SORTS = ['latest', 'views']
+const CATEGORIES = [
+  { value: '', label: '전체' },
+  { value: 'general', label: '자유' },
+  { value: 'question', label: '질문' },
+  { value: 'tip', label: '꿀팁' },
+  { value: 'recipe', label: '레시피' },
+  { value: 'review', label: '후기' },
+]
 const SIZE = 10
 
 const posts = ref([])
@@ -17,6 +25,7 @@ const error = ref('')
 // 초기 상태를 URL 쿼리에서 복원 → 새로고침·뒤로가기·링크 공유에도 검색조건 유지
 const keyword = ref(route.query.keyword || '')
 const sort = ref(SORTS.includes(route.query.sort) ? route.query.sort : 'latest')
+const category = ref(route.query.category || '')
 const page = ref(Math.max(0, (parseInt(route.query.page) || 1) - 1))
 const totalPages = ref(0)
 const totalElements = ref(0)
@@ -35,6 +44,7 @@ function syncUrl() {
   const q = {}
   if (keyword.value.trim()) q.keyword = keyword.value.trim()
   if (sort.value !== 'latest') q.sort = sort.value
+  if (category.value) q.category = category.value
   if (page.value > 0) q.page = page.value + 1
   router.replace({ query: q }).catch(() => {})
 }
@@ -49,6 +59,7 @@ async function load() {
       size: SIZE,
       keyword: keyword.value.trim() || undefined,
       sort: sort.value,
+      category: category.value || undefined,
     })
     posts.value = res.content || []
     totalPages.value = res.totalPages || 0
@@ -67,6 +78,7 @@ watch(keyword, () => {
   searchTimer = setTimeout(() => { page.value = 0; load() }, 350)
 })
 watch(sort, () => { page.value = 0; load() })
+watch(category, () => { page.value = 0; load() })
 
 function goPage(p) {
   if (p < 0 || p >= totalPages.value || p === page.value) return
@@ -99,6 +111,11 @@ async function loadTrend() {
 function pct(v) {
   return `${v > 0 ? '+' : ''}${v}%`
 }
+
+function catLabel(val) {
+  return CATEGORIES.find(c => c.value === val)?.label || '자유'
+}
+const catEmoji = { general: '💬', question: '❓', tip: '💡', recipe: '🍳', review: '📝' }
 </script>
 
 <template>
@@ -127,6 +144,12 @@ function pct(v) {
       <p v-if="trendOpen" class="trend-basis">{{ trend.basis }}</p>
     </section>
 
+    <div class="cat-tabs">
+      <button v-for="c in CATEGORIES" :key="c.value" class="cat-tab" :class="{ active: category === c.value }" @click="category = c.value">
+        {{ c.label }}
+      </button>
+    </div>
+
     <div class="search-row">
       <input v-model="keyword" class="input search" placeholder="제목·내용으로 검색하세요" />
       <div class="sort">
@@ -153,10 +176,11 @@ function pct(v) {
     <template v-else>
       <table class="tbl">
         <thead>
-          <tr><th>제목</th><th>작성자</th><th class="num">조회</th><th>작성일</th></tr>
+          <tr><th class="cat-col">분류</th><th>제목</th><th>작성자</th><th class="num">조회</th><th>작성일</th></tr>
         </thead>
         <tbody>
           <tr v-for="p in posts" :key="p.postId" @click="router.push({ name: 'board-detail', params: { id: p.postId } })">
+            <td class="cat-col"><span class="cat-badge" :class="'cat-' + (p.category || 'general')">{{ catEmoji[p.category] || '💬' }} {{ catLabel(p.category) }}</span></td>
             <td class="title">{{ p.title }}</td>
             <td>{{ p.authorName }}</td>
             <td class="num">{{ p.viewCount }}</td>
@@ -177,6 +201,15 @@ function pct(v) {
 <style scoped>
 .page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .page-head h1 { font-size: 22px; margin: 0; }
+
+.cat-tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+.cat-tab {
+  padding: 7px 16px; border: 1px solid var(--color-border); border-radius: 999px;
+  background: #fff; font-size: 13px; font-weight: 600; color: var(--color-muted);
+  cursor: pointer; transition: all .15s ease;
+}
+.cat-tab:hover { border-color: var(--color-primary); color: var(--color-primary-dark); }
+.cat-tab.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
 
 .search-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
 .search { max-width: 420px; flex: 1; }
@@ -201,6 +234,13 @@ function pct(v) {
 .tbl tbody tr { cursor: pointer; }
 .tbl tbody tr:hover { background: var(--color-bg); }
 .tbl .title { font-weight: 700; }
+.cat-col { width: 80px; white-space: nowrap; }
+.cat-badge { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+.cat-general { background: #f0f0f0; color: #555; }
+.cat-question { background: #e8f4fd; color: #1976d2; }
+.cat-tip { background: #fff8e1; color: #f57f17; }
+.cat-recipe { background: #fce4ec; color: #c62828; }
+.cat-review { background: #e8f5e9; color: #2e7d32; }
 
 /* AI 식료품 트렌드 카드 */
 .trend {

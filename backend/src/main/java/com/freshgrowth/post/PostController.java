@@ -20,8 +20,9 @@ public class PostController {
     public ApiResponse<?> findAll(@RequestParam(defaultValue = "0") int page,
                                   @RequestParam(defaultValue = "10") int size,
                                   @RequestParam(required = false) String keyword,
-                                  @RequestParam(required = false) String sort) {
-        return ApiResponse.ok("게시글 목록을 조회했습니다.", postService.findAll(page, size, keyword, sort));
+                                  @RequestParam(required = false) String sort,
+                                  @RequestParam(required = false) String category) {
+        return ApiResponse.ok("게시글 목록을 조회했습니다.", postService.findAll(page, size, keyword, sort, category));
     }
 
     @GetMapping("/posts/{postId}")
