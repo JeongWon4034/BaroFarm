@@ -9,6 +9,8 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 
+const catMap = { general: '💬 자유', question: '❓ 질문', tip: '💡 꿀팁', recipe: '🍳 레시피', review: '📝 후기' }
+
 const post = ref(null)
 const loading = ref(true)
 const error = ref('')
@@ -100,6 +102,7 @@ async function removeComment(c) {
     <div v-else-if="error" class="empty"><span class="emoji">⚠️</span>{{ error }}</div>
 
     <article v-else-if="post" class="card post">
+      <span class="cat-badge" :class="'cat-' + (post.category || 'general')">{{ catMap[post.category] || '💬 자유' }}</span>
       <h1 class="title">{{ post.title }}</h1>
       <div class="meta">
         <span class="muted">{{ post.authorName }} · {{ dateOnly(post.createdAt) }} · 👁 {{ post.viewCount }}</span>
@@ -153,6 +156,12 @@ async function removeComment(c) {
 <style scoped>
 .back { display: inline-block; margin-bottom: 16px; font-size: 14px; }
 .post { padding: 24px; }
+.cat-badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; margin-bottom: 8px; }
+.cat-general { background: #f0f0f0; color: #555; }
+.cat-question { background: #e8f4fd; color: #1976d2; }
+.cat-tip { background: #fff8e1; color: #f57f17; }
+.cat-recipe { background: #fce4ec; color: #c62828; }
+.cat-review { background: #e8f5e9; color: #2e7d32; }
 .title { font-size: 24px; margin: 0 0 10px; }
 .meta { display: flex; align-items: center; justify-content: space-between; font-size: 14px; }
 .owner { display: flex; gap: 6px; }

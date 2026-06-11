@@ -3,13 +3,13 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.freshgrowth.post.PostMapper">
     <insert id="insert" parameterType="com.freshgrowth.post.Post" useGeneratedKeys="true" keyProperty="postId">
-        INSERT INTO posts(author_id, title, content)
-        VALUES (#{authorId}, #{title}, #{content})
+        INSERT INTO posts(author_id, category, title, content)
+        VALUES (#{authorId}, #{category}, #{title}, #{content})
     </insert>
 
     <sql id="cols">
         p.post_id, p.author_id, u.name AS author_name,
-        p.title, p.content, p.view_count, p.created_at, p.updated_at
+        p.category, p.title, p.content, p.view_count, p.created_at, p.updated_at
     </sql>
 
     <sql id="searchWhere">
@@ -17,6 +17,9 @@
             <if test="keyword != null and keyword != ''">
                 AND (p.title LIKE CONCAT('%', #{keyword}, '%')
                      OR p.content LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="category != null and category != ''">
+                AND p.category = #{category}
             </if>
         </where>
     </sql>
@@ -45,7 +48,7 @@
 
     <update id="update" parameterType="com.freshgrowth.post.Post">
         UPDATE posts
-        SET title = #{title}, content = #{content}
+        SET category = #{category}, title = #{title}, content = #{content}
         WHERE post_id = #{postId} AND author_id = #{authorId}
     </update>
 

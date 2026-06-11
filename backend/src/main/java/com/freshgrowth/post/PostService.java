@@ -17,22 +17,27 @@ public class PostService {
         this.postMapper = postMapper;
     }
 
+    private static final java.util.Set<String> VALID_CATEGORIES =
+            java.util.Set.of("general", "recipe", "tip", "question", "review");
+
     @Transactional
     public Post create(Long authorId, PostRequest request) {
         Post post = new Post();
         post.setAuthorId(authorId);
+        post.setCategory(validCategory(request.getCategory()));
         post.setTitle(request.getTitle());
         post.setContent(request.getContent());
         postMapper.insert(post);
         return postMapper.findById(post.getPostId());
     }
 
-    public PageResponse<Post> findAll(int page, int size, String keyword, String sort) {
+    public PageResponse<Post> findAll(int page, int size, String keyword, String sort, String category) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 100);
         int offset = safePage * safeSize;
-        List<Post> content = postMapper.findAll(offset, safeSize, keyword, sort);
-        long total = postMapper.countAll(keyword);
+        String cat = (category != null && VALID_CATEGORIES.contains(category)) ? category : null;
+        List<Post> content = postMapper.findAll(offset, safeSize, keyword, sort, cat);
+        long total = postMapper.countAll(keyword, cat);
         return new PageResponse<>(content, safePage, safeSize, total);
     }
 
@@ -55,12 +60,17 @@ public class PostService {
         Post post = new Post();
         post.setPostId(postId);
         post.setAuthorId(authorId);
+        post.setCategory(validCategory(request.getCategory()));
         post.setTitle(request.getTitle());
         post.setContent(request.getContent());
         if (postMapper.update(post) == 0) {
             throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "수정 권한이 없습니다.");
         }
         return postMapper.findById(postId);
+    }
+
+    private String validCategory(String category) {
+        return (category != null && VALID_CATEGORIES.contains(category)) ? category : "general";
     }
 
     @Transactional

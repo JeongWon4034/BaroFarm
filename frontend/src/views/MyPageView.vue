@@ -32,7 +32,7 @@ function onPickImage(e) {
 }
 async function saveProfile() {
   profileMsg.value = ''
-  if (!pform.value.name.trim()) { profileMsg.value = '이름을 입력하세요.'; return }
+  if (!pform.value.name.trim()) { profileMsg.value = '닉네임을 입력하세요.'; return }
   savingProfile.value = true
   try {
     await auth.updateProfile({
@@ -98,12 +98,14 @@ function openReview(orderId) {
 
 async function submitReview(order) {
   reviewMsg.value = ''
+  if (!reviewContent.value.trim()) { reviewMsg.value = '리뷰 내용을 입력해주세요.'; return }
+  if (reviewContent.value.trim().length < 5) { reviewMsg.value = '리뷰는 5자 이상 입력해주세요.'; return }
   try {
-    const review = await reviewApi.create({ orderId: order.orderId, rating: reviewRating.value, content: reviewContent.value })
+    const review = await reviewApi.create({ orderId: order.orderId, rating: reviewRating.value, content: reviewContent.value.trim() })
     order.reviewId = review.reviewId // DB 기준 상태로 즉시 반영(리로드해도 유지)
     reviewing.value = null
   } catch (e) {
-    reviewMsg.value = e.message
+    reviewMsg.value = e.code === 'DUPLICATE_REVIEW' ? '이미 리뷰를 작성한 주문입니다.' : e.message
   }
 }
 </script>
@@ -111,39 +113,44 @@ async function submitReview(order) {
 <template>
   <div>
     <div class="profile card">
-      <span v-if="!auth.user?.profileImage" class="avatar">👤</span>
-      <img v-else :src="auth.user.profileImage" class="avatar-img" alt="프로필" />
-      <div class="pinfo">
-        <strong class="uname">{{ auth.user?.name }}</strong>
-        <span class="badge" style="margin-left:8px">{{ auth.user?.role === 'SELLER' ? '판매자' : '구매자' }}</span>
-        <p class="muted email">{{ auth.user?.email }}</p>
-        <p v-if="auth.user?.intro" class="intro">{{ auth.user.intro }}</p>
-        <p v-if="auth.user?.phone" class="muted phone">📞 {{ auth.user.phone }}</p>
+      <div class="profile-top">
+        <div class="avatar-wrap" @click="!editing && openProfileEdit()">
+          <span v-if="!auth.user?.profileImage" class="avatar">👤</span>
+          <img v-else :src="auth.user.profileImage" class="avatar-img" alt="프로필" />
+        </div>
+        <div class="pinfo">
+          <div class="pinfo-name-row">
+            <strong class="uname">{{ auth.user?.name }}</strong>
+            <span class="badge">{{ auth.user?.role === 'SELLER' ? '판매자' : '구매자' }}</span>
+          </div>
+          <p class="muted email">{{ auth.user?.email }}</p>
+          <p v-if="auth.user?.intro" class="intro">{{ auth.user.intro }}</p>
+          <p v-if="auth.user?.phone" class="muted phone">📞 {{ auth.user.phone }}</p>
+        </div>
+        <button v-if="!editing" class="btn btn-outline sm-btn" @click="openProfileEdit">✏️ 편집</button>
       </div>
-      <button class="btn btn-outline sm-btn" @click="openProfileEdit">✏️ 편집</button>
-    </div>
 
-    <!-- 프로필 편집 -->
-    <div v-if="editing" class="card edit-card">
-      <h3 class="edit-title">프로필 편집</h3>
-      <div class="edit-grid">
-        <div class="img-pick">
-          <span v-if="!pform.profileImage" class="avatar">👤</span>
-          <img v-else :src="pform.profileImage" class="avatar-img" alt="미리보기" />
-          <label class="btn btn-outline sm-btn file-btn">
-            이미지 선택<input type="file" accept="image/*" @change="onPickImage" hidden />
-          </label>
+      <!-- 프로필 편집: 같은 카드 안에서 토글 -->
+      <div v-if="editing" class="edit-section">
+        <div class="edit-row">
+          <div class="img-pick">
+            <span v-if="!pform.profileImage" class="avatar">👤</span>
+            <img v-else :src="pform.profileImage" class="avatar-img" alt="미리보기" />
+            <label class="btn btn-outline sm-btn file-btn">
+              이미지 변경<input type="file" accept="image/*" @change="onPickImage" hidden />
+            </label>
+          </div>
+          <div class="fields">
+            <label class="fld"><span>닉네임</span><input v-model="pform.name" class="input" placeholder="닉네임" /></label>
+            <label class="fld"><span>소개</span><input v-model="pform.intro" class="input" placeholder="한 줄 소개" /></label>
+            <label class="fld"><span>전화번호</span><input v-model="pform.phone" class="input" placeholder="010-0000-0000" /></label>
+          </div>
         </div>
-        <div class="fields">
-          <label class="fld"><span>이름</span><input v-model="pform.name" class="input" /></label>
-          <label class="fld"><span>소개</span><input v-model="pform.intro" class="input" placeholder="한 줄 소개" /></label>
-          <label class="fld"><span>전화번호</span><input v-model="pform.phone" class="input" placeholder="010-0000-0000" /></label>
+        <p v-if="profileMsg" class="err">{{ profileMsg }}</p>
+        <div class="edit-actions">
+          <button class="btn btn-outline" @click="editing = false">취소</button>
+          <button class="btn btn-primary" :disabled="savingProfile" @click="saveProfile">{{ savingProfile ? '저장 중…' : '저장' }}</button>
         </div>
-      </div>
-      <p v-if="profileMsg" class="err">{{ profileMsg }}</p>
-      <div class="edit-actions">
-        <button class="btn btn-outline" @click="editing = false">취소</button>
-        <button class="btn btn-primary" :disabled="savingProfile" @click="saveProfile">{{ savingProfile ? '저장 중…' : '저장' }}</button>
       </div>
     </div>
 
@@ -212,25 +219,27 @@ async function submitReview(order) {
 </template>
 
 <style scoped>
-.profile { display: flex; align-items: center; gap: 16px; padding: 20px; margin-bottom: 16px; }
+.profile { padding: 20px; margin-bottom: 16px; }
+.profile-top { display: flex; align-items: center; gap: 16px; }
+.avatar-wrap { cursor: pointer; flex-shrink: 0; }
 .avatar { font-size: 40px; background: var(--color-primary-soft); border-radius: 50%; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .avatar-img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
 .pinfo { flex: 1; }
+.pinfo-name-row { display: flex; align-items: center; gap: 8px; }
 .uname { font-size: 18px; }
 .email { margin: 4px 0 0; font-size: 14px; }
 .intro { margin: 6px 0 0; font-size: 14px; color: var(--color-text); }
 .phone { margin: 4px 0 0; font-size: 13px; }
 
-.edit-card { padding: 20px; margin-bottom: 28px; }
-.edit-title { font-size: 16px; margin: 0 0 16px; }
-.edit-grid { display: flex; gap: 20px; align-items: flex-start; }
+.edit-section { border-top: 1px solid var(--color-border); margin-top: 16px; padding-top: 16px; }
+.edit-row { display: flex; gap: 20px; align-items: flex-start; }
 .img-pick { display: flex; flex-direction: column; gap: 8px; align-items: center; }
 .file-btn { cursor: pointer; }
 .fields { flex: 1; display: flex; flex-direction: column; gap: 12px; }
 .fld { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; color: var(--color-muted); }
 .fld .input { font-weight: 500; color: var(--color-text); }
 .edit-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
-@media (max-width: 560px) { .edit-grid { flex-direction: column; align-items: stretch; } }
+@media (max-width: 560px) { .edit-row { flex-direction: column; align-items: stretch; } }
 
 .section-title { font-size: 20px; margin-bottom: 16px; }
 .orders-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
