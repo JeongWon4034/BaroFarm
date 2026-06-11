@@ -72,15 +72,21 @@ function addToCart() {
 
 const sellerName = computed(() => seller.value?.name || product.value?.sellerName || ('판매자 #' + (product.value?.sellerId ?? '')))
 const following = computed(() => (product.value ? follow.isFollowing(product.value.sellerId) : false))
+const followError = ref('')
 
 async function toggleFollow() {
   if (!auth.isLoggedIn) {
     router.push({ name: 'login', query: { redirect: route.fullPath } })
     return
   }
+  followError.value = ''
   const wasFollowing = following.value
-  await follow.toggle(product.value.sellerId)
-  if (seller.value) seller.value.followerCount += wasFollowing ? -1 : 1
+  try {
+    await follow.toggle(product.value.sellerId)
+    if (seller.value) seller.value.followerCount += wasFollowing ? -1 : 1
+  } catch (e) {
+    followError.value = e.message || '팔로우 처리에 실패했어요. 다시 시도해주세요.'
+  }
 }
 
 async function buyNow() {
@@ -134,6 +140,7 @@ async function buyNow() {
             {{ following ? '팔로잉 ✓' : '+ 팔로우' }}
           </button>
         </div>
+        <p v-if="followError" class="err follow-err">{{ followError }}</p>
         <p class="rate">
           평점: <StarRating :rating="avgRating" size="16px" />
           <strong>{{ avgRating ? avgRating.toFixed(1) : '-' }}</strong>
@@ -265,6 +272,7 @@ async function buyNow() {
 .estimated { font-size: 16px; margin-bottom: 8px; }
 .estimated .price { font-size: 20px; }
 .err { color: var(--color-accent-dark); font-size: 14px; margin: 4px 0; }
+.follow-err { margin: -8px 0 8px; font-size: 13px; }
 .expired-notice { color: #c0392b; background: #fdeaea; border-radius: var(--radius-sm); padding: 10px 14px; font-size: 14px; font-weight: 600; margin: 4px 0 8px; }
 
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }

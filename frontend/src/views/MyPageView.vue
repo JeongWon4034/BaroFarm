@@ -98,12 +98,14 @@ function openReview(orderId) {
 
 async function submitReview(order) {
   reviewMsg.value = ''
+  if (!reviewContent.value.trim()) { reviewMsg.value = '리뷰 내용을 입력해주세요.'; return }
+  if (reviewContent.value.trim().length < 5) { reviewMsg.value = '리뷰는 5자 이상 입력해주세요.'; return }
   try {
-    const review = await reviewApi.create({ orderId: order.orderId, rating: reviewRating.value, content: reviewContent.value })
+    const review = await reviewApi.create({ orderId: order.orderId, rating: reviewRating.value, content: reviewContent.value.trim() })
     order.reviewId = review.reviewId // DB 기준 상태로 즉시 반영(리로드해도 유지)
     reviewing.value = null
   } catch (e) {
-    reviewMsg.value = e.message
+    reviewMsg.value = e.code === 'DUPLICATE_REVIEW' ? '이미 리뷰를 작성한 주문입니다.' : e.message
   }
 }
 </script>
