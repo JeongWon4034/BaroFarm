@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { postApi } from '../api/posts'
+import { apiMessage } from '../utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -26,7 +27,7 @@ onMounted(async () => {
       form.title = p.title
       form.content = p.content
     } catch (e) {
-      error.value = e.message
+      error.value = apiMessage(e)
     }
   }
 })
@@ -43,7 +44,7 @@ async function submit() {
       : await postApi.create(payload)
     router.push({ name: 'board-detail', params: { id: editId.value || res.postId } })
   } catch (e) {
-    error.value = e.message
+    error.value = apiMessage(e)
   } finally {
     saving.value = false
   }

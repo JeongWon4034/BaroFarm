@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { postApi } from '../api/posts'
 import { useAuthStore } from '../stores/auth'
-import { dateOnly } from '../utils/format'
+import { dateOnly, apiMessage } from '../utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -65,7 +65,7 @@ async function load() {
     totalPages.value = res.totalPages || 0
     totalElements.value = res.totalElements || 0
   } catch (e) {
-    error.value = e.message
+    error.value = apiMessage(e)
   } finally {
     loading.value = false
   }

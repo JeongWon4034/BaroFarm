@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { postApi, commentApi } from '../api/posts'
 import { useAuthStore } from '../stores/auth'
-import { dateOnly } from '../utils/format'
+import { dateOnly, apiMessage } from '../utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +14,7 @@ const catMap = { general: '💬 자유', question: '❓ 질문', tip: '💡 꿀�
 const post = ref(null)
 const loading = ref(true)
 const error = ref('')
+const actionMsg = ref('') // 글 수정·삭제 권한/처리 실패 안내(인라인)
 
 onMounted(load)
 async function load() {
@@ -23,7 +24,7 @@ async function load() {
     post.value = await postApi.detail(route.params.id)
     await loadComments()
   } catch (e) {
-    error.value = e.message
+    error.value = apiMessage(e)
   } finally {
     loading.value = false
   }
@@ -33,11 +34,12 @@ const isAuthor = computed(() => post.value && auth.user && auth.user.userId === 
 
 async function remove() {
   if (!confirm('이 글을 삭제할까요?')) return
+  actionMsg.value = ''
   try {
     await postApi.remove(route.params.id)
     router.push({ name: 'board' })
   } catch (e) {
-    alert(e.message)
+    actionMsg.value = apiMessage(e)
   }
 }
 
@@ -66,7 +68,7 @@ async function addComment() {
     newComment.value = ''
     await loadComments()
   } catch (e) {
-    commentMsg.value = e.message
+    commentMsg.value = apiMessage(e)
   }
 }
 function startEdit(c) {
@@ -75,21 +77,23 @@ function startEdit(c) {
 }
 async function saveEdit(c) {
   if (!editContent.value.trim()) return
+  commentMsg.value = ''
   try {
     await commentApi.update(c.commentId, editContent.value.trim())
     editingId.value = null
     await loadComments()
   } catch (e) {
-    alert(e.message)
+    commentMsg.value = apiMessage(e)
   }
 }
 async function removeComment(c) {
   if (!confirm('댓글을 삭제할까요?')) return
+  commentMsg.value = ''
   try {
     await commentApi.remove(c.commentId)
     await loadComments()
   } catch (e) {
-    alert(e.message)
+    commentMsg.value = apiMessage(e)
   }
 }
 </script>
@@ -111,6 +115,7 @@ async function removeComment(c) {
           <button class="link-btn danger" @click="remove">삭제</button>
         </span>
       </div>
+      <p v-if="actionMsg" class="err action-err">{{ actionMsg }}</p>
       <hr class="divider" />
       <div class="content">{{ post.content }}</div>
     </article>
@@ -118,6 +123,7 @@ async function removeComment(c) {
     <!-- 댓글 -->
     <section v-if="post" class="comments card">
       <h2 class="c-title">💬 댓글 {{ comments.length }}</h2>
+      <p v-if="commentMsg" class="err c-err">{{ commentMsg }}</p>
 
       <ul v-if="comments.length" class="c-list">
         <li v-for="c in comments" :key="c.commentId" class="c-item">
@@ -143,7 +149,6 @@ async function removeComment(c) {
 
       <div v-if="auth.isLoggedIn" class="c-form">
         <textarea v-model="newComment" class="input" rows="2" placeholder="댓글을 입력하세요"></textarea>
-        <p v-if="commentMsg" class="err">{{ commentMsg }}</p>
         <div class="c-form-actions"><button class="btn btn-primary sm-btn" @click="addComment">댓글 등록</button></div>
       </div>
       <p v-else class="muted c-login">
@@ -168,6 +173,9 @@ async function removeComment(c) {
 .link-btn { background: none; border: none; color: var(--color-primary-dark); font-weight: 600; font-size: 13px; cursor: pointer; padding: 4px 6px; }
 .link-btn.danger { color: var(--color-accent-dark); }
 .link-btn:hover { text-decoration: underline; }
+.err { color: var(--color-accent-dark); font-size: 14px; margin: 0; }
+.action-err { margin: 10px 0 0; }
+.c-err { margin: 0 0 14px; }
 .divider { border: none; border-top: 1px solid var(--color-border); margin: 16px 0; }
 .content { line-height: 1.7; color: #34404a; white-space: pre-wrap; min-height: 120px; }
 
