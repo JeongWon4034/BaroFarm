@@ -49,6 +49,19 @@ const newComment = ref('')
 const commentMsg = ref('')
 const editingId = ref(null)
 const editContent = ref('')
+const replyingTo = ref(null) // 답글 작성 중인 부모 댓글 id
+const replyContent = ref('')
+
+// 평탄한 댓글 목록을 최상위 + 답글(1-depth) 트리로 묶는다.
+const commentTree = computed(() => {
+  const roots = comments.value.filter(c => !c.parentId)
+  const byParent = {}
+  for (const c of comments.value) {
+    if (c.parentId) (byParent[c.parentId] ||= []).push(c)
+  }
+  return roots.map(r => ({ ...r, replies: byParent[r.commentId] || [] }))
+})
+const commentCount = computed(() => comments.value.length)
 
 async function loadComments() {
   try {
@@ -96,6 +109,24 @@ async function removeComment(c) {
     commentMsg.value = apiMessage(e)
   }
 }
+
+// --- 대댓글 ---
+function startReply(c) {
+  replyingTo.value = c.commentId
+  replyContent.value = ''
+}
+async function submitReply(parent) {
+  if (!replyContent.value.trim()) return
+  commentMsg.value = ''
+  try {
+    await commentApi.create(route.params.id, replyContent.value.trim(), parent.commentId)
+    replyingTo.value = null
+    replyContent.value = ''
+    await loadComments()
+  } catch (e) {
+    commentMsg.value = apiMessage(e)
+  }
+}
 </script>
 
 <template>
@@ -122,17 +153,20 @@ async function removeComment(c) {
 
     <!-- 댓글 -->
     <section v-if="post" class="comments card">
-      <h2 class="c-title">💬 댓글 {{ comments.length }}</h2>
+      <h2 class="c-title">💬 댓글 {{ commentCount }}</h2>
       <p v-if="commentMsg" class="err c-err">{{ commentMsg }}</p>
 
-      <ul v-if="comments.length" class="c-list">
-        <li v-for="c in comments" :key="c.commentId" class="c-item">
+      <ul v-if="commentTree.length" class="c-list">
+        <li v-for="c in commentTree" :key="c.commentId" class="c-item">
           <div class="c-head">
             <strong>{{ c.authorName }}</strong>
             <span class="muted sm">{{ dateOnly(c.createdAt) }}</span>
-            <span v-if="isMyComment(c) && editingId !== c.commentId" class="c-actions">
-              <button class="link-btn" @click="startEdit(c)">수정</button>
-              <button class="link-btn danger" @click="removeComment(c)">삭제</button>
+            <span class="c-actions">
+              <button v-if="auth.isLoggedIn && replyingTo !== c.commentId && editingId !== c.commentId" class="link-btn" @click="startReply(c)">답글</button>
+              <template v-if="isMyComment(c) && editingId !== c.commentId">
+                <button class="link-btn" @click="startEdit(c)">수정</button>
+                <button class="link-btn danger" @click="removeComment(c)">삭제</button>
+              </template>
             </span>
           </div>
           <div v-if="editingId === c.commentId" class="c-edit">
@@ -143,6 +177,38 @@ async function removeComment(c) {
             </div>
           </div>
           <p v-else class="c-body">{{ c.content }}</p>
+
+          <!-- 답글 작성 폼 -->
+          <div v-if="replyingTo === c.commentId" class="c-reply-form">
+            <textarea v-model="replyContent" class="input" rows="2" :placeholder="`${c.authorName}님에게 답글 달기`"></textarea>
+            <div class="c-edit-actions">
+              <button class="link-btn" @click="replyingTo = null">취소</button>
+              <button class="link-btn" @click="submitReply(c)">답글 등록</button>
+            </div>
+          </div>
+
+          <!-- 답글 목록(1-depth) -->
+          <ul v-if="c.replies.length" class="c-replies">
+            <li v-for="r in c.replies" :key="r.commentId" class="c-item reply">
+              <div class="c-head">
+                <span class="reply-arrow">↳</span>
+                <strong>{{ r.authorName }}</strong>
+                <span class="muted sm">{{ dateOnly(r.createdAt) }}</span>
+                <span v-if="isMyComment(r) && editingId !== r.commentId" class="c-actions">
+                  <button class="link-btn" @click="startEdit(r)">수정</button>
+                  <button class="link-btn danger" @click="removeComment(r)">삭제</button>
+                </span>
+              </div>
+              <div v-if="editingId === r.commentId" class="c-edit">
+                <textarea v-model="editContent" class="input" rows="2"></textarea>
+                <div class="c-edit-actions">
+                  <button class="link-btn" @click="editingId = null">취소</button>
+                  <button class="link-btn" @click="saveEdit(r)">저장</button>
+                </div>
+              </div>
+              <p v-else class="c-body">{{ r.content }}</p>
+            </li>
+          </ul>
         </li>
       </ul>
       <p v-else class="muted c-empty">첫 댓글을 남겨보세요.</p>
@@ -189,6 +255,13 @@ async function removeComment(c) {
 .c-body { margin: 0; line-height: 1.6; white-space: pre-wrap; }
 .c-edit { display: flex; flex-direction: column; gap: 6px; }
 .c-edit-actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+/* 대댓글 */
+.c-reply-form { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 4px; padding-left: 16px; }
+.c-replies { list-style: none; margin: 10px 0 0; padding: 0 0 0 18px; display: flex; flex-direction: column; gap: 12px; border-left: 2px solid var(--color-border); }
+.c-replies .c-item { border-bottom: none; padding-bottom: 0; }
+.c-replies .c-item + .c-item { border-top: 1px solid var(--color-border); padding-top: 12px; }
+.reply-arrow { color: var(--color-muted); font-weight: 700; }
 .c-empty { padding: 8px 0 18px; }
 .c-form { display: flex; flex-direction: column; gap: 8px; }
 .c-form-actions { display: flex; justify-content: flex-end; }
