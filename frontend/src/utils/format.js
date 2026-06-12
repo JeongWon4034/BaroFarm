@@ -65,6 +65,29 @@ export function apiMessage(e, fallback = '요청을 처리하지 못했어요.')
   return ERROR_MESSAGE[e?.code] || e?.message || fallback
 }
 
+// 챌린지 참여 상태를 표시용으로 파생한다.
+// 백엔드 status는 ONGOING/COMPLETED뿐이라, '기간 만료'는 joinedAt+periodDays를 현재시각과 비교해 프론트에서 계산.
+//   COMPLETED                          → 달성
+//   ONGOING & 기간 지남 & 미달성        → 만료(EXPIRED)
+//   ONGOING & 기간 내                   → 진행 중(+ 남은 D-day)
+const MS_PER_DAY = 86400000
+export function challengeStatus(challenge, my) {
+  if (!my) return { key: 'NONE' }
+  if (my.status === 'COMPLETED') {
+    return { key: 'COMPLETED', label: '달성 완료', emoji: '🏅', cls: 'st-done' }
+  }
+  const joined = new Date(my.joinedAt)
+  const deadline = new Date(joined.getTime() + (challenge.periodDays || 0) * MS_PER_DAY)
+  const daysLeft = Math.ceil((deadline.getTime() - Date.now()) / MS_PER_DAY)
+  if (daysLeft < 0) {
+    return { key: 'EXPIRED', label: '기간 만료', emoji: '⏰', cls: 'st-expired' }
+  }
+  return {
+    key: 'ONGOING', label: '진행 중', emoji: '🟢', cls: 'st-ongoing',
+    daysLeft, dday: daysLeft === 0 ? '오늘 마감' : `D-${daysLeft}`,
+  }
+}
+
 // 폐기위험 등급 → 표시 메타 (라벨/뱃지 클래스)
 const RISK_META = {
   HIGH: { label: '폐기 임박', cls: 'risk-high' },
