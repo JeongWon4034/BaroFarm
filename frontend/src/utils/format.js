@@ -57,6 +57,9 @@ const ERROR_MESSAGE = {
   ACCOUNT_INACTIVE: '탈퇴하거나 비활성화된 계정이에요.',
   POST_NOT_FOUND: '이미 삭제되었거나 존재하지 않는 글이에요.',
   COMMENT_NOT_FOUND: '이미 삭제된 댓글이에요.',
+  PARENT_COMMENT_NOT_FOUND: '답글을 달 댓글을 찾을 수 없어요. 이미 삭제되었을 수 있어요.',
+  PARENT_POST_MISMATCH: '다른 게시글의 댓글에는 답글을 달 수 없어요.',
+  DATA_INTEGRITY_VIOLATION: '관련 게시글이나 댓글이 변경·삭제되어 처리할 수 없어요. 새로고침 후 다시 시도해 주세요.',
 }
 export function apiMessage(e, fallback = '요청을 처리하지 못했어요.') {
   return ERROR_MESSAGE[e?.code] || e?.message || fallback

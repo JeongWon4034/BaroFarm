@@ -1,5 +1,6 @@
 package com.freshgrowth.common;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -30,6 +31,14 @@ public class GlobalExceptionHandler {
                 .orElse("입력값이 올바르지 않습니다.");
         return ResponseEntity.badRequest()
                 .body(ApiResponse.fail("요청 처리에 실패했습니다.", "INVALID_INPUT", detail));
+    }
+
+    // FK 등 DB 참조 무결성 위반(예: 작성 직전 게시글·부모 댓글이 삭제됨) → 409로 명확히 안내
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIntegrity(DataIntegrityViolationException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.fail("요청 처리에 실패했습니다.", "DATA_INTEGRITY_VIOLATION",
+                        "관련 게시글이나 댓글이 변경·삭제되어 처리할 수 없어요. 새로고침 후 다시 시도해 주세요."));
     }
 
     @ExceptionHandler(Exception.class)

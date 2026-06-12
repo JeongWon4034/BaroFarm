@@ -11,7 +11,7 @@ export const postApi = {
 
 export const commentApi = {
   list: (postId) => http.get(`/posts/${postId}/comments`),
-  create: (postId, content) => http.post(`/posts/${postId}/comments`, { content }),
+  create: (postId, content, parentId = null) => http.post(`/posts/${postId}/comments`, { content, parentId }),
   update: (commentId, content) => http.put(`/comments/${commentId}`, { content }),
   remove: (commentId) => http.delete(`/comments/${commentId}`),
 }
