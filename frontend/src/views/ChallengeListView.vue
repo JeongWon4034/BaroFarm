@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { challengeApi } from '../api/challenges'
 import { useAuthStore } from '../stores/auth'
 import { challengeStatus, dateOnly } from '../utils/format'
+import ChallengeStatusBadge from '../components/ChallengeStatusBadge.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -95,10 +96,7 @@ async function join(c) {
           <p class="ch-goal muted sm">목표: 마감임박 상품 {{ c.goalCount }}개 구매 · {{ c.periodDays }}일</p>
 
           <template v-if="statusMap[c.challengeId]">
-            <div class="st-badge" :class="statusMap[c.challengeId].cls">
-              {{ statusMap[c.challengeId].emoji }} {{ statusMap[c.challengeId].label }}
-              <span v-if="statusMap[c.challengeId].key === 'ONGOING'" class="dday">· {{ statusMap[c.challengeId].dday }}</span>
-            </div>
+            <ChallengeStatusBadge :status="statusMap[c.challengeId]" />
             <template v-if="statusMap[c.challengeId].key !== 'COMPLETED'">
               <div class="bar"><div class="bar-fill" :class="{ 'fill-expired': statusMap[c.challengeId].key === 'EXPIRED' }" :style="{ width: pct(c) + '%' }" /></div>
               <div class="prog sm">
@@ -144,13 +142,8 @@ async function join(c) {
 .prog { margin-top: 6px; color: var(--color-muted); font-weight: 600; }
 .sm-btn { padding: 8px 16px; font-size: 14px; }
 
-/* 상태 배지(진행중/만료/달성) */
-.st-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700;
-  padding: 4px 10px; border-radius: 999px; margin-bottom: 8px; }
-.st-badge .dday { font-weight: 800; }
-.st-ongoing { background: var(--color-primary-soft); color: var(--color-primary-dark); }
-.st-expired { background: #f0f0f0; color: #888; }
-.st-done { background: #fff4d6; color: #b8860b; }
+/* 배지 자체 스타일은 ChallengeStatusBadge 컴포넌트로 분리. 여기선 카드 레이아웃만. */
+.st-badge { margin-bottom: 8px; }
 /* 만료 카드는 전체를 차분하게 */
 .ch-card:has(.st-expired) { opacity: 0.72; }
 </style>

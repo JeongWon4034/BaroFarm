@@ -76,9 +76,13 @@ export function challengeStatus(challenge, my) {
   if (my.status === 'COMPLETED') {
     return { key: 'COMPLETED', label: '달성 완료', emoji: '🏅', cls: 'st-done' }
   }
-  const joined = new Date(my.joinedAt)
-  const deadline = new Date(joined.getTime() + (challenge.periodDays || 0) * MS_PER_DAY)
-  const daysLeft = Math.ceil((deadline.getTime() - Date.now()) / MS_PER_DAY)
+  // D-day는 시:분이 아니라 '날짜(자정)' 기준으로 센다. 참여일 D + periodDays일까지 유효, 그 다음날 만료.
+  const j = new Date(my.joinedAt)
+  const startDay = new Date(j.getFullYear(), j.getMonth(), j.getDate()).getTime()
+  const deadlineDay = startDay + (challenge.periodDays || 0) * MS_PER_DAY
+  const n = new Date()
+  const today = new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime()
+  const daysLeft = Math.round((deadlineDay - today) / MS_PER_DAY)
   if (daysLeft < 0) {
     return { key: 'EXPIRED', label: '기간 만료', emoji: '⏰', cls: 'st-expired' }
   }

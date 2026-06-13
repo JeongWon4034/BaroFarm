@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { challengeApi } from '../api/challenges'
 import { useAuthStore } from '../stores/auth'
 import { dateOnly, challengeStatus } from '../utils/format'
+import ChallengeStatusBadge from '../components/ChallengeStatusBadge.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -76,10 +77,7 @@ async function join() {
     <div v-if="my" class="card progress-card" :class="{ dim: status.key === 'EXPIRED' }">
       <div class="sec-row">
         <h2 class="sec">내 진행 상황</h2>
-        <span class="st-badge" :class="status.cls">
-          {{ status.emoji }} {{ status.label }}
-          <span v-if="status.key === 'ONGOING'" class="dday">· {{ status.dday }}</span>
-        </span>
+        <ChallengeStatusBadge :status="status" />
       </div>
 
       <!-- 달성 -->
@@ -125,12 +123,7 @@ async function join() {
 .progress-card.dim { opacity: 0.78; }
 .sec-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
 .sec { font-size: 16px; margin: 0; }
-.st-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700;
-  padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
-.st-badge .dday { font-weight: 800; }
-.st-ongoing { background: var(--color-primary-soft); color: var(--color-primary-dark); }
-.st-expired { background: #f0f0f0; color: #888; }
-.st-done { background: #fff4d6; color: #b8860b; }
+/* 배지 스타일은 ChallengeStatusBadge 컴포넌트에 있음 */
 .done-banner { color: var(--color-primary-dark); font-weight: 800; font-size: 20px; }
 .log { margin: 10px 0 0; }
 .bar { height: 12px; background: var(--color-bg); border-radius: 999px; overflow: hidden; }
