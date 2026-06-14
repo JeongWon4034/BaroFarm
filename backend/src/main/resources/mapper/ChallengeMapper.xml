@@ -40,9 +40,13 @@
         VALUES (#{userId}, #{challengeId})
     </insert>
 
+    <!-- 진행도 갱신 대상: ONGOING + 목표유형 일치 + 기간 미만료.
+         기간 만료는 프론트(challengeStatus)와 동일하게 '날짜 기준'으로 본다:
+         참여일(날짜) + period_days 일까지 유효, 그 이후 구매는 진행도에 반영하지 않는다. -->
     <select id="findOngoingByUserAndType" resultType="com.freshgrowth.challenge.UserChallenge">
         <include refid="userChallengeJoin"/>
         WHERE uc.user_id = #{userId} AND uc.status = 'ONGOING' AND c.goal_type = #{goalType}
+          AND DATE(uc.joined_at) + INTERVAL c.period_days DAY &gt;= CURDATE()
     </select>
 
     <update id="incrementProgress">

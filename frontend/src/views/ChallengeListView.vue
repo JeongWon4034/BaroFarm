@@ -3,6 +3,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { challengeApi } from '../api/challenges'
 import { useAuthStore } from '../stores/auth'
+import { challengeStatus, dateOnly } from '../utils/format'
+import ChallengeStatusBadge from '../components/ChallengeStatusBadge.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -32,8 +34,18 @@ async function load() {
   }
 }
 
-const joinedCount = computed(() => Object.keys(mine.value).length)
-const completedCount = computed(() => Object.values(mine.value).filter((c) => c.status === 'COMPLETED').length)
+// 챌린지별 파생 상태(진행중/만료/달성) 맵: challengeId -> status
+const statusMap = computed(() => {
+  const m = {}
+  for (const c of challenges.value) {
+    const mc = mine.value[c.challengeId]
+    if (mc) m[c.challengeId] = challengeStatus(c, mc)
+  }
+  return m
+})
+const ongoingCount = computed(() => Object.values(statusMap.value).filter((s) => s.key === 'ONGOING').length)
+const completedCount = computed(() => Object.values(statusMap.value).filter((s) => s.key === 'COMPLETED').length)
+const expiredCount = computed(() => Object.values(statusMap.value).filter((s) => s.key === 'EXPIRED').length)
 
 function pct(c) {
   const m = mine.value[c.challengeId]
@@ -67,7 +79,7 @@ async function join(c) {
     </div>
 
     <div v-if="auth.isLoggedIn" class="summary">
-      참여 중 <strong>{{ joinedCount }}</strong> · 달성 <strong>{{ completedCount }}</strong>
+      진행 중 <strong>{{ ongoingCount }}</strong> · 달성 <strong>{{ completedCount }}</strong> · 만료 <strong>{{ expiredCount }}</strong>
     </div>
 
     <p v-if="msg" class="err">{{ msg }}</p>
@@ -83,12 +95,16 @@ async function join(c) {
           <p class="ch-desc muted">{{ c.description }}</p>
           <p class="ch-goal muted sm">목표: 마감임박 상품 {{ c.goalCount }}개 구매 · {{ c.periodDays }}일</p>
 
-          <template v-if="mine[c.challengeId]">
-            <div v-if="mine[c.challengeId].status === 'COMPLETED'" class="done">✅ 달성 완료</div>
-            <template v-else>
-              <div class="bar"><div class="bar-fill" :style="{ width: pct(c) + '%' }" /></div>
-              <div class="prog sm">{{ mine[c.challengeId].progress }} / {{ c.goalCount }}</div>
+          <template v-if="statusMap[c.challengeId]">
+            <ChallengeStatusBadge :status="statusMap[c.challengeId]" />
+            <template v-if="statusMap[c.challengeId].key !== 'COMPLETED'">
+              <div class="bar"><div class="bar-fill" :class="{ 'fill-expired': statusMap[c.challengeId].key === 'EXPIRED' }" :style="{ width: pct(c) + '%' }" /></div>
+              <div class="prog sm">
+                {{ mine[c.challengeId].progress }} / {{ c.goalCount }}
+                <span v-if="statusMap[c.challengeId].key === 'EXPIRED'" class="muted">· 목표 미달성</span>
+              </div>
             </template>
+            <p v-else class="prog sm muted">{{ dateOnly(mine[c.challengeId].completedAt) }} 달성 · {{ c.badgeEmoji }} 뱃지 획득</p>
           </template>
           <button v-else class="btn btn-primary sm-btn" :disabled="joining === c.challengeId" @click="join(c)">
             {{ joining === c.challengeId ? '참여 중…' : '도전하기' }}
@@ -122,7 +138,12 @@ async function join(c) {
 
 .bar { height: 8px; background: var(--color-bg); border-radius: 999px; overflow: hidden; }
 .bar-fill { height: 100%; background: var(--color-primary); transition: width 0.3s ease; }
+.bar-fill.fill-expired { background: var(--color-muted); }
 .prog { margin-top: 6px; color: var(--color-muted); font-weight: 600; }
-.done { color: var(--color-primary-dark); font-weight: 700; font-size: 15px; }
 .sm-btn { padding: 8px 16px; font-size: 14px; }
+
+/* 배지 자체 스타일은 ChallengeStatusBadge 컴포넌트로 분리. 여기선 카드 레이아웃만. */
+.st-badge { margin-bottom: 8px; }
+/* 만료 카드는 전체를 차분하게 */
+.ch-card:has(.st-expired) { opacity: 0.72; }
 </style>

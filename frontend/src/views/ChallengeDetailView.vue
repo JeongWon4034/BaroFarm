@@ -3,7 +3,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { challengeApi } from '../api/challenges'
 import { useAuthStore } from '../stores/auth'
-import { dateOnly } from '../utils/format'
+import { dateOnly, challengeStatus } from '../utils/format'
+import ChallengeStatusBadge from '../components/ChallengeStatusBadge.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -34,7 +35,7 @@ async function load() {
   }
 }
 
-const completed = computed(() => my.value?.status === 'COMPLETED')
+const status = computed(() => challengeStatus(challenge.value || {}, my.value))
 const pct = computed(() => {
   if (!my.value || !challenge.value) return 0
   return Math.min(100, Math.round((my.value.progress / challenge.value.goalCount) * 100))
@@ -73,16 +74,30 @@ async function join() {
     </div>
 
     <!-- 내 진행 상황 / 달성 로그 (증빙) -->
-    <div v-if="my" class="card progress-card">
-      <h2 class="sec">내 진행 상황</h2>
-      <template v-if="completed">
-        <div class="done-banner">✅ 달성 완료!</div>
-        <p class="log muted sm">달성일: {{ dateOnly(my.completedAt) }} · 참여일: {{ dateOnly(my.joinedAt) }}</p>
+    <div v-if="my" class="card progress-card" :class="{ dim: status.key === 'EXPIRED' }">
+      <div class="sec-row">
+        <h2 class="sec">내 진행 상황</h2>
+        <ChallengeStatusBadge :status="status" />
+      </div>
+
+      <!-- 달성 -->
+      <template v-if="status.key === 'COMPLETED'">
+        <div class="done-banner">🏅 달성 완료!</div>
+        <p class="log muted sm">달성일: {{ dateOnly(my.completedAt) }} · 참여일: {{ dateOnly(my.joinedAt) }} · {{ challenge.badgeEmoji }} 뱃지 획득</p>
       </template>
+
+      <!-- 기간 만료 -->
+      <template v-else-if="status.key === 'EXPIRED'">
+        <div class="bar"><div class="bar-fill fill-expired" :style="{ width: pct + '%' }" /></div>
+        <p class="prog">{{ my.progress }} / {{ challenge.goalCount }} <span class="muted sm">· 목표 미달성</span></p>
+        <p class="hint muted sm">참여일 {{ dateOnly(my.joinedAt) }} 기준 {{ challenge.periodDays }}일이 지나 종료된 챌린지예요. 다음 챌린지에 다시 도전해보세요.</p>
+      </template>
+
+      <!-- 진행 중 -->
       <template v-else>
         <div class="bar"><div class="bar-fill" :style="{ width: pct + '%' }" /></div>
         <p class="prog">{{ my.progress }} / {{ challenge.goalCount }} <span class="muted sm">({{ pct }}%)</span></p>
-        <p class="hint muted sm">마감임박(떨이) 상품을 구매하면 진행도가 올라갑니다.</p>
+        <p class="hint muted sm">마감임박(떨이) 상품을 구매하면 진행도가 올라갑니다. 남은 기간 <strong>{{ status.dday }}</strong>.</p>
       </template>
     </div>
 
@@ -105,11 +120,15 @@ async function join() {
 .sm { font-size: 13px; }
 
 .progress-card { margin-top: 18px; padding: 20px; }
-.sec { font-size: 16px; margin: 0 0 14px; }
+.progress-card.dim { opacity: 0.78; }
+.sec-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.sec { font-size: 16px; margin: 0; }
+/* 배지 스타일은 ChallengeStatusBadge 컴포넌트에 있음 */
 .done-banner { color: var(--color-primary-dark); font-weight: 800; font-size: 20px; }
 .log { margin: 10px 0 0; }
 .bar { height: 12px; background: var(--color-bg); border-radius: 999px; overflow: hidden; }
 .bar-fill { height: 100%; background: var(--color-primary); transition: width 0.3s ease; }
+.bar-fill.fill-expired { background: var(--color-muted); }
 .prog { font-size: 18px; font-weight: 700; margin: 10px 0 4px; }
 .hint { margin: 0; }
 
