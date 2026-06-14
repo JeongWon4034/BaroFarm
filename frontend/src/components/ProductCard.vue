@@ -18,6 +18,8 @@ const auth = useAuthStore()
 const emoji = computed(() => thumbEmoji(props.product))
 const soldOut = computed(() => (props.product.stockQty ?? 0) <= 0)
 const lowStock = computed(() => !soldOut.value && (props.product.stockQty ?? 0) <= 5)
+// 유통기한 경과(마감) — 상세 페이지와 동일 기준. 장바구니 담기 불가.
+const isExpired = computed(() => props.product.riskLevel === 'EXPIRED' || (props.product.daysToExpiry ?? 0) < 0)
 const wished = computed(() => wishlist.isWished(props.product.productId))
 
 async function toggleWish() {
@@ -33,6 +35,7 @@ const dealPrice = computed(() => props.product.discountedPrice ?? props.product.
 const risk = computed(() => riskMeta(props.product.riskLevel))
 
 function add() {
+  if (soldOut.value || isExpired.value) return
   emit('add', props.product)
 }
 </script>
@@ -83,9 +86,9 @@ function add() {
       </div>
     </div>
 
-    <button class="add" :disabled="soldOut" @click="add">
-      <svg v-if="!soldOut" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h2.2l2 13.4a1.5 1.5 0 0 0 1.5 1.3h9.7a1.5 1.5 0 0 0 1.5-1.2L21 7H5.5"/><circle cx="9" cy="21" r="1.3"/><circle cx="18" cy="21" r="1.3"/></svg>
-      {{ soldOut ? '품절' : '담기' }}
+    <button class="add" :disabled="soldOut || isExpired" @click="add">
+      <svg v-if="!soldOut && !isExpired" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h2.2l2 13.4a1.5 1.5 0 0 0 1.5 1.3h9.7a1.5 1.5 0 0 0 1.5-1.2L21 7H5.5"/><circle cx="9" cy="21" r="1.3"/><circle cx="18" cy="21" r="1.3"/></svg>
+      {{ soldOut ? '품절' : isExpired ? '판매 마감' : '담기' }}
     </button>
   </article>
 </template>
