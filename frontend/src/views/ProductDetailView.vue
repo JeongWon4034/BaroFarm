@@ -59,6 +59,9 @@ const avgRating = computed(() => {
   if (!reviews.value.length) return product.value?.averageRating || 0
   return reviews.value.reduce((s, r) => s + (r.rating || 0), 0) / reviews.value.length
 })
+// 재고 게이지(시각용): 캐파 정보가 없어 20개 기준으로 환산
+const stockPct = computed(() => Math.max(6, Math.min(100, Math.round(((product.value?.stockQty ?? 0) / 20) * 100))))
+const saved = computed(() => Math.max(0, (product.value?.price ?? 0) - unitPrice.value))
 
 function changeQty(delta) {
   qty.value = Math.min(maxQty.value, Math.max(1, qty.value + delta))
@@ -112,83 +115,88 @@ async function buyNow() {
   <div v-if="loading" class="empty"><span class="emoji">⏳</span>불러오는 중…</div>
   <div v-else-if="error && !product" class="empty"><span class="emoji">⚠️</span>{{ error }}</div>
 
-  <div v-else-if="product">
-    <router-link :to="{ name: 'products' }" class="back muted">← 상품 목록으로</router-link>
+  <div v-else-if="product" class="pdp">
+    <!-- breadcrumb -->
+    <nav class="crumb">
+      <router-link :to="{ name: 'products' }">홈</router-link><span class="sep">›</span>
+      <router-link :to="{ name: 'products', query: { category: product.category } }">{{ categoryLabel(product.category) }}</router-link><span class="sep">›</span>
+      <span>{{ product.name }}</span>
+    </nav>
 
-    <div class="detail">
-      <!-- 썸네일 -->
-      <div class="thumb card">
-        <span class="emoji">{{ emoji }}</span>
-        <div class="thumb-badges">
-          <span class="badge">{{ categoryLabel(product.category) }}</span>
-          <span v-if="product.expirationDate" class="badge badge-accent">유통기한 {{ dateOnly(product.expirationDate) }}</span>
-          <span v-if="product.daysToExpiry != null" class="badge dday-badge" :class="risk.cls">
-            {{ dDayLabel(product.daysToExpiry) }} · {{ risk.label }}
-          </span>
+    <div class="pdp-grid">
+      <!-- gallery -->
+      <div class="gallery">
+        <div class="gmain">
+          <span v-if="hasDeal" class="disc-big">{{ product.discountRate }}%</span>
+          <span class="g-emoji">{{ emoji }}</span>
+          <span class="ph">상품 사진 자리 · 실사/AI 이미지로 교체</span>
+        </div>
+        <div class="trust">
+          <div class="ti"><div class="em">🚚</div><b>당일 산지직송</b><span>내일 도착</span></div>
+          <div class="ti"><div class="em">❄️</div><b>신선 콜드체인</b><span>저온 배송</span></div>
+          <div class="ti"><div class="em">🛡️</div><b>신선도 보장</b><span>이상 시 환불</span></div>
         </div>
       </div>
 
-      <!-- 정보 + 결제 -->
-      <div class="info">
-        <h1 class="name">{{ product.name }}</h1>
-        <div class="seller-box">
-          <div class="seller-info">
-            <span class="seller-name">🏡 {{ sellerName }}</span>
-            <span class="seller-meta muted">팔로워 {{ seller?.followerCount ?? 0 }} · 상품 {{ seller?.productCount ?? '-' }}</span>
-          </div>
-          <button v-if="auth.isBuyer" class="follow-btn" :class="{ on: following }" @click="toggleFollow">
-            {{ following ? '팔로잉 ✓' : '+ 팔로우' }}
+      <!-- info -->
+      <div class="pinfo">
+        <div class="chips">
+          <span class="chip">{{ categoryLabel(product.category) }}</span>
+          <span v-if="product.daysToExpiry != null" class="chip" :class="risk.cls">{{ risk.label }}</span>
+          <span class="chip muted">산지직송</span>
+        </div>
+        <h1>{{ product.name }}</h1>
+
+        <div class="seller">
+          <span class="loc">🏡 {{ sellerName }}</span>
+          <button v-if="auth.isBuyer" class="follow" :class="{ on: following }" @click="toggleFollow">
+            {{ following ? '✓ 팔로잉' : '+ 팔로우' }}
           </button>
+          <span class="rev">
+            <StarRating :rating="avgRating" size="14px" />
+            {{ avgRating ? avgRating.toFixed(1) : '-' }} · 후기 {{ reviews.length }}
+          </span>
         </div>
         <p v-if="followError" class="err follow-err">{{ followError }}</p>
-        <p class="rate">
-          평점: <StarRating :rating="avgRating" size="16px" />
-          <strong>{{ avgRating ? avgRating.toFixed(1) : '-' }}</strong>
-          <span class="muted">| 리뷰 {{ reviews.length }}개</span>
-        </p>
+
+        <div class="pricebox">
+          <div v-if="product.daysToExpiry != null && (risk.cls === 'risk-high' || risk.cls === 'risk-medium')" class="urgent-strip">
+            ⏰ {{ dDayLabel(product.daysToExpiry) }} · {{ risk.label }}
+          </div>
+          <div class="bigprice">
+            <span v-if="hasDeal" class="pct">{{ product.discountRate }}%</span>
+            <span class="now">{{ won(unitPrice) }}</span>
+            <span v-if="hasDeal" class="was">{{ won(product.price) }}</span>
+          </div>
+          <div v-if="hasDeal" class="save">마감임박 할인으로 {{ won(saved) }} 절약 중이에요</div>
+        </div>
 
         <p v-if="product.description" class="desc">{{ product.description }}</p>
 
-        <hr class="divider" />
-
-        <div class="price-row">
-          <div>
-            <div class="muted sm">판매가격</div>
-            <template v-if="hasDeal">
-              <div class="deal-line">
-                <span class="deal-rate">{{ product.discountRate }}%</span>
-                <span class="big-price">{{ won(unitPrice) }}</span>
-              </div>
-              <div class="orig-line muted sm">정가 <span class="orig">{{ won(product.price) }}</span></div>
-            </template>
-            <div v-else class="big-price">{{ won(product.price) }}</div>
+        <div class="meta-list">
+          <div class="ml">
+            <span>재고</span>
+            <b :class="{ hot: maxQty <= 5 }">{{ maxQty <= 5 ? '단 ' + product.stockQty + '개 남음' : product.stockQty + '개' }}</b>
+            <div class="gauge"><i :style="{ width: stockPct + '%' }"></i></div>
           </div>
-          <div class="stock">
-            <div class="muted sm">현재 재고</div>
-            <div class="stock-val" :class="{ low: maxQty <= 5 }">{{ product.stockQty }}개</div>
-          </div>
+          <div class="ml"><span>배송</span><b>산지직송 · 내일 도착 예정</b></div>
+          <div v-if="product.expirationDate" class="ml"><span>유통기한</span><b>{{ dateOnly(product.expirationDate) }}</b></div>
+          <div class="ml"><span>분류</span><b>{{ categoryLabel(product.category) }} · 냉장</b></div>
         </div>
 
-        <div class="ship card">
-          🚚 산지 직송 — 주문 후 24시간 내 발송<br />
-          📦 택배: 무료 (3만원 이상) · 냉장 포장 제공
-        </div>
-
-        <div class="qty-row">
-          <span class="qty-label">수량</span>
-          <div class="stepper">
+        <div class="buybar">
+          <div class="qtybox">
             <button @click="changeQty(-1)" :disabled="qty <= 1">−</button>
-            <span class="qty-val">{{ qty }}</span>
+            <span class="q">{{ qty }}</span>
             <button @click="changeQty(1)" :disabled="qty >= maxQty">+</button>
           </div>
+          <div class="sub">결제 예정<b>{{ won(estimated) }}</b></div>
         </div>
-
-        <p class="estimated">결제 예정 금액: <span class="price">{{ won(estimated) }}</span></p>
 
         <p v-if="error" class="err">{{ error }}</p>
         <p v-if="isExpired" class="expired-notice">⛔ 유통기한이 지나 판매가 종료된 상품입니다.</p>
 
-        <div class="actions">
+        <div class="cta-row">
           <button class="btn btn-outline" :disabled="soldOut || isExpired" @click="addToCart">🧺 장바구니 담기</button>
           <button class="btn btn-accent" :disabled="soldOut || isExpired || submitting" @click="buyNow">
             {{ isExpired ? '판매종료' : soldOut ? '품절' : (submitting ? '처리 중…' : '💳 결제하기') }}
@@ -197,13 +205,14 @@ async function buyNow() {
       </div>
     </div>
 
-    <!-- 리뷰 -->
+    <!-- reviews -->
     <section class="reviews">
       <h2 class="reviews-title">💬 구매 리뷰 <span class="muted">({{ reviews.length }})</span></h2>
       <div v-if="reviews.length === 0" class="empty"><span class="emoji">📝</span>아직 리뷰가 없어요.</div>
       <ul v-else class="review-list">
-        <li v-for="r in reviews" :key="r.reviewId" class="review-item card">
+        <li v-for="r in reviews" :key="r.reviewId" class="review-item">
           <div class="review-head">
+            <span class="r-ava">{{ (r.buyerName || '구')[0] }}</span>
             <strong>{{ r.buyerName || '구매자' }}</strong>
             <StarRating :rating="r.rating" />
             <span class="muted sm">{{ dateOnly(r.createdAt) }}</span>
@@ -216,72 +225,88 @@ async function buyNow() {
 </template>
 
 <style scoped>
-.back { display: inline-block; margin-bottom: 16px; font-size: 14px; }
-.detail { display: grid; grid-template-columns: 1fr 1.1fr; gap: 28px; }
-@media (max-width: 820px) { .detail { grid-template-columns: 1fr; } }
+.pdp { padding: 4px 0 40px; }
+.crumb { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); margin-bottom: 22px; flex-wrap: wrap; }
+.crumb span { white-space: nowrap; }
+.crumb .sep { color: var(--faint); }
+.crumb a:hover { color: var(--leaf-700); }
 
-.thumb {
-  position: relative; display: flex; align-items: center; justify-content: center;
-  height: 360px; background: var(--color-primary-soft);
-}
-.thumb .emoji { font-size: 140px; }
-.thumb-badges { position: absolute; bottom: 14px; left: 14px; display: flex; gap: 8px; }
+.pdp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
 
-.info { display: flex; flex-direction: column; }
-.name { font-size: 28px; margin: 0 0 6px; }
-.seller-box { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; margin: 0 0 12px; background: var(--color-bg); border-radius: var(--radius-sm); }
-.seller-info { display: flex; flex-direction: column; gap: 2px; }
-.seller-name { font-weight: 700; font-size: 15px; }
-.seller-meta { font-size: 13px; }
-.follow-btn { border: 1px solid var(--color-primary); background: var(--color-primary); color: #fff; font-weight: 700; font-size: 14px; padding: 8px 16px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
-.follow-btn.on { background: #fff; color: var(--color-primary-dark); }
-.follow-btn:hover { opacity: 0.9; }
-.rate { display: flex; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 15px; }
-.desc { line-height: 1.6; color: #4a5560; }
-.divider { border: none; border-top: 1px solid var(--color-border); margin: 18px 0; }
+/* gallery */
+.gallery { position: sticky; top: 130px; display: flex; flex-direction: column; gap: 14px; }
+.gmain { position: relative; aspect-ratio: 4/3; border-radius: 22px; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; overflow: hidden; background: radial-gradient(circle at 50% 36%, var(--leaf-50), var(--leaf-100)); }
+.gmain .g-emoji { font-size: 150px; filter: drop-shadow(0 20px 26px rgba(40,40,20,.18)); }
+.gmain .disc-big { position: absolute; top: 18px; left: 18px; background: var(--deal); color: #fff; font-weight: 800; font-size: 18px; padding: 6px 14px; border-radius: 12px; box-shadow: 0 8px 16px rgba(214,69,47,.3); }
+.gmain .ph { position: absolute; bottom: 16px; right: 16px; font-size: 12px; color: var(--muted); background: rgba(255,255,255,.75); padding: 3px 10px; border-radius: 6px; }
+.trust { display: flex; gap: 10px; }
+.trust .ti { flex: 1; background: #fff; border: 1px solid var(--line); border-radius: 13px; padding: 13px 10px; text-align: center; box-shadow: var(--shadow-sm); }
+.trust .ti .em { font-size: 21px; }
+.trust .ti b { display: block; font-size: 13px; margin-top: 5px; }
+.trust .ti span { font-size: 11px; color: var(--muted); }
 
-.price-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 14px; }
-.sm { font-size: 13px; }
-.big-price { font-size: 32px; font-weight: 800; color: var(--color-accent-dark); }
-.deal-line { display: flex; align-items: baseline; gap: 10px; }
-.deal-rate { font-size: 24px; font-weight: 800; color: #e5484d; }
-.orig-line { margin-top: 2px; }
-.orig-line .orig { text-decoration: line-through; }
-.dday-badge { color: #fff; background: #9aa0a6; }
-.dday-badge.risk-high { background: #e5484d; }
-.dday-badge.risk-medium { background: #f59e0b; }
-.dday-badge.risk-low { background: #7a8085; }
-.stock { text-align: right; }
-.stock-val { font-size: 22px; font-weight: 700; color: var(--color-primary-dark); }
-.stock-val.low { color: var(--color-accent-dark); }
+/* info */
+.pinfo { display: flex; flex-direction: column; gap: 16px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 7px; background: var(--leaf-50); color: var(--leaf-700); white-space: nowrap; }
+.chip.muted { background: #f1f1ea; color: var(--muted); }
+.chip.risk-high { background: var(--deal-soft); color: var(--deal); }
+.chip.risk-medium { background: var(--gold-soft); color: var(--gold); }
+.chip.risk-expired { background: #ececec; color: #888; }
+.pinfo h1 { font-size: 30px; font-weight: 800; letter-spacing: -.025em; margin: 6px 0 0; line-height: 1.25; }
 
-.ship {
-  background: var(--color-primary-soft); border-color: #cfe8d4;
-  padding: 14px 16px; font-size: 14px; line-height: 1.7; color: var(--color-primary-dark);
-  margin-bottom: 18px;
-}
+.seller { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--ink-2); flex-wrap: wrap; }
+.seller .loc { display: flex; align-items: center; gap: 5px; font-weight: 600; }
+.seller .follow { border: 1.5px solid var(--leaf-500); color: var(--leaf-700); background: var(--leaf-50); font-weight: 700; font-size: 12.5px; padding: 5px 12px; border-radius: 999px; }
+.seller .follow.on { background: var(--leaf-600); color: #fff; border-color: var(--leaf-600); }
+.seller .rev { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 13px; }
+.follow-err { color: var(--deal); font-size: 13px; margin: -8px 0 0; }
 
-.qty-row { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
-.qty-label { font-weight: 600; }
-.stepper { display: inline-flex; align-items: center; border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow: hidden; }
-.stepper button { width: 42px; height: 42px; border: none; background: #fff; font-size: 20px; color: var(--color-text); }
-.stepper button:hover:not(:disabled) { background: var(--color-bg); }
-.stepper button:disabled { opacity: 0.35; }
-.qty-val { width: 56px; text-align: center; font-size: 16px; font-weight: 700; }
+.pricebox { background: var(--cream); border: 1px solid var(--line); border-radius: 18px; padding: 20px; }
+.urgent-strip { display: flex; align-items: center; gap: 10px; background: #23281c; color: #fff; font-weight: 700; font-size: 14px; padding: 9px 14px; border-radius: 11px; margin-bottom: 16px; width: fit-content; }
+.bigprice { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.bigprice .pct { color: var(--deal); font-weight: 800; font-size: 30px; }
+.bigprice .now { font-weight: 800; font-size: 36px; letter-spacing: -.03em; }
+.bigprice .was { color: var(--faint); text-decoration: line-through; font-size: 18px; }
+.save { margin-top: 8px; color: var(--leaf-700); font-weight: 600; font-size: 13.5px; }
 
-.estimated { font-size: 16px; margin-bottom: 8px; }
-.estimated .price { font-size: 20px; }
-.err { color: var(--color-accent-dark); font-size: 14px; margin: 4px 0; }
-.follow-err { margin: -8px 0 8px; font-size: 13px; }
-.expired-notice { color: #c0392b; background: #fdeaea; border-radius: var(--radius-sm); padding: 10px 14px; font-size: 14px; font-weight: 600; margin: 4px 0 8px; }
+.desc { line-height: 1.7; color: var(--ink-2); font-size: 15px; margin: 0; }
 
-.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
-.actions .btn { padding: 15px; font-size: 16px; }
+.meta-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.meta-list .ml { display: flex; align-items: center; gap: 14px; padding: 13px 16px; font-size: 14.5px; border-bottom: 1px solid var(--line); }
+.meta-list .ml:last-child { border-bottom: none; }
+.meta-list .ml > span { color: var(--muted); width: 58px; flex: none; }
+.meta-list .ml b { color: var(--ink); font-weight: 700; }
+.meta-list .ml b.hot { color: var(--deal); }
+.meta-list .ml .gauge { height: 6px; border-radius: 4px; background: var(--line); overflow: hidden; width: 120px; margin-left: auto; }
+.meta-list .ml .gauge i { display: block; height: 100%; background: var(--deal); }
+
+.buybar { display: flex; align-items: center; justify-content: space-between; padding: 4px 2px; }
+.qtybox { display: inline-flex; align-items: center; border: 1.5px solid var(--line-2); border-radius: 12px; overflow: hidden; background: #fff; }
+.qtybox button { width: 42px; height: 46px; border: none; background: #fff; font-size: 20px; color: var(--ink-2); }
+.qtybox button:hover:not(:disabled) { background: var(--leaf-50); color: var(--leaf-700); }
+.qtybox button:disabled { opacity: .35; }
+.qtybox .q { width: 48px; text-align: center; font-weight: 700; font-size: 17px; font-variant-numeric: tabular-nums; }
+.buybar .sub { font-size: 15px; color: var(--muted); }
+.buybar .sub b { font-size: 24px; font-weight: 800; color: var(--ink); letter-spacing: -.02em; margin-left: 6px; }
+
+.err { color: var(--deal); font-size: 14px; margin: 0; }
+.expired-notice { color: #c0392b; background: var(--deal-soft); border-radius: var(--r-btn); padding: 10px 14px; font-size: 14px; font-weight: 600; margin: 0; }
+.cta-row { display: flex; gap: 11px; }
+.cta-row .btn { flex: 1; padding: 16px; font-size: 16px; }
 
 .reviews { margin-top: 48px; }
-.reviews-title { font-size: 20px; border-top: 1px solid var(--color-border); padding-top: 24px; }
-.review-list { display: flex; flex-direction: column; gap: 12px; }
-.review-item { padding: 14px 16px; }
-.review-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-.review-body { margin: 0; color: #4a5560; line-height: 1.6; }
+.reviews-title { font-size: 20px; font-weight: 800; border-top: 1px solid var(--line); padding-top: 26px; margin-bottom: 16px; }
+.review-list { display: flex; flex-direction: column; gap: 12px; list-style: none; margin: 0; padding: 0; }
+.review-item { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow-sm); }
+.review-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.r-ava { width: 30px; height: 30px; border-radius: 50%; background: var(--leaf-100); color: var(--leaf-700); font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center; flex: none; }
+.review-head strong { font-size: 14.5px; }
+.review-head .sm { font-size: 12.5px; margin-left: auto; }
+.review-body { margin: 0; color: var(--ink-2); line-height: 1.6; font-size: 14.5px; }
+
+@media (max-width: 900px) {
+  .pdp-grid { grid-template-columns: 1fr; gap: 26px; }
+  .gallery { position: static; }
+}
 </style>
