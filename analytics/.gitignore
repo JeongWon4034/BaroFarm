@@ -1,0 +1,3 @@
+# 산출 데이터는 seed로 재생성되므로 git 미추적
+data/
+__pycache__/
