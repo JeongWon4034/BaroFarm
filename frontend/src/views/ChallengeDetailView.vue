@@ -97,7 +97,7 @@ async function join() {
       <template v-else>
         <div class="bar"><div class="bar-fill" :style="{ width: pct + '%' }" /></div>
         <p class="prog">{{ my.progress }} / {{ challenge.goalCount }} <span class="muted sm">({{ pct }}%)</span></p>
-        <p class="hint muted sm">마감임박(떨이) 상품을 구매하면 진행도가 올라갑니다. 남은 기간 <strong>{{ status.dday }}</strong>.</p>
+        <p class="hint muted sm">마감임박(할인) 상품을 구매하면 진행도가 올라갑니다. 남은 기간 <strong>{{ status.dday }}</strong>.</p>
       </template>
     </div>
 
