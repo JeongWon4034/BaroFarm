@@ -14,6 +14,26 @@
 
 ---
 
+## 🗓️ 진행 현황 (2026-06-16 업데이트)
+
+> **📢 팀 공유 — 데이터 분석 대시보드(`analytics/`) 1차 구축 완료**
+>
+> 행동로그 합성 → Growth KPI 엔진 → Streamlit 대시보드 + 분석 API까지 **데이터쪽 파이프라인을 만들었습니다.**
+> 데이터는 합성(seed=42, 재현 가능)이지만, 그 위에서 계산하는 지표는 모두 실측입니다.
+
+| 모듈 | 파일 | 내용 |
+|---|---|---|
+| 행동로그 합성 | `analytics/simulate.py` | 조회·검색·찜·구매 이벤트를 확률모델로 생성 |
+| Growth KPI 엔진 | `analytics/kpi.py` | 퍼널 · 마감임박 딜 효과(2-비율 Z검정) · GMV/AOV · 재구매/코호트 · 카테고리/상품 |
+| 분석 대시보드 | `analytics/app.py` | Streamlit + Plotly 시각화 |
+| 분석 API | `analytics/api.py` | FastAPI `/analytics/*` (Vue 판매자 대시보드 연동용) |
+
+- **실행**: `cd analytics && pip install -r requirements.txt && python3 simulate.py && streamlit run app.py`
+- 현재 데이터 저장은 **평면파일**(`analytics/data/`, git 미추적 — seed로 재생성). **MySQL 적재 전환은 다음 작업.**
+- 상세 문서: [`analytics/README.md`](./analytics/README.md)
+
+---
+
 ## 📌 목차
 
 1. [프로젝트 개요](#1-프로젝트-개요)

@@ -20,8 +20,24 @@
 ## 실행
 ```bash
 pip install -r requirements.txt
-python3 simulate.py          # data/ 에 산출물 생성 (재현 가능)
+python3 simulate.py          # 1) data/ 에 산출물 생성 (재현 가능)
+python3 kpi.py               # 2) Growth KPI 콘솔 요약 (검증용)
+streamlit run app.py         # 3) Growth 분석 대시보드 (포트폴리오)
+uvicorn api:app --port 8000  # 4) Analytics API (Vue 판매자 대시보드용) → /docs
 ```
+
+## 구성 (단일 분석 엔진)
+```
+data/ (합성, seed=42)
+   │ load_data()
+ kpi.py  ── 순수 함수 Growth 지표 엔진 (계산은 여기 한 곳에만)
+  ╱        ╲
+app.py(Streamlit)   api.py(FastAPI) ──→ Vue 판매자 대시보드
+  포트폴리오            인앱 실시간 KPI(JSON)
+```
+- `kpi.py` — funnel·deal_effect(Z검정)·revenue·repurchase·cohort·category·product. DataFrame in → 지표 out, 차트 없음.
+- `app.py` — kpi.py를 직접 import해 Plotly 시각화만 담당.
+- `api.py` — kpi.py를 JSON으로 노출. `load_data()`를 DB 로더로 교체하면 엔드포인트 변경 없이 라이브 전환.
 
 ## 산출물 (`data/`, git 미추적 — seed로 재생성)
 | 파일 | 레이어 | 내용 |
@@ -30,9 +46,13 @@ python3 simulate.py          # data/ 에 산출물 생성 (재현 가능)
 | `users.csv` / `products.csv` | Layer 1 (RDB) | 차원 |
 | `orders.csv` / `wishlists.csv` / `reviews.csv` | Layer 1 (RDB) | 결과 (이벤트와 정합) |
 
-## KPI (계획)
-1. 퍼널 전환율 (조회→상세→구매)
-2. **마감임박 딜 효과** — 딜 vs 정상가 전환율·판매속도 ⭐ 프로젝트 시그니처
-3. GMV / 객단가(AOV)
-4. 재구매율 / 리텐션
+## KPI (구현 완료 — `kpi.py`)
+1. 퍼널 전환율 (조회→상세→구매, 세션 기준)
+2. **마감임박 딜 효과** — 딜 vs 정상가 상세→구매 전환율 + 2-비율 Z검정 ⭐ 프로젝트 시그니처
+3. GMV / 객단가(AOV) + 일별 시계열
+4. 재구매율 / 코호트 리텐션
 5. 카테고리·상품별 성과
+
+> 합성 데이터엔 `ab_test_group`이 없어, README §9의 A/B 검정은 **딜(`is_deal`) vs 정상가**
+> 2-비율 Z검정으로 구현(딜 효과가 시그니처). 코호트 `week_0`은 "가입 주차 실구매 비율"
+> 정의라 100%가 아님(획득 코호트 정의와 다름, 의도된 것).
