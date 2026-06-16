@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { productApi } from '../api/products'
 import { useCartStore } from '../stores/cart'
 import { categoryLabel } from '../utils/format'
+import { track } from '../api/track'
 import ProductCard from '../components/ProductCard.vue'
 
 const cart = useCartStore()
@@ -25,7 +26,10 @@ const page = ref(Math.max(0, (parseInt(route.query.page) || 1) - 1))
 const totalPages = ref(0)
 const totalElements = ref(0)
 
-onMounted(load)
+onMounted(() => {
+  track('view_home') // 퍼널 1단계 — 홈/상품목록 진입
+  load()
+})
 
 // 현재 검색 상태를 URL 쿼리에 반영(기본값은 생략해 깔끔하게)
 function syncUrl() {
