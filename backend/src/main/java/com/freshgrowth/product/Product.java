@@ -23,6 +23,10 @@ public class Product {
     private Integer discountRate;    // 추천 할인율(%)
     private Integer discountedPrice; // 동적 떨이가
 
+    // --- 리뷰 통계 (조회 시 reviews 집계) ---
+    private Integer reviewCount;     // 리뷰 수
+    private Double avgRating;        // 평균 별점(소수1자리), 리뷰 없으면 null
+
     public Long getProductId() { return productId; }
     public void setProductId(Long productId) { this.productId = productId; }
     public Long getSellerId() { return sellerId; }
@@ -55,4 +59,8 @@ public class Product {
     public void setDiscountRate(Integer discountRate) { this.discountRate = discountRate; }
     public Integer getDiscountedPrice() { return discountedPrice; }
     public void setDiscountedPrice(Integer discountedPrice) { this.discountedPrice = discountedPrice; }
+    public Integer getReviewCount() { return reviewCount; }
+    public void setReviewCount(Integer reviewCount) { this.reviewCount = reviewCount; }
+    public Double getAvgRating() { return avgRating; }
+    public void setAvgRating(Double avgRating) { this.avgRating = avgRating; }
 }

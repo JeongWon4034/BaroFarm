@@ -85,9 +85,9 @@ function onOpen() {
         <span class="stock" :class="{ low: lowStock }">
           {{ soldOut ? '품절' : (lowStock ? '단 ' + product.stockQty + '개 남음' : '재고 ' + product.stockQty + '개') }}
         </span>
-        <span v-if="product.averageRating" class="rating">
-          <StarRating :rating="product.averageRating" />
-          <span class="muted">{{ Number(product.averageRating).toFixed(1) }}</span>
+        <span v-if="product.reviewCount" class="rating">
+          <StarRating :rating="product.avgRating" />
+          <span class="muted">{{ Number(product.avgRating).toFixed(1) }} ({{ product.reviewCount }})</span>
         </span>
       </div>
     </div>
