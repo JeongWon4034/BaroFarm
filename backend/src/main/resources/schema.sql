@@ -50,7 +50,7 @@ CREATE TABLE orders (
     product_id BIGINT NOT NULL,
     quantity INT NOT NULL DEFAULT 1,
     total_price INT NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'COMPLETED',
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',   -- 판매자 처리 흐름: PENDING→CONFIRMED→SHIPPING→COMPLETED
     order_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (order_id),
     FOREIGN KEY (buyer_id) REFERENCES users(user_id),

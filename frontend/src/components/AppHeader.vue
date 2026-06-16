@@ -79,6 +79,7 @@ async function logout() {
         <router-link :to="{ name: 'products' }" active-class="active" exact-active-class="active">상품 목록</router-link>
         <router-link :to="{ name: 'deals' }" class="deal" active-class="active">마감임박 특가</router-link>
         <router-link v-if="auth.isSeller" :to="{ name: 'seller-products' }" active-class="active">상품 관리</router-link>
+        <router-link v-if="auth.isSeller" :to="{ name: 'seller-orders' }" active-class="active">주문 관리</router-link>
         <router-link v-if="auth.isSeller" :to="{ name: 'seller-dashboard' }" active-class="active">판매자 대시보드</router-link>
       </nav>
 

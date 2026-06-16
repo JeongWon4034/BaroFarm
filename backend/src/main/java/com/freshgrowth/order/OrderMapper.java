@@ -10,4 +10,5 @@ public interface OrderMapper {
     Order findById(@Param("orderId") Long orderId);
     List<Order> findByBuyerId(@Param("buyerId") Long buyerId);
     List<Order> findBySellerId(@Param("sellerId") Long sellerId);
+    int updateStatus(@Param("orderId") Long orderId, @Param("status") String status);
 }

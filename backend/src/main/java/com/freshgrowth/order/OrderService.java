@@ -52,7 +52,8 @@ public class OrderService {
         order.setProductId(request.getProductId());
         order.setQuantity(request.getQuantity());
         order.setTotalPrice(unitPrice * request.getQuantity());
-        order.setStatus("COMPLETED");
+        // 결제 직후엔 판매자 확인 대기 상태. 이후 판매자가 CONFIRMED→SHIPPING→COMPLETED 로 전이한다.
+        order.setStatus(OrderStatus.PENDING.name());
         orderMapper.insert(order);
 
         // 마감임박(떨이) 상품 구매면 폐기 절감 챌린지 진행도 반영
@@ -77,5 +78,31 @@ public class OrderService {
 
     public List<Order> findSellerOrders(Long sellerId) {
         return orderMapper.findBySellerId(sellerId);
+    }
+
+    /**
+     * 판매자가 주문 상태를 다음 단계로 전이시킨다.
+     * - 본인 상품의 주문만(403), 존재하는 주문만(404)
+     * - 전이는 정방향 1단계만 허용(현재 상태의 next() 와 일치해야 함, 아니면 400)
+     */
+    @Transactional
+    public Order updateStatus(Long sellerId, Long orderId, String targetStatusRaw) {
+        Order order = orderMapper.findById(orderId);
+        if (order == null) {
+            throw new AppException(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", "주문을 찾을 수 없습니다.");
+        }
+        if (!sellerId.equals(order.getSellerId())) {
+            throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "본인 상품의 주문만 처리할 수 있습니다.");
+        }
+
+        OrderStatus current = OrderStatus.from(order.getStatus());
+        OrderStatus target = OrderStatus.from(targetStatusRaw);
+        if (target != current.next()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "INVALID_STATUS_TRANSITION",
+                    current.name() + " 다음 단계로만 변경할 수 있습니다.");
+        }
+
+        orderMapper.updateStatus(orderId, target.name());
+        return orderMapper.findById(orderId);
     }
 }
