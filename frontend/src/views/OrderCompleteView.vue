@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { orderApi } from '../api/orders'
+import { track } from '../api/track'
 import { won } from '../utils/format'
 
 const route = useRoute()
@@ -14,6 +15,8 @@ onMounted(async () => {
   const ids = String(route.query.ids || '').split(',').filter(Boolean)
   const results = await Promise.all(ids.map((id) => orderApi.detail(id).catch(() => null)))
   orders.value = results.filter(Boolean)
+  // 퍼널 5단계(전환 완료) — 주문 건마다 1회
+  orders.value.forEach((o) => track('complete_order', { productId: o.productId }))
   loading.value = false
 })
 </script>

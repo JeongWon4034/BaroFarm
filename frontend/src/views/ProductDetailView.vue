@@ -8,6 +8,7 @@ import { useAuthStore } from '../stores/auth'
 import { useFollowStore } from '../stores/follow'
 import { followApi } from '../api/follow'
 import { won, thumbEmoji, categoryLabel, dateOnly, dDayLabel, riskMeta } from '../utils/format'
+import { track } from '../api/track'
 import StarRating from '../components/StarRating.vue'
 
 const route = useRoute()
@@ -40,6 +41,8 @@ async function loadAll() {
     ])
     reviews.value = rv
     seller.value = sl
+    // 퍼널 3단계 — 상품 상세 조회
+    track('view_detail', { productId: product.value.productId, abTestGroup: product.value.abVariant })
   } catch (e) {
     error.value = e.message
   } finally {
@@ -94,6 +97,8 @@ async function toggleFollow() {
 
 async function buyNow() {
   if (isExpired.value) return
+  // 퍼널 4단계 — 결제 시도(로그인 분기 전, 구매 의도 시점)
+  track('click_checkout', { productId: product.value.productId, abTestGroup: product.value.abVariant })
   if (!auth.isLoggedIn) {
     router.push({ name: 'login', query: { redirect: route.fullPath } })
     return

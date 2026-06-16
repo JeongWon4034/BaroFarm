@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { won, thumbEmoji, categoryLabel, dDayLabel, riskMeta } from '../utils/format'
 import { useWishlistStore } from '../stores/wishlist'
 import { useAuthStore } from '../stores/auth'
+import { track } from '../api/track'
 import StarRating from './StarRating.vue'
 
 const props = defineProps({
@@ -38,11 +39,16 @@ function add() {
   if (soldOut.value || isExpired.value) return
   emit('add', props.product)
 }
+
+// 퍼널 2단계 — 상품 카드 클릭(상세 진입 직전)
+function onOpen() {
+  track('click_product', { productId: props.product.productId, abTestGroup: props.product.abVariant })
+}
 </script>
 
 <template>
   <article class="product-card">
-    <router-link :to="{ name: 'product-detail', params: { id: product.productId } }" class="thumb" :class="'t-' + product.category">
+    <router-link :to="{ name: 'product-detail', params: { id: product.productId } }" class="thumb" :class="'t-' + product.category" @click="onOpen">
       <!-- 좌상단: 유통기한 D-day (폐기위험 색상) -->
       <span v-if="product.daysToExpiry != null" class="dday" :class="risk.cls">
         <svg v-if="risk.cls === 'risk-high'" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 8v4l3 2"/><circle cx="12" cy="12" r="9"/></svg>
@@ -62,7 +68,7 @@ function add() {
         <span class="chip">{{ categoryLabel(product.category) }}</span>
         <span class="risk-chip" :class="risk.cls">{{ risk.label }}</span>
       </div>
-      <router-link :to="{ name: 'product-detail', params: { id: product.productId } }" class="name">
+      <router-link :to="{ name: 'product-detail', params: { id: product.productId } }" class="name" @click="onOpen">
         {{ product.name }}
       </router-link>
 

@@ -145,7 +145,7 @@ async function remove(p) {
     <div class="page-head">
       <div>
         <h1>📦 상품 관리</h1>
-        <p class="muted">내 상품을 등록·수정·삭제하고 폐기위험/떨이가를 확인하세요.</p>
+        <p class="muted">내 상품을 등록·수정·삭제하고 폐기위험/할인가를 확인하세요.</p>
       </div>
       <button class="btn btn-primary" @click="openCreate">➕ 상품 등록</button>
     </div>
@@ -193,7 +193,7 @@ async function remove(p) {
 
     <table v-else class="tbl">
       <thead>
-        <tr><th>상품</th><th>카테고리</th><th>유통기한</th><th>위험</th><th class="num">정가</th><th class="num">재고</th><th class="num">떨이가</th><th></th></tr>
+        <tr><th>상품</th><th>카테고리</th><th>유통기한</th><th>위험</th><th class="num">정가</th><th class="num">재고</th><th class="num">할인가</th><th></th></tr>
       </thead>
       <tbody>
         <tr v-for="p in products" :key="p.productId">

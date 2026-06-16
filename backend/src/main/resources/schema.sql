@@ -1,6 +1,7 @@
 CREATE DATABASE IF NOT EXISTS freshgrowth CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE freshgrowth;
 
+DROP TABLE IF EXISTS user_behavior_logs;
 DROP TABLE IF EXISTS invalidated_tokens;
 DROP TABLE IF EXISTS user_challenges;
 DROP TABLE IF EXISTS challenges;
@@ -49,7 +50,7 @@ CREATE TABLE orders (
     product_id BIGINT NOT NULL,
     quantity INT NOT NULL DEFAULT 1,
     total_price INT NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'COMPLETED',
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',   -- 판매자 처리 흐름: PENDING→CONFIRMED→SHIPPING→COMPLETED
     order_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (order_id),
     FOREIGN KEY (buyer_id) REFERENCES users(user_id),
@@ -179,6 +180,25 @@ CREATE TABLE user_challenges (
     UNIQUE KEY uq_user_challenge (user_id, challenge_id),
     FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (challenge_id) REFERENCES challenges(challenge_id)
+);
+
+-- 행동 로그 (Layer 2 원천 데이터) — 퍼널·코호트·A/B 분석, AI 수요예측 피처의 출발점.
+-- 적재 성능과 무결성 분리를 위해 user_id·product_id 에 FK 를 걸지 않는다(상품이 삭제돼도 과거 로그는 보존).
+CREATE TABLE IF NOT EXISTS user_behavior_logs (
+    log_id        BIGINT       NOT NULL AUTO_INCREMENT,
+    session_id    VARCHAR(64)  NOT NULL,                    -- 퍼널 분석 기준 키
+    user_id       BIGINT       NULL,                        -- 비로그인 NULL
+    event_type    VARCHAR(30)  NOT NULL,                    -- view_home / click_product / view_detail / click_checkout / complete_order
+    product_id    BIGINT       NULL,                        -- 이벤트 대상 상품
+    ab_test_group VARCHAR(10)  NULL,                        -- A_GROUP / B_GROUP
+    device_type   VARCHAR(15)  NULL,                        -- PC_WEB / MOBILE_WEB
+    stay_duration INT          NULL,                        -- 페이지 체류 시간(초)
+    occurred_at   DATETIME(3)  NOT NULL,                    -- 이벤트 발생 시각(서버 stamp)
+    created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (log_id),
+    INDEX idx_behavior_session (session_id),
+    INDEX idx_behavior_event_type (event_type),
+    INDEX idx_behavior_occurred_at (occurred_at)
 );
 
 -- 로그아웃·탈퇴 토큰 무효화 (DB 기반, 재시작·다중 인스턴스 안전)

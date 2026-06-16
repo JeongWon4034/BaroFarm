@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cart'
 import { useAuthStore } from '../stores/auth'
 import { orderApi } from '../api/orders'
+import { track } from '../api/track'
 import { won, thumbEmoji } from '../utils/format'
 
 const router = useRouter()
@@ -22,6 +23,8 @@ const shipFee = computed(() => (cart.totalPrice >= 30000 || cart.totalPrice === 
 const payTotal = computed(() => cart.totalPrice + shipFee.value)
 
 async function checkout() {
+  // 퍼널 4단계 — 장바구니 결제 시도(담은 항목들 기준)
+  cart.items.forEach((item) => track('click_checkout', { productId: item.productId }))
   if (!auth.isLoggedIn) {
     router.push({ name: 'login', query: { redirect: '/cart' } })
     return

@@ -6,6 +6,7 @@
         SELECT
             o.order_id,
             o.buyer_id,
+            p.seller_id AS seller_id,
             o.product_id,
             p.name AS product_name,
             p.category AS category,
@@ -40,4 +41,8 @@
         WHERE p.seller_id = #{sellerId}
         ORDER BY o.order_id DESC
     </select>
+
+    <update id="updateStatus">
+        UPDATE orders SET status = #{status} WHERE order_id = #{orderId}
+    </update>
 </mapper>

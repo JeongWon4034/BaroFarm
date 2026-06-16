@@ -36,7 +36,7 @@ const counts = computed(() => {
   return c
 })
 
-// 방치 시 예상 폐기손실(정가 기준) vs AI 떨이가로 회수 예상
+// 방치 시 예상 폐기손실(정가 기준) vs AI 할인가로 회수 예상
 const wasteLoss = computed(() =>
   atRisk.value.reduce((s, p) => s + (p.stockQty || 0) * (p.price || 0), 0)
 )
@@ -64,7 +64,7 @@ const summary = computed(() => {
   const n = atRisk.value.length
   if (!n) return '오늘 폐기위험 상품이 없습니다. 재고 상태가 양호합니다.'
   return `오늘 폐기위험 상품 ${n}개. 방치 시 약 ${won(wasteLoss.value)}의 손실이 예상되며, ` +
-    `AI 추천 떨이가 적용 시 약 ${won(recovered.value)}(${recoverRate.value}%)를 회수할 수 있습니다.`
+    `AI 추천 할인가 적용 시 약 ${won(recovered.value)}(${recoverRate.value}%)를 회수할 수 있습니다.`
 })
 </script>
 
@@ -72,7 +72,7 @@ const summary = computed(() => {
   <div>
     <div class="page-head">
       <h1>📊 판매자 폐기 대시보드</h1>
-      <p class="muted">{{ auth.user?.name }}님 · 재고 폐기위험과 AI 추천 떨이가를 한눈에</p>
+      <p class="muted">{{ auth.user?.name }}님 · 재고 폐기위험과 AI 추천 할인가를 한눈에</p>
     </div>
 
     <div v-if="loading" class="empty"><span class="emoji">⏳</span>불러오는 중…</div>
@@ -106,7 +106,7 @@ const summary = computed(() => {
           <span class="kpi-value">{{ won(wasteLoss) }}</span>
         </div>
         <div class="kpi card good">
-          <span class="kpi-label">AI 떨이가 회수 예상</span>
+          <span class="kpi-label">AI 할인가 회수 예상</span>
           <span class="kpi-value">{{ won(recovered) }}</span>
           <span class="kpi-sub">회수율 {{ recoverRate }}%</span>
         </div>
@@ -128,13 +128,13 @@ const summary = computed(() => {
 
       <!-- 위험 상품 테이블 -->
       <div class="card section">
-        <h2 class="section-title">폐기위험 상품 · AI 추천 떨이가 ({{ riskTable.length }}건)</h2>
+        <h2 class="section-title">폐기위험 상품 · AI 추천 할인가 ({{ riskTable.length }}건)</h2>
         <div v-if="!riskTable.length" class="empty-inline muted">현재 위험 상품이 없습니다 👍</div>
         <table v-else class="risk-table">
           <thead>
             <tr>
               <th>상품</th><th>카테고리</th><th>유통기한</th><th>위험</th>
-              <th class="num">재고</th><th class="num">정가</th><th class="num">AI 떨이가</th><th class="num">회수 예상</th>
+              <th class="num">재고</th><th class="num">정가</th><th class="num">AI 할인가</th><th class="num">회수 예상</th>
             </tr>
           </thead>
           <tbody>

@@ -19,7 +19,7 @@ export const useCartStore = defineStore('cart', {
       if (found) {
         found.quantity += quantity
       } else {
-        // 결제가 = 떨이가(있으면). 정가는 취소선 표시용으로 같이 보관.
+        // 결제가 = 할인가(있으면). 정가는 취소선 표시용으로 같이 보관.
         const dealPrice = product.discountedPrice ?? product.price
         this.items.push({
           productId: product.productId,

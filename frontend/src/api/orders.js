@@ -6,6 +6,9 @@ export const orderApi = {
   myOrders: () => http.get('/orders/my'),
   detail: (orderId) => http.get(`/orders/${orderId}`),
   insight: () => http.get('/orders/ai/insight'), // 내 구매 분석 AI 인사이트
+  // 판매자 — 주문 조회·상태 전이
+  sellerOrders: () => http.get('/seller/orders'),
+  updateStatus: (orderId, status) => http.patch(`/seller/orders/${orderId}/status`, { status }),
 }
 
 export const reviewApi = {

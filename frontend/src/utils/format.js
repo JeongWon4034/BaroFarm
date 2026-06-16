@@ -102,3 +102,15 @@ const RISK_META = {
 export function riskMeta(level) {
   return RISK_META[level] || RISK_META.LOW
 }
+
+// 주문 처리 상태 — 판매자 정방향 흐름 PENDING→CONFIRMED→SHIPPING→COMPLETED.
+// next/nextLabel 은 판매자 화면의 "다음 단계로" 버튼용(COMPLETED 는 종료라 null).
+const ORDER_STATUS_META = {
+  PENDING:   { label: '확인 대기', cls: 'st-pending',   next: 'CONFIRMED', nextLabel: '주문 확인' },
+  CONFIRMED: { label: '주문 확인', cls: 'st-confirmed', next: 'SHIPPING',  nextLabel: '배송 시작' },
+  SHIPPING:  { label: '배송중',   cls: 'st-shipping',  next: 'COMPLETED', nextLabel: '배송 완료' },
+  COMPLETED: { label: '배송완료', cls: 'st-completed', next: null,        nextLabel: null },
+}
+export function orderStatusMeta(status) {
+  return ORDER_STATUS_META[status] || ORDER_STATUS_META.PENDING
+}
