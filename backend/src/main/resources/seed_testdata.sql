@@ -118,3 +118,15 @@ CALL seed_deal(@bm, 9,  1, 30, 40);   -- 생물 오징어, 30%
 CALL seed_deal(@bm, 12, 1, 20, 55);   -- 햇사과 5입, 20%
 
 DROP PROCEDURE IF EXISTS seed_deal;
+
+-- ============================================================
+-- 폐기기간 옵션(product_lots) — 같은 상품도 남은 일수가 다른 로트는 할인율이 다르다.
+--   상품마다 D-1(임박·큰 할인) / D-4(중간) / D-8(거의 정가) 3개 로트 생성.
+--   가격은 상품 정가 기준, 옵션별 할인가는 WastePricingEngine이 조회 시 동적 계산.
+-- ============================================================
+INSERT INTO product_lots(product_id, expiration_date, stock_qty, price)
+SELECT product_id, DATE_ADD(CURDATE(), INTERVAL 1 DAY),  6,  price FROM products
+UNION ALL
+SELECT product_id, DATE_ADD(CURDATE(), INTERVAL 4 DAY),  10, price FROM products
+UNION ALL
+SELECT product_id, DATE_ADD(CURDATE(), INTERVAL 8 DAY),  16, price FROM products;
