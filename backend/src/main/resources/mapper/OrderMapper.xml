@@ -7,6 +7,7 @@
             o.order_id,
             o.buyer_id,
             p.seller_id AS seller_id,
+            u.name AS seller_name,
             o.product_id,
             p.name AS product_name,
             p.category AS category,
@@ -17,6 +18,7 @@
             r.review_id AS review_id
         FROM orders o
         JOIN products p ON o.product_id = p.product_id
+        JOIN users u ON p.seller_id = u.user_id
         LEFT JOIN reviews r ON r.order_id = o.order_id
     </sql>
 

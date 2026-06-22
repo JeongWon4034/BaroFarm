@@ -1,8 +1,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { orderApi } from '../api/orders'
+import { useNotificationStore } from '../stores/notification'
 import { won, dateOnly, thumbEmoji, orderStatusMeta, apiMessage } from '../utils/format'
 
+const noti = useNotificationStore()
 const orders = ref([])
 const loading = ref(true)
 const error = ref('')
@@ -24,6 +26,7 @@ async function load() {
   error.value = ''
   try {
     orders.value = (await orderApi.sellerOrders()) || []
+    noti.markSeen(orders.value) // 주문 관리 확인 → 새 주문 알림 배지 제거
   } catch (e) {
     error.value = apiMessage(e)
   } finally {

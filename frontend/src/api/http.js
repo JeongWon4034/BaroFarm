@@ -29,6 +29,13 @@ http.interceptors.response.use(
     return body?.data ?? body
   },
   (error) => {
+    // 401(만료/무효 토큰) → 로컬 세션 정리. 헤더가 캐시된 이름 대신 로그인/회원가입으로 복귀.
+    // 동적 import로 순환 의존(http ↔ auth store) 회피.
+    if (error.response?.status === 401) {
+      import('../stores/auth')
+        .then(({ useAuthStore }) => useAuthStore().clearSession())
+        .catch(() => {})
+    }
     return Promise.reject(toError(error.response?.data, error.message || '서버와 통신할 수 없습니다.'))
   }
 )

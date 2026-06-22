@@ -6,6 +6,7 @@ public class Order {
     private Long orderId;
     private Long buyerId;
     private Long sellerId;         // 상품 판매자 — 주문 상태 변경 권한 검증용
+    private String sellerName;     // 판매자 이름(상점명) — 구매내역에 표시
     private Long productId;
     private String productName;
     private String category;
@@ -21,6 +22,8 @@ public class Order {
     public void setBuyerId(Long buyerId) { this.buyerId = buyerId; }
     public Long getSellerId() { return sellerId; }
     public void setSellerId(Long sellerId) { this.sellerId = sellerId; }
+    public String getSellerName() { return sellerName; }
+    public void setSellerName(String sellerName) { this.sellerName = sellerName; }
     public Long getProductId() { return productId; }
     public void setProductId(Long productId) { this.productId = productId; }
     public String getProductName() { return productName; }
