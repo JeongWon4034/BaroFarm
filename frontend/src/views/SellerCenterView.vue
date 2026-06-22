@@ -1,7 +1,9 @@
 <script setup>
 import { useAuthStore } from '../stores/auth'
+import { useNotificationStore } from '../stores/notification'
 
 const auth = useAuthStore()
+const noti = useNotificationStore()
 
 // 판매자 전용 개인 메뉴 허브 — 공개 쇼핑 메뉴와 분리된 관리 기능 모음.
 const menus = [
@@ -41,7 +43,10 @@ const menus = [
           <svg v-else width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></svg>
         </span>
         <div class="tx">
-          <div class="t">{{ m.title }}</div>
+          <div class="t">
+            {{ m.title }}
+            <span v-if="m.name === 'seller-orders' && noti.count" class="tile-badge">{{ noti.count }}</span>
+          </div>
           <div class="d">{{ m.desc }}</div>
         </div>
         <svg class="arr" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
@@ -69,6 +74,12 @@ const menus = [
 }
 .tx { flex: 1; min-width: 0; }
 .tx .t { font-size: 16px; font-weight: 800; color: var(--ink); }
+.tile-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px; margin-left: 5px;
+  border-radius: 9px; background: var(--deal); color: #fff;
+  font-size: 11px; font-weight: 700; vertical-align: middle;
+}
 .tx .d { font-size: 13px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
 .arr { color: var(--faint); flex-shrink: 0; }
 .tile:hover .arr { color: var(--leaf-600); }

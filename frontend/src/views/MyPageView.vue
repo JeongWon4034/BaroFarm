@@ -3,11 +3,13 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { orderApi, reviewApi } from '../api/orders'
 import { useAuthStore } from '../stores/auth'
+import { useNotificationStore } from '../stores/notification'
 import { won, thumbEmoji, dateOnly, orderStatusMeta } from '../utils/format'
 import StarRating from '../components/StarRating.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
+const noti = useNotificationStore()
 const orders = ref([])
 const loading = ref(true)
 const error = ref('')
@@ -84,6 +86,7 @@ async function load() {
   error.value = ''
   try {
     orders.value = await orderApi.myOrders()
+    noti.markSeen(orders.value) // 구매내역 확인 → 새 주문 알림 배지 제거
   } catch (e) {
     error.value = e.message
   } finally {
@@ -192,6 +195,7 @@ async function submitReview(order) {
               <div class="ci-tile">{{ thumbEmoji({ name: o.productName }) }}</div>
               <div class="op-info">
                 <div class="nm">{{ o.productName }}</div>
+                <div v-if="o.sellerName" class="seller">🏪 {{ o.sellerName }}</div>
                 <div class="q">수량 {{ o.quantity }}개</div>
               </div>
               <div class="p">{{ won(o.totalPrice) }}</div>
@@ -294,6 +298,7 @@ async function submitReview(order) {
 .order-prod { display: grid; grid-template-columns: 52px 1fr auto; gap: 12px; align-items: center; }
 .ci-tile { width: 52px; height: 52px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 27px; background: radial-gradient(circle at 50% 36%, var(--leaf-50), var(--leaf-100)); }
 .op-info .nm { font-weight: 700; font-size: 15px; }
+.op-info .seller { font-size: 12.5px; color: var(--ink-2); font-weight: 600; margin-top: 3px; }
 .op-info .q { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
 .order-prod .p { font-weight: 800; }
 

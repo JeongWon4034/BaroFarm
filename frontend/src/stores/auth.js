@@ -21,6 +21,29 @@ export const useAuthStore = defineStore('auth', {
         localStorage.setItem('token', token)
       }
     },
+    // 서버 호출 없이 로컬 세션만 정리(만료/무효 토큰 정리용). 헤더가 로그인/회원가입으로 복귀.
+    clearSession() {
+      this.user = null
+      this.token = null
+      localStorage.removeItem('user')
+      localStorage.removeItem('token')
+      localStorage.removeItem('userId') // 레거시 정리
+    },
+    // 앱 시작 시 토큰 유효성 검증. 유효하면 최신 user로 갱신, 무효(401 등)면 세션 정리.
+    async validate() {
+      if (!this.token) {
+        this.clearSession()
+        return false
+      }
+      try {
+        const user = await authApi.me() // 401이면 http 인터셉터가 reject
+        this.persist(user) // 토큰 유지, 최신 정보 반영
+        return true
+      } catch {
+        this.clearSession()
+        return false
+      }
+    },
     async login(payload) {
       const { token, user } = await authApi.login(payload) // LoginResponse
       this.persist(user, token)
@@ -40,19 +63,11 @@ export const useAuthStore = defineStore('auth', {
       } catch {
         /* 네트워크 실패해도 로컬은 정리 */
       }
-      this.user = null
-      this.token = null
-      localStorage.removeItem('user')
-      localStorage.removeItem('token')
-      localStorage.removeItem('userId') // 레거시 정리
+      this.clearSession()
     },
     async deactivate(password) {
       await authApi.deactivate({ password }) // 서버에서 비밀번호 검증 + 토큰 무효화
-      this.user = null
-      this.token = null
-      localStorage.removeItem('user')
-      localStorage.removeItem('token')
-      localStorage.removeItem('userId')
+      this.clearSession()
     },
   },
 })

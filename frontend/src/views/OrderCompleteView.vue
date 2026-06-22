@@ -4,8 +4,10 @@ import { useRoute } from 'vue-router'
 import { orderApi } from '../api/orders'
 import { track } from '../api/track'
 import { won } from '../utils/format'
+import { useNotificationStore } from '../stores/notification'
 
 const route = useRoute()
+const noti = useNotificationStore()
 const orders = ref([])
 const loading = ref(true)
 
@@ -17,6 +19,7 @@ onMounted(async () => {
   orders.value = results.filter(Boolean)
   // 퍼널 5단계(전환 완료) — 주문 건마다 1회
   orders.value.forEach((o) => track('complete_order', { productId: o.productId }))
+  noti.refresh() // 새 주문 반영 → 헤더 '내 메뉴' 알림 배지 갱신
   loading.value = false
 })
 </script>
