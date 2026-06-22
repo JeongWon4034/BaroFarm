@@ -30,6 +30,11 @@ public class ProductController {
         return ApiResponse.ok("상품 상세 정보를 조회했습니다.", productService.findById(productId));
     }
 
+    @GetMapping("/products/{productId}/lots")
+    public ApiResponse<?> findLots(@PathVariable Long productId) {
+        return ApiResponse.ok("폐기기간별 옵션을 조회했습니다.", productService.findLots(productId));
+    }
+
     @LoginRequired(role = "SELLER")
     @PostMapping("/products")
     public ApiResponse<?> create(@LoginUser Long sellerId,
