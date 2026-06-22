@@ -87,3 +87,34 @@ CALL seed_review(@b3, @p_onion, 4, '양파 알이 굵어요.');
 CALL seed_review(@b4, @p_onion, 3, '평범한 양파예요.');
 
 DROP PROCEDURE IF EXISTS seed_review;
+
+-- ============================================================
+-- buyer@example.com(김도연) 떨이 구매 이력 — 절약액/회수매출 시연용
+--   total_price = 떨이 결제액, original_unit_price = 정가
+--   → 구매분석에서 절약액 = 정가×수량 − 결제액 이 양수로 집계됨
+--   날짜를 분산해 월별 차트도 다양하게.
+-- ============================================================
+SET @bm = (SELECT user_id FROM users WHERE email='buyer@example.com');
+
+DELIMITER //
+DROP PROCEDURE IF EXISTS seed_deal //
+CREATE PROCEDURE seed_deal(IN p_buyer BIGINT, IN p_product BIGINT, IN p_qty INT, IN p_discount INT, IN p_days_ago INT)
+BEGIN
+  DECLARE v_price INT;
+  SELECT price INTO v_price FROM products WHERE product_id = p_product;
+  INSERT INTO orders(buyer_id, product_id, quantity, total_price, original_unit_price, status, order_date)
+  VALUES (p_buyer, p_product, p_qty,
+          ROUND(v_price * p_qty * (100 - p_discount) / 100), -- 떨이 결제액(할인 적용)
+          v_price,                                           -- 정가(단가)
+          'COMPLETED',
+          DATE_SUB(NOW(), INTERVAL p_days_ago DAY));
+END //
+DELIMITER ;
+
+CALL seed_deal(@bm, 1,  2, 50,  3);   -- 무농약 청상추 ×2, 50% 떨이
+CALL seed_deal(@bm, 4,  1, 35, 12);   -- 제주 노지 감귤, 35%
+CALL seed_deal(@bm, 7,  1, 40, 20);   -- 시금치, 40%
+CALL seed_deal(@bm, 9,  1, 30, 40);   -- 생물 오징어, 30%
+CALL seed_deal(@bm, 12, 1, 20, 55);   -- 햇사과 5입, 20%
+
+DROP PROCEDURE IF EXISTS seed_deal;
