@@ -20,15 +20,18 @@ public class OrderService {
     private final ProductLotMapper lotMapper;
     private final WastePricingEngine pricingEngine;
     private final ChallengeService challengeService;
+    private final com.freshgrowth.coupon.CouponService couponService;
 
     public OrderService(OrderMapper orderMapper, ProductMapper productMapper,
                         ProductLotMapper lotMapper, WastePricingEngine pricingEngine,
-                        ChallengeService challengeService) {
+                        ChallengeService challengeService,
+                        com.freshgrowth.coupon.CouponService couponService) {
         this.orderMapper = orderMapper;
         this.productMapper = productMapper;
         this.lotMapper = lotMapper;
         this.pricingEngine = pricingEngine;
         this.challengeService = challengeService;
+        this.couponService = couponService;
     }
 
     @Transactional
@@ -75,19 +78,34 @@ public class OrderService {
             originalPrice = product.getPrice();
         }
 
+        // 결제액 = 딜가 × 수량. 쿠폰이 있으면 추가 할인(서버 검증).
+        // 단, 정가의 30% 미만으로는 내리지 않는다(딜+쿠폰 합산 최대 70% 할인 상한).
+        int total = unitPrice * qty;
+        com.freshgrowth.coupon.Coupon coupon = null;
+        if (request.getCouponId() != null) {
+            coupon = couponService.requireUsable(request.getCouponId(), buyerId);
+            int floor = (int) Math.round(originalPrice * qty * 0.30);
+            total = Math.max((int) Math.round(total * (100 - coupon.getDiscountRate()) / 100.0), floor);
+        }
+
         Order order = new Order();
         order.setBuyerId(buyerId);
         order.setProductId(request.getProductId());
         order.setLotId(lotId);
         order.setQuantity(qty);
-        order.setTotalPrice(unitPrice * qty);
+        order.setTotalPrice(total);
         // 주문 시점 정가를 함께 박아둔다 — 이후 상품가가 바뀌어도 절약액/회수 매출을 정확히 산출.
         order.setOriginalUnitPrice(originalPrice);
         // 결제 직후엔 판매자 확인 대기 상태. 이후 판매자가 CONFIRMED→SHIPPING→COMPLETED 로 전이한다.
         order.setStatus(OrderStatus.PENDING.name());
         orderMapper.insert(order);
 
-        // 마감임박(떨이) 구매면 폐기 절감 챌린지 진행도 반영
+        // 쿠폰 사용 처리(주문 확정 후) — 같은 트랜잭션이라 원자적
+        if (coupon != null) {
+            couponService.markUsed(coupon.getCouponId(), order.getOrderId());
+        }
+
+        // 마감임박 구매면 폐기 절감 챌린지 진행도 반영
         if (discountRate > 0) {
             challengeService.recordDeadlinePurchase(buyerId);
         }

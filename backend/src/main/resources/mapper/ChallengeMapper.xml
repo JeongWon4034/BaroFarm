@@ -4,13 +4,13 @@
 <mapper namespace="com.freshgrowth.challenge.ChallengeMapper">
 
     <select id="findAll" resultType="com.freshgrowth.challenge.Challenge">
-        SELECT challenge_id, title, description, goal_type, goal_count, period_days, badge_emoji, created_at
+        SELECT challenge_id, title, description, goal_type, goal_count, period_days, badge_emoji, reward_discount_rate, created_at
         FROM challenges
         ORDER BY goal_count ASC, challenge_id ASC
     </select>
 
     <select id="findById" resultType="com.freshgrowth.challenge.Challenge">
-        SELECT challenge_id, title, description, goal_type, goal_count, period_days, badge_emoji, created_at
+        SELECT challenge_id, title, description, goal_type, goal_count, period_days, badge_emoji, reward_discount_rate, created_at
         FROM challenges
         WHERE challenge_id = #{challengeId}
     </select>
@@ -18,7 +18,7 @@
     <sql id="userChallengeJoin">
         SELECT uc.user_challenge_id, uc.user_id, uc.challenge_id, uc.status, uc.progress,
                uc.joined_at, uc.completed_at,
-               c.title, c.description, c.goal_count, c.badge_emoji
+               c.title, c.description, c.goal_count, c.reward_discount_rate, c.badge_emoji
         FROM user_challenges uc
         JOIN challenges c ON uc.challenge_id = c.challenge_id
     </sql>

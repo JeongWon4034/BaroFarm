@@ -12,9 +12,12 @@ public class ChallengeService {
     private static final String DEADLINE_PURCHASE = "DEADLINE_PURCHASE";
 
     private final ChallengeMapper challengeMapper;
+    private final com.freshgrowth.coupon.CouponService couponService;
 
-    public ChallengeService(ChallengeMapper challengeMapper) {
+    public ChallengeService(ChallengeMapper challengeMapper,
+                            com.freshgrowth.coupon.CouponService couponService) {
         this.challengeMapper = challengeMapper;
+        this.couponService = couponService;
     }
 
     public List<Challenge> findAll() {
@@ -56,8 +59,11 @@ public class ChallengeService {
         for (UserChallenge uc : ongoing) {
             challengeMapper.incrementProgress(uc.getUserChallengeId());
             int newProgress = (uc.getProgress() == null ? 0 : uc.getProgress()) + 1;
-            if (newProgress >= uc.getGoalCount()) {
-                challengeMapper.markCompleted(uc.getUserChallengeId());
+            if (newProgress >= uc.getGoalCount()
+                    && challengeMapper.markCompleted(uc.getUserChallengeId()) > 0) {
+                // 막 완료된 경우에만 보상 쿠폰 발급(중복 완료는 markCompleted가 0 반환)
+                int rate = uc.getRewardDiscountRate() == null ? 10 : uc.getRewardDiscountRate();
+                couponService.issueForChallenge(userId, uc.getChallengeId(), rate);
             }
         }
     }

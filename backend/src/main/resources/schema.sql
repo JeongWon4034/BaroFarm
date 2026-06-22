@@ -1,6 +1,7 @@
 CREATE DATABASE IF NOT EXISTS freshgrowth CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE freshgrowth;
 
+DROP TABLE IF EXISTS user_coupons;
 DROP TABLE IF EXISTS user_behavior_logs;
 DROP TABLE IF EXISTS invalidated_tokens;
 DROP TABLE IF EXISTS user_challenges;
@@ -184,6 +185,7 @@ CREATE TABLE challenges (
     goal_count   INT NOT NULL,                                     -- 달성 목표 횟수
     period_days  INT NOT NULL DEFAULT 7,
     badge_emoji  VARCHAR(8) DEFAULT '🥬',
+    reward_discount_rate INT NOT NULL DEFAULT 10,                     -- 완료 시 발급되는 쿠폰 할인율(%)
     created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (challenge_id)
 );
@@ -200,6 +202,24 @@ CREATE TABLE user_challenges (
     UNIQUE KEY uq_user_challenge (user_id, challenge_id),
     FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (challenge_id) REFERENCES challenges(challenge_id)
+);
+
+-- ── 챌린지 완료 보상 쿠폰 ─────────────────────────────────────────────
+-- 챌린지를 완료하면 발급. 결제 시 1회 사용해 추가 할인. 서버가 소유·상태·만료 검증 후 차감.
+CREATE TABLE user_coupons (
+    coupon_id            BIGINT NOT NULL AUTO_INCREMENT,
+    user_id              BIGINT NOT NULL,
+    source_challenge_id  BIGINT,                                  -- 어떤 챌린지 보상인지(표시·추적용)
+    discount_rate        INT NOT NULL,                            -- 추가 할인율(%)
+    status               VARCHAR(20) NOT NULL DEFAULT 'ISSUED',   -- ISSUED / USED / EXPIRED
+    issued_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at           DATETIME,                                -- 만료 시각(NULL=무기한)
+    used_at              DATETIME,
+    used_order_id        BIGINT,                                  -- 사용된 주문
+    PRIMARY KEY (coupon_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (source_challenge_id) REFERENCES challenges(challenge_id),
+    FOREIGN KEY (used_order_id) REFERENCES orders(order_id)
 );
 
 -- 행동 로그 (Layer 2 원천 데이터) — 퍼널·코호트·A/B 분석, AI 수요예측 피처의 출발점.
@@ -229,7 +249,7 @@ CREATE TABLE IF NOT EXISTS invalidated_tokens (
     INDEX idx_expires_at (expires_at)
 );
 
-INSERT INTO challenges(title, description, goal_type, goal_count, period_days, badge_emoji) VALUES
-('알뜰 장보기 입문',   '마감임박 떨이 상품 1개 구매하기. 첫 폐기 절감 도전!',   'DEADLINE_PURCHASE', 1,  7,  '🌱'),
-('이번 주 폐기 구원자', '마감임박 상품 3개를 구매해 음식물 폐기를 줄여보세요.',  'DEADLINE_PURCHASE', 3,  7,  '🦸'),
-('폐기 절감 마스터',   '마감임박 상품 10개 구매로 진짜 절약왕 등극.',          'DEADLINE_PURCHASE', 10, 30, '🏆');
+INSERT INTO challenges(title, description, goal_type, goal_count, period_days, badge_emoji, reward_discount_rate) VALUES
+('알뜰 장보기 입문',   '마감임박 할인 상품 1개 구매. 완료하면 5% 할인 쿠폰을 드려요!',      'DEADLINE_PURCHASE', 1,  7,  '🌱', 5),
+('이번 주 폐기 구원자', '마감임박 상품 3개 구매로 음식물 폐기를 줄이고 10% 쿠폰 받기.',     'DEADLINE_PURCHASE', 3,  7,  '🦸', 10),
+('폐기 절감 마스터',   '마감임박 상품 10개 구매로 절약왕 등극 + 20% 할인 쿠폰!',           'DEADLINE_PURCHASE', 10, 30, '🏆', 20);
