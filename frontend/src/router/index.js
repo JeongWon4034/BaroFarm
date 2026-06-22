@@ -18,6 +18,7 @@ const routes = [
   { path: '/my', name: 'my-hub', component: () => import('../views/MyHubView.vue'), meta: { auth: true } },
   { path: '/mypage', name: 'mypage', component: () => import('../views/MyPageView.vue'), meta: { auth: true } },
   { path: '/mypage/insights', name: 'purchase-insights', component: () => import('../views/PurchaseInsightsView.vue'), meta: { auth: true } },
+  { path: '/coupons', name: 'my-coupons', component: () => import('../views/CouponsView.vue'), meta: { auth: true } },
   { path: '/seller', name: 'seller-center', component: () => import('../views/SellerCenterView.vue'), meta: { auth: true, seller: true } },
   { path: '/seller/dashboard', name: 'seller-dashboard', component: () => import('../views/SellerDashboardView.vue'), meta: { auth: true, seller: true } },
   { path: '/seller/products', name: 'seller-products', component: () => import('../views/SellerProductsView.vue'), meta: { auth: true, seller: true } },

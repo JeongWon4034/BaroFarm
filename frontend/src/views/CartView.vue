@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cart'
 import { useAuthStore } from '../stores/auth'
 import { orderApi } from '../api/orders'
+import { couponApi } from '../api/coupons'
 import { track } from '../api/track'
 import { won, thumbEmoji, dDayLabel } from '../utils/format'
 
@@ -20,7 +21,28 @@ const origTotal = computed(() =>
 )
 const savedTotal = computed(() => Math.max(0, origTotal.value - cart.totalPrice))
 const shipFee = computed(() => (cart.totalPrice >= 30000 || cart.totalPrice === 0 ? 0 : 3000))
-const payTotal = computed(() => cart.totalPrice + shipFee.value)
+
+// ── 챌린지 보상 쿠폰 — 가장 비싼 1개 항목에 적용(백엔드와 동일: 정가의 30% 하한) ──
+const coupons = ref([])
+const selectedCouponId = ref(null)
+onMounted(async () => {
+  if (auth.isLoggedIn) {
+    coupons.value = ((await couponApi.myCoupons().catch(() => [])) || []).filter((c) => c.status === 'ISSUED')
+  }
+})
+const selectedCoupon = computed(() => coupons.value.find((c) => c.couponId === selectedCouponId.value) || null)
+const targetItem = computed(() =>
+  cart.items.length ? [...cart.items].sort((a, b) => b.price * b.quantity - a.price * a.quantity)[0] : null
+)
+const couponDiscount = computed(() => {
+  const c = selectedCoupon.value, it = targetItem.value
+  if (!c || !it) return 0
+  const sub = it.price * it.quantity
+  const floor = Math.round((it.originalPrice || it.price) * it.quantity * 0.3)
+  return sub - Math.max(Math.round((sub * (100 - c.discountRate)) / 100), floor)
+})
+
+const payTotal = computed(() => cart.totalPrice - couponDiscount.value + shipFee.value)
 
 async function checkout() {
   // 퍼널 4단계 — 장바구니 결제 시도(담은 항목들 기준)
@@ -36,7 +58,12 @@ async function checkout() {
     // 백엔드는 1상품 단위 주문 → 항목별로 순차 생성
     const ids = []
     for (const item of cart.items) {
-      const order = await orderApi.create({ productId: item.productId, lotId: item.lotId, quantity: item.quantity })
+      const payload = { productId: item.productId, lotId: item.lotId, quantity: item.quantity }
+      // 쿠폰은 가장 비싼 1개 항목 주문에만 적용
+      if (selectedCouponId.value && item.key === targetItem.value?.key) {
+        payload.couponId = selectedCouponId.value
+      }
+      const order = await orderApi.create(payload)
       ids.push(order.orderId)
     }
     cart.clear()
@@ -91,6 +118,16 @@ async function checkout() {
         <h3>결제 예정 금액</h3>
         <div class="srow"><span>상품 금액</span><span>{{ won(origTotal) }}</span></div>
         <div v-if="savedTotal > 0" class="srow save"><span>마감임박 할인</span><span>-{{ won(savedTotal) }}</span></div>
+        <div v-if="auth.isLoggedIn && coupons.length" class="coupon-box">
+          <span class="cp-label">🎟️ 챌린지 쿠폰</span>
+          <select v-model="selectedCouponId" class="cp-select">
+            <option :value="null">사용 안 함</option>
+            <option v-for="c in coupons" :key="c.couponId" :value="c.couponId">
+              {{ c.discountRate }}% 할인 · {{ c.sourceChallengeTitle }}
+            </option>
+          </select>
+        </div>
+        <div v-if="couponDiscount > 0" class="srow save"><span>쿠폰 할인</span><span>-{{ won(couponDiscount) }}</span></div>
         <div class="srow"><span>배송비</span><span :class="{ free: shipFee === 0 }">{{ shipFee === 0 ? '무료' : won(shipFee) }}</span></div>
         <div class="divider"></div>
         <div class="srow total"><span>결제 예정</span><b>{{ won(payTotal) }}</b></div>
@@ -143,6 +180,10 @@ async function checkout() {
 .summary h3 { font-size: 18px; font-weight: 800; margin: 0 0 16px; }
 .srow { display: flex; justify-content: space-between; align-items: center; font-size: 14.5px; color: var(--ink-2); margin-bottom: 12px; }
 .srow.save { color: var(--deal); font-weight: 600; }
+.coupon-box { display: flex; flex-direction: column; gap: 6px; margin: 2px 0 14px; }
+.cp-label { font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.cp-select { width: 100%; padding: 9px 11px; border: 1.5px solid var(--line-2); border-radius: 10px; font-size: 13.5px; font-family: inherit; color: var(--ink); background: #fff; }
+.cp-select:focus { outline: none; border-color: var(--leaf-500); }
 .srow .free { color: var(--leaf-700); font-weight: 700; }
 .divider { height: 1px; background: var(--line); margin: 16px 0; }
 .srow.total { font-size: 16px; font-weight: 700; color: var(--ink); }
