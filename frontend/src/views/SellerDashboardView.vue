@@ -1,11 +1,13 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { productApi } from '../api/products'
+import { orderApi } from '../api/orders'
 import { won, riskMeta, dDayLabel, categoryLabel } from '../utils/format'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
 const products = ref([])
+const orders = ref([])
 const loading = ref(true)
 const error = ref('')
 
@@ -17,6 +19,7 @@ async function load() {
   error.value = ''
   try {
     products.value = (await productApi.sellerProducts()) || []
+    orders.value = (await orderApi.sellerOrders()) || []
     // 진짜 LLM 요약(실패/미설정 시 규칙기반 summary로 폴백)
     aiReport.value = await productApi.sellerReport().catch(() => null)
   } catch (e) {
@@ -47,6 +50,27 @@ const recoverRate = computed(() =>
   wasteLoss.value ? Math.round((recovered.value / wasteLoss.value) * 100) : 0
 )
 
+// ── 실현 가계부 (지금까지) — 마감임박 재고를 판매해 줄인 손실 ──
+// 할인 판매 = 주문 시점 정가(originalUnitPrice)가 실결제 단가보다 높았던 주문
+const dealOrders = computed(() =>
+  orders.value.filter((o) =>
+    o.originalUnitPrice != null &&
+    o.originalUnitPrice * (o.quantity || 0) > (o.totalPrice || 0)
+  )
+)
+// 실제 회수한 매출(안 팔렸다면 폐기될 뻔한 재고에서 건진 돈)
+const realizedRecovered = computed(() =>
+  dealOrders.value.reduce((s, o) => s + (o.totalPrice || 0), 0)
+)
+const rescuedCount = computed(() => dealOrders.value.length)
+// 안 팔렸다면 폐기됐을 재고의 정가 가치 = 잠재 손실. 판매로 일부 회수함.
+const wouldBeLoss = computed(() =>
+  dealOrders.value.reduce((s, o) => s + o.originalUnitPrice * (o.quantity || 0), 0)
+)
+const recoveredRate = computed(() =>
+  wouldBeLoss.value ? Math.round((realizedRecovered.value / wouldBeLoss.value) * 100) : 0
+)
+
 const byCategory = computed(() => {
   const m = {}
   atRisk.value.forEach((p) => { const k = p.category || '기타'; m[k] = (m[k] || 0) + 1 })
@@ -64,15 +88,26 @@ const summary = computed(() => {
   const n = atRisk.value.length
   if (!n) return '오늘 폐기위험 상품이 없습니다. 재고 상태가 양호합니다.'
   return `오늘 폐기위험 상품 ${n}개. 방치 시 약 ${won(wasteLoss.value)}의 손실이 예상되며, ` +
-    `AI 추천 할인가 적용 시 약 ${won(recovered.value)}(${recoverRate.value}%)를 회수할 수 있습니다.`
+    `AI 할인가를 적용하면 약 ${won(recovered.value)}(${recoverRate.value}%)를 회수할 수 있습니다.`
 })
+
+// AI 요약 속 수치(금액·%·개수)를 색으로 강조 — v-html용. LLM 출력이라 먼저 이스케이프.
+function highlightNumbers(text) {
+  if (!text) return ''
+  const esc = String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return esc.replace(/[\d,]+(?:\.\d+)?(?:원|%|개|건|배)?/g, (m) => `<span class="num-hl">${m}</span>`)
+}
+const reportHtml = computed(() => highlightNumbers(aiReport.value?.summary || summary.value))
 </script>
 
 <template>
   <div>
-    <div class="page-head">
-      <h1>📊 판매자 폐기 대시보드</h1>
-      <p class="muted">{{ auth.user?.name }}님 · 재고 폐기위험과 AI 추천 할인가를 한눈에</p>
+    <div class="dash-head">
+      <div class="dash-avatar">🏪</div>
+      <div class="dash-head-tx">
+        <h1><b class="seller-name">{{ auth.user?.name }}</b>님의 폐기 대시보드</h1>
+        <p class="muted">재고 폐기위험과 AI 할인가를 한눈에</p>
+      </div>
     </div>
 
     <div v-if="loading" class="empty"><span class="emoji">⏳</span>불러오는 중…</div>
@@ -85,7 +120,7 @@ const summary = computed(() => {
       <!-- AI 요약 리포트 -->
       <div class="report card">
         <div class="report-tag">🤖 AI 요약 리포트<span v-if="aiReport" class="report-badge">GMS</span></div>
-        <p class="report-body">{{ aiReport?.summary || summary }}</p>
+        <p class="report-body" v-html="reportHtml"></p>
         <p v-if="aiReport?.usedData?.length" class="report-ctx muted">🔎 AI가 참고한 데이터: {{ aiReport.usedData.join(' · ') }}</p>
         <p v-else class="report-note muted">※ AI 연결 전이라 규칙 기반 요약입니다.</p>
       </div>
@@ -111,6 +146,22 @@ const summary = computed(() => {
           <span class="kpi-sub">회수율 {{ recoverRate }}%</span>
         </div>
       </div>
+
+      <!-- 실현 가계부 — 마감임박 재고를 판매해 줄인 손실 -->
+      <h2 class="section-title ledger-title">💰 실현 가계부</h2>
+      <div class="kpi-grid">
+        <div class="kpi card danger">
+          <span class="kpi-label">안 팔렸다면 폐기손실</span>
+          <span class="kpi-value">{{ won(wouldBeLoss) }}</span>
+          <span class="kpi-sub">판매 안 했으면 전액 손실</span>
+        </div>
+        <div class="kpi card good">
+          <span class="kpi-label">판매로 회수한 매출</span>
+          <span class="kpi-value">{{ won(realizedRecovered) }}</span>
+          <span class="kpi-sub">손실의 {{ recoveredRate }}% 회수 · {{ rescuedCount }}건</span>
+        </div>
+      </div>
+      <p class="ledger-note muted">안 팔렸다면 폐기될 재고를 판매해 손실을 그만큼 줄였습니다.</p>
 
       <!-- 카테고리별 위험 분포 -->
       <div class="card section" v-if="byCategory.length">
@@ -181,6 +232,23 @@ const summary = computed(() => {
 
 .section { padding: 18px; margin-bottom: 18px; }
 .section-title { font-size: 16px; margin: 0 0 14px; }
+.ledger-title { margin-top: 26px; }
+.ledger-note { font-size: 13px; margin: -4px 0 0; }
+
+/* 헤더 — 판매자명 강조 */
+.dash-head { display: flex; align-items: center; gap: 15px; margin-bottom: 22px; }
+.dash-avatar {
+  width: 54px; height: 54px; flex-shrink: 0; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center; font-size: 28px;
+  background: linear-gradient(150deg, var(--leaf-100), var(--leaf-50));
+  box-shadow: var(--shadow-sm);
+}
+.dash-head-tx h1 { font-size: 23px; margin: 0; letter-spacing: -.02em; }
+.dash-head-tx .seller-name { color: var(--leaf-700); font-weight: 800; }
+.dash-head-tx p { margin: 4px 0 0; }
+
+/* AI 요약 리포트 수치 강조 */
+.num-hl { color: var(--leaf-700); font-weight: 800; }
 
 .cat-list { display: flex; flex-direction: column; gap: 10px; }
 .cat-row { display: grid; grid-template-columns: 80px 1fr 48px; align-items: center; gap: 12px; }
