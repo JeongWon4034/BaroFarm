@@ -59,7 +59,7 @@ const unitPrice = computed(() => product.value?.discountedPrice ?? product.value
 const risk = computed(() => riskMeta(product.value?.riskLevel))
 const estimated = computed(() => unitPrice.value * qty.value)
 const avgRating = computed(() => {
-  if (!reviews.value.length) return product.value?.averageRating || 0
+  if (!reviews.value.length) return product.value?.avgRating || 0
   return reviews.value.reduce((s, r) => s + (r.rating || 0), 0) / reviews.value.length
 })
 // 재고 게이지(시각용): 캐파 정보가 없어 20개 기준으로 환산

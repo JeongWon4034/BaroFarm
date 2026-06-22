@@ -2,6 +2,12 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.freshgrowth.product.ProductMapper">
+    <!-- 리뷰 통계(평균 별점·리뷰 수) — reviews→orders→product 경로로 상관 서브쿼리 집계. 리뷰 없으면 avg_rating NULL. -->
+    <sql id="reviewStats">
+        , (SELECT COUNT(*)            FROM reviews rv JOIN orders ro ON rv.order_id = ro.order_id WHERE ro.product_id = products.product_id) AS review_count
+        , (SELECT ROUND(AVG(rv.rating), 1) FROM reviews rv JOIN orders ro ON rv.order_id = ro.order_id WHERE ro.product_id = products.product_id) AS avg_rating
+    </sql>
+
     <insert id="insert" parameterType="com.freshgrowth.product.Product" useGeneratedKeys="true" keyProperty="productId">
         INSERT INTO products(seller_id, name, description, category, price, stock_qty, thumbnail_url, expiration_date)
         VALUES (#{sellerId}, #{name}, #{description}, #{category}, #{price}, #{stockQty}, #{thumbnailUrl}, #{expirationDate})
@@ -9,6 +15,7 @@
 
     <select id="findById" resultType="com.freshgrowth.product.Product">
         SELECT product_id, seller_id, name, description, category, price, stock_qty, thumbnail_url, expiration_date, created_at, updated_at
+        <include refid="reviewStats"/>
         FROM products
         WHERE product_id = #{productId}
     </select>
@@ -26,6 +33,7 @@
 
     <select id="findAll" resultType="com.freshgrowth.product.Product">
         SELECT product_id, seller_id, name, description, category, price, stock_qty, thumbnail_url, expiration_date, created_at, updated_at
+        <include refid="reviewStats"/>
         FROM products
         <include refid="searchWhere"/>
         <choose>
