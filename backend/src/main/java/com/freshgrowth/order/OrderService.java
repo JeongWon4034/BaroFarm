@@ -52,6 +52,8 @@ public class OrderService {
         order.setProductId(request.getProductId());
         order.setQuantity(request.getQuantity());
         order.setTotalPrice(unitPrice * request.getQuantity());
+        // 주문 시점 정가를 함께 박아둔다 — 이후 상품가가 바뀌어도 절약액/회수 매출을 정확히 산출.
+        order.setOriginalUnitPrice(product.getPrice());
         // 결제 직후엔 판매자 확인 대기 상태. 이후 판매자가 CONFIRMED→SHIPPING→COMPLETED 로 전이한다.
         order.setStatus(OrderStatus.PENDING.name());
         orderMapper.insert(order);

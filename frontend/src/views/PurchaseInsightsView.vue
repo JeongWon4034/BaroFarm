@@ -77,6 +77,18 @@ const topProducts = computed(() => {
   return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 5)
 })
 
+// 마감임박 떨이로 아낀 금액 — 주문 시점 정가(originalUnitPrice) 대비 실결제액 차이
+const savedDetail = computed(() => {
+  let saved = 0
+  let rescued = 0
+  orders.value.forEach((o) => {
+    if (o.originalUnitPrice == null) return
+    const diff = o.originalUnitPrice * (o.quantity || 0) - (o.totalPrice || 0)
+    if (diff > 0) { saved += diff; rescued++ }
+  })
+  return { saved, rescued }
+})
+
 const recentOrders = computed(() => orders.value.slice(0, 8))
 
 function monthLabel(ym) {

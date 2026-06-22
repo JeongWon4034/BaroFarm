@@ -12,6 +12,7 @@ public class Order {
     private String category;
     private Integer quantity;
     private Integer totalPrice;
+    private Integer originalUnitPrice; // 주문 시점 정가(떨이 전) — 절약액/회수 매출 계산용
     private String status;
     private LocalDateTime orderDate;
     private Long reviewId; // 이 주문에 작성된 리뷰 id (없으면 null) — 리뷰 작성 여부 판별용
@@ -34,6 +35,8 @@ public class Order {
     public void setQuantity(Integer quantity) { this.quantity = quantity; }
     public Integer getTotalPrice() { return totalPrice; }
     public void setTotalPrice(Integer totalPrice) { this.totalPrice = totalPrice; }
+    public Integer getOriginalUnitPrice() { return originalUnitPrice; }
+    public void setOriginalUnitPrice(Integer originalUnitPrice) { this.originalUnitPrice = originalUnitPrice; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public LocalDateTime getOrderDate() { return orderDate; }

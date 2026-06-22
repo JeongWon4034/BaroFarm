@@ -48,6 +48,8 @@ public class BuyerInsightService {
         long totalSpend = 0;
         int totalQty = 0;
         long reviewed = 0;
+        long savedAmount = 0;   // 떨이로 아낀 누적액 = Σ(정가×수량 − 실결제액)
+        int rescuedCount = 0;   // 떨이가로 구매해 폐기를 막은 주문 수
         Map<String, Long> byCategory = new LinkedHashMap<>();
         Map<String, Long> byMonth = new LinkedHashMap<>();
         Map<String, Integer> byProduct = new LinkedHashMap<>();
@@ -57,6 +59,16 @@ public class BuyerInsightService {
             totalSpend += price;
             totalQty += o.getQuantity() == null ? 0 : o.getQuantity();
             if (o.getReviewId() != null) reviewed++;
+
+            // 주문 시점 정가가 실결제 단가보다 높으면 그 차액이 떨이 절약분
+            if (o.getOriginalUnitPrice() != null) {
+                int qty = o.getQuantity() == null ? 0 : o.getQuantity();
+                long saved = (long) o.getOriginalUnitPrice() * qty - price;
+                if (saved > 0) {
+                    savedAmount += saved;
+                    rescuedCount++;
+                }
+            }
 
             String catKo = o.getCategory() == null ? "기타" : CAT_KO.getOrDefault(o.getCategory(), o.getCategory());
             byCategory.merge(catKo, (long) price, Long::sum);
@@ -91,9 +103,14 @@ public class BuyerInsightService {
             used.add("가장 자주 산 상품: " + topProduct.getKey() + " " + topProduct.getValue() + "개");
         }
         used.add("이번 달 지출 " + won(thisMonth) + "원 · 지난 달 " + won(lastMonth) + "원");
+        if (savedAmount > 0) {
+            used.add("마감임박 떨이로 아낀 금액 " + won(savedAmount) + "원 (폐기 막은 주문 " + rescuedCount + "건)");
+        }
         used.add("리뷰 작성률 " + reviewRate + "% (" + reviewed + "/" + count + ")");
 
         insight.setUsedData(used);
+        insight.setSavedAmount(savedAmount);
+        insight.setRescuedCount(rescuedCount);
 
         String dataBlock = "내 구매 집계 데이터:\n- " + String.join("\n- ", used);
 

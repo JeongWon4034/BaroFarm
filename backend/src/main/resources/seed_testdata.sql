@@ -50,8 +50,10 @@ DELIMITER //
 DROP PROCEDURE IF EXISTS seed_review //
 CREATE PROCEDURE seed_review(IN p_buyer BIGINT, IN p_product BIGINT, IN p_rating INT, IN p_content VARCHAR(255))
 BEGIN
-  INSERT INTO orders(buyer_id, product_id, quantity, total_price, status)
-  VALUES (p_buyer, p_product, 1, (SELECT price FROM products WHERE product_id = p_product), 'COMPLETED');
+  INSERT INTO orders(buyer_id, product_id, quantity, total_price, original_unit_price, status)
+  VALUES (p_buyer, p_product, 1,
+          (SELECT price FROM products WHERE product_id = p_product),
+          (SELECT price FROM products WHERE product_id = p_product), 'COMPLETED');
   INSERT INTO reviews(order_id, rating, content) VALUES (LAST_INSERT_ID(), p_rating, p_content);
 END //
 DELIMITER ;

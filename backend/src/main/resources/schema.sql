@@ -49,7 +49,8 @@ CREATE TABLE orders (
     buyer_id BIGINT NOT NULL,
     product_id BIGINT NOT NULL,
     quantity INT NOT NULL DEFAULT 1,
-    total_price INT NOT NULL,
+    total_price INT NOT NULL,                         -- 실제 결제액(떨이가 반영) = 단가 × 수량
+    original_unit_price INT,                          -- 주문 시점 정가(떨이 전). 절약액/회수 매출 산출용. 절약액 = original_unit_price×수량 − total_price
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',   -- 판매자 처리 흐름: PENDING→CONFIRMED→SHIPPING→COMPLETED
     order_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (order_id),
