@@ -5,12 +5,14 @@ import { useAuthStore } from '../stores/auth'
 import { useCartStore } from '../stores/cart'
 import { useWishlistStore } from '../stores/wishlist'
 import { useFollowStore } from '../stores/follow'
+import { useNotificationStore } from '../stores/notification'
 
 const router = useRouter()
 const auth = useAuthStore()
 const cart = useCartStore()
 const wishlist = useWishlistStore()
 const follow = useFollowStore()
+const noti = useNotificationStore()
 const cartCount = computed(() => cart.count)
 
 // 헤더 전역 검색 → 상품목록으로 이동(ProductListView가 route.query.keyword 복원)
@@ -24,6 +26,7 @@ async function logout() {
   await auth.logout()
   wishlist.clear()
   follow.clear()
+  noti.clear()
   router.push({ name: 'products' })
 }
 </script>
@@ -58,9 +61,11 @@ async function logout() {
           <!-- 개인 메뉴 허브 진입 — 찜·마이페이지·구매분석·팔로잉을 모두 여기로 모음 -->
           <router-link v-if="auth.isSeller" :to="{ name: 'seller-center' }" class="me">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9 4 4h16l1 5"/><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M3 9h18"/><path d="M9 20v-6h6v6"/></svg>판매자 센터
+            <span v-if="noti.count" class="cnt">{{ noti.count }}</span>
           </router-link>
           <router-link v-else-if="auth.isBuyer" :to="{ name: 'my-hub' }" class="me">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>내 메뉴
+            <span v-if="noti.count" class="cnt">{{ noti.count }}</span>
           </router-link>
         </div>
       </div>
@@ -72,7 +77,7 @@ async function logout() {
         <span class="mark">
           <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c0-6 0-9 0-12"/><path d="M12 11C12 6 16 3 21 3c0 5-4 8-9 8Z"/><path d="M12 14C12 10.5 8.5 8 4 8c0 4.5 3.5 6.5 8 6Z"/></svg>
         </span>
-        <span class="wm">FreshGrowth<small>산지 직거래 마켓</small></span>
+        <span class="wm">BaroFarm<small>산지 직거래 마켓</small></span>
       </router-link>
 
       <nav class="main">
