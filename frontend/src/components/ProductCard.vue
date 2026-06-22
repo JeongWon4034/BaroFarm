@@ -67,7 +67,7 @@ function onOpen() {
         <button v-if="!auth.isSeller" class="act like" :class="{ on: wished }" :title="wished ? '찜 해제' : '찜하기'" @click.prevent="toggleWish">
           <svg viewBox="0 0 24 24" :fill="wished ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"><path d="M19 14c1.5-1.5 3-3.3 3-5.5A4.5 4.5 0 0 0 12 6 4.5 4.5 0 0 0 2 8.5C2 13 12 21 12 21s4-3.2 7-7Z"/></svg>
         </button>
-        <button class="act cart" :disabled="isExpired" :title="hasLots ? '폐기기간 선택' : '담기'" @click.prevent="add">
+        <button class="act cart" :disabled="isExpired" :title="hasLots ? '가격 확인' : '담기'" @click.prevent="add">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h2.2l2 13.4a1.5 1.5 0 0 0 1.5 1.3h9.7a1.5 1.5 0 0 0 1.5-1.2L21 7H5.5"/><circle cx="9" cy="21" r="1.3"/><circle cx="18" cy="21" r="1.3"/></svg>
         </button>
       </div>
@@ -89,20 +89,13 @@ function onOpen() {
       </template>
     </div>
 
-<<<<<<< Updated upstream
-    <button class="add" :disabled="soldOut || isExpired" @click="add">
-      <svg v-if="!soldOut && !isExpired" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h2.2l2 13.4a1.5 1.5 0 0 0 1.5 1.3h9.7a1.5 1.5 0 0 0 1.5-1.2L21 7H5.5"/><circle cx="9" cy="21" r="1.3"/><circle cx="18" cy="21" r="1.3"/></svg>
-      {{ soldOut ? '품절' : isExpired ? '판매 마감' : hasLots ? '가격 확인' : '담기' }}
-    </button>
-=======
     <div class="sub">
       <span v-if="product.reviewCount" class="rating">
         <StarRating :rating="product.avgRating" size="13px" />
         <span class="muted">{{ Number(product.avgRating).toFixed(1) }} ({{ product.reviewCount }})</span>
       </span>
-      <span v-if="hasLots" class="lotbadge">폐기기간 {{ product.lotCount }}옵션</span>
+      <span v-if="hasLots" class="lotbadge">가격 {{ product.lotCount }}옵션</span>
     </div>
->>>>>>> Stashed changes
   </article>
 </template>
 
