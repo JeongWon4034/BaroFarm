@@ -34,9 +34,16 @@ async function toggleWish() {
 const hasDeal = computed(() => (props.product.discountRate ?? 0) > 0)
 const dealPrice = computed(() => props.product.discountedPrice ?? props.product.price)
 const risk = computed(() => riskMeta(props.product.riskLevel))
+// 폐기기간 옵션(lot)이 있으면 카드에서 바로 담지 않고 상세에서 옵션을 고르게 한다.
+const hasLots = computed(() => (props.product.lotCount ?? 0) > 0)
 
 function add() {
   if (soldOut.value || isExpired.value) return
+  if (hasLots.value) {
+    onOpen()
+    router.push({ name: 'product-detail', params: { id: props.product.productId } })
+    return
+  }
   emit('add', props.product)
 }
 
@@ -73,12 +80,14 @@ function onOpen() {
       </router-link>
 
       <div class="price-row">
+        <span v-if="hasLots && !hasDeal" class="from">최저</span>
         <template v-if="hasDeal">
           <span class="pct">{{ product.discountRate }}%</span>
           <span class="now">{{ won(dealPrice) }}</span>
           <span class="was">{{ won(product.price) }}</span>
         </template>
         <span v-else class="now">{{ won(product.price) }}</span>
+        <span v-if="hasLots" class="lotbadge">옵션 {{ product.lotCount }}개</span>
       </div>
 
       <div class="meta">
@@ -94,7 +103,7 @@ function onOpen() {
 
     <button class="add" :disabled="soldOut || isExpired" @click="add">
       <svg v-if="!soldOut && !isExpired" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h2.2l2 13.4a1.5 1.5 0 0 0 1.5 1.3h9.7a1.5 1.5 0 0 0 1.5-1.2L21 7H5.5"/><circle cx="9" cy="21" r="1.3"/><circle cx="18" cy="21" r="1.3"/></svg>
-      {{ soldOut ? '품절' : isExpired ? '판매 마감' : '담기' }}
+      {{ soldOut ? '품절' : isExpired ? '판매 마감' : hasLots ? '폐기기간 선택' : '담기' }}
     </button>
   </article>
 </template>
@@ -172,6 +181,8 @@ function onOpen() {
 .pct{ color:var(--deal); font-weight:800; font-size:16px; }
 .now{ font-weight:800; font-size:21px; letter-spacing:-.02em; }
 .was{ color:var(--faint); text-decoration:line-through; font-size:13px; }
+.from{ font-size:12px; color:var(--muted); font-weight:600; align-self:center; }
+.lotbadge{ margin-left:auto; align-self:center; font-size:11px; font-weight:700; color:var(--leaf-700); background:var(--leaf-50); padding:3px 8px; border-radius:7px; white-space:nowrap; }
 
 .meta{ display:flex; align-items:center; justify-content:space-between; font-size:12.5px; }
 .stock{ color:var(--muted); font-weight:500; }

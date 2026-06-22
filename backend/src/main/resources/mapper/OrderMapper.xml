@@ -9,6 +9,7 @@
             p.seller_id AS seller_id,
             u.name AS seller_name,
             o.product_id,
+            o.lot_id,
             p.name AS product_name,
             p.category AS category,
             o.quantity,
@@ -24,8 +25,8 @@
     </sql>
 
     <insert id="insert" parameterType="com.freshgrowth.order.Order" useGeneratedKeys="true" keyProperty="orderId">
-        INSERT INTO orders(buyer_id, product_id, quantity, total_price, original_unit_price, status)
-        VALUES (#{buyerId}, #{productId}, #{quantity}, #{totalPrice}, #{originalUnitPrice}, #{status})
+        INSERT INTO orders(buyer_id, product_id, lot_id, quantity, total_price, original_unit_price, status)
+        VALUES (#{buyerId}, #{productId}, #{lotId}, #{quantity}, #{totalPrice}, #{originalUnitPrice}, #{status})
     </insert>
 
     <select id="findById" resultType="com.freshgrowth.order.Order">

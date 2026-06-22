@@ -8,6 +8,7 @@ public class Order {
     private Long sellerId;         // 상품 판매자 — 주문 상태 변경 권한 검증용
     private String sellerName;     // 판매자 이름(상점명) — 구매내역에 표시
     private Long productId;
+    private Long lotId;            // 구매한 폐기기간 옵션(lot). 상품단위·레거시 구매는 null
     private String productName;
     private String category;
     private Integer quantity;
@@ -27,6 +28,8 @@ public class Order {
     public void setSellerName(String sellerName) { this.sellerName = sellerName; }
     public Long getProductId() { return productId; }
     public void setProductId(Long productId) { this.productId = productId; }
+    public Long getLotId() { return lotId; }
+    public void setLotId(Long lotId) { this.lotId = lotId; }
     public String getProductName() { return productName; }
     public void setProductName(String productName) { this.productName = productName; }
     public String getCategory() { return category; }

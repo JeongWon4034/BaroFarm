@@ -5,7 +5,7 @@ import { useCartStore } from '../stores/cart'
 import { useAuthStore } from '../stores/auth'
 import { orderApi } from '../api/orders'
 import { track } from '../api/track'
-import { won, thumbEmoji } from '../utils/format'
+import { won, thumbEmoji, dDayLabel } from '../utils/format'
 
 const router = useRouter()
 const cart = useCartStore()
@@ -36,7 +36,7 @@ async function checkout() {
     // 백엔드는 1상품 단위 주문 → 항목별로 순차 생성
     const ids = []
     for (const item of cart.items) {
-      const order = await orderApi.create({ productId: item.productId, quantity: item.quantity })
+      const order = await orderApi.create({ productId: item.productId, lotId: item.lotId, quantity: item.quantity })
       ids.push(order.orderId)
     }
     cart.clear()
@@ -62,17 +62,18 @@ async function checkout() {
 
     <div v-else class="cart-grid">
       <div class="cart-list">
-        <div class="citem" v-for="item in cart.items" :key="item.productId">
+        <div class="citem" v-for="item in cart.items" :key="item.key">
           <div class="ci-tile">{{ thumbEmoji(item) }}</div>
           <div class="ci-info">
             <div class="ci-meta">
               <span v-if="item.discountRate" class="chip urgent">{{ item.discountRate }}% 할인</span>
+              <span v-if="item.daysToExpiry != null" class="chip dday">⏰ {{ dDayLabel(item.daysToExpiry) }} 옵션</span>
             </div>
             <router-link :to="{ name: 'product-detail', params: { id: item.productId } }" class="nm">{{ item.name }}</router-link>
             <div class="qtybox">
-              <button @click="cart.updateQty(item.productId, item.quantity - 1)" :disabled="item.quantity <= 1">−</button>
+              <button @click="cart.updateQty(item.key, item.quantity - 1)" :disabled="item.quantity <= 1">−</button>
               <span class="q">{{ item.quantity }}</span>
-              <button @click="cart.updateQty(item.productId, item.quantity + 1)">+</button>
+              <button @click="cart.updateQty(item.key, item.quantity + 1)">+</button>
             </div>
           </div>
           <div class="ci-right">
@@ -81,7 +82,7 @@ async function checkout() {
               <span class="now">{{ won(item.price * item.quantity) }}</span>
             </div>
             <span v-if="item.discountRate" class="was">{{ won((item.originalPrice || item.price) * item.quantity) }}</span>
-            <span class="ci-del" @click="cart.remove(item.productId)">삭제</span>
+            <span class="ci-del" @click="cart.remove(item.key)">삭제</span>
           </div>
         </div>
       </div>
@@ -122,6 +123,7 @@ async function checkout() {
 .ci-meta { display: flex; gap: 6px; flex-wrap: wrap; min-height: 1px; }
 .chip { font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 7px; background: var(--leaf-50); color: var(--leaf-700); white-space: nowrap; }
 .chip.urgent { background: var(--deal-soft); color: var(--deal); }
+.chip.dday { background: #23281c; color: #fff; }
 .ci-info .nm { font-size: 16.5px; font-weight: 700; }
 .ci-info .nm:hover { color: var(--leaf-700); }
 .qtybox { display: inline-flex; align-items: center; border: 1.5px solid var(--line-2); border-radius: 11px; overflow: hidden; background: #fff; width: fit-content; }

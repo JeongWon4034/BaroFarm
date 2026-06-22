@@ -4,6 +4,7 @@ export const productApi = {
   // 목록 (백엔드는 page/size만 지원 → 카테고리·검색·정렬은 클라이언트에서 처리)
   list: (params = {}) => http.get('/products', { params }), // {page,size,keyword,category,sort}
   detail: (productId) => http.get(`/products/${productId}`),
+  lots: (productId) => http.get(`/products/${productId}/lots`), // 폐기기간별 옵션(가격·재고·D-day)
   reviews: (productId) => http.get(`/products/${productId}/reviews`),
   // 판매자 본인 상품 (응답에 폐기위험·할인가 엔진값 포함). X-USER-ID 헤더 필요.
   sellerProducts: () => http.get('/seller/products'),

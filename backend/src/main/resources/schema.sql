@@ -11,6 +11,7 @@ DROP TABLE IF EXISTS wishlists;
 DROP TABLE IF EXISTS follows;
 DROP TABLE IF EXISTS reviews;
 DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS product_lots;
 DROP TABLE IF EXISTS products;
 DROP TABLE IF EXISTS users;
 
@@ -43,11 +44,28 @@ CREATE TABLE products (
     PRIMARY KEY (product_id),
     FOREIGN KEY (seller_id) REFERENCES users(user_id)
 );
+-- products 는 '품목 마스터'(이름·카테고리·판매자). lot 이 있으면 price/stock_qty/expiration_date 는
+-- 대표값일 뿐이고, 실제 판매 단위·가격·유통기한은 product_lots 가 권위를 가진다.
+
+-- 폐기기간별 판매 옵션(lot). 같은 품목(새우젓)을 유통기한·재고·가격이 다른 여러 lot 으로 묶어
+-- 목록은 품목 1장으로 간결하게, 상세에서 lot 별 떨이가를 골라 구매하게 한다.
+CREATE TABLE product_lots (
+    lot_id          BIGINT NOT NULL AUTO_INCREMENT,
+    product_id      BIGINT NOT NULL,
+    expiration_date DATE   NOT NULL,
+    stock_qty       INT    NOT NULL DEFAULT 0,
+    price           INT    NOT NULL,                 -- 이 lot 의 정가(떨이가는 WastePricingEngine 이 조회 시 계산)
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (lot_id),
+    INDEX idx_lot_product (product_id),
+    FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE
+);
 
 CREATE TABLE orders (
     order_id BIGINT NOT NULL AUTO_INCREMENT,
     buyer_id BIGINT NOT NULL,
     product_id BIGINT NOT NULL,
+    lot_id BIGINT NULL,                              -- 구매한 폐기기간 옵션(lot). 레거시·상품단위 구매는 NULL
     quantity INT NOT NULL DEFAULT 1,
     total_price INT NOT NULL,                         -- 실제 결제액(떨이가 반영) = 단가 × 수량
     original_unit_price INT,                          -- 주문 시점 정가(떨이 전). 절약액/회수 매출 산출용. 절약액 = original_unit_price×수량 − total_price
@@ -55,7 +73,8 @@ CREATE TABLE orders (
     order_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (order_id),
     FOREIGN KEY (buyer_id) REFERENCES users(user_id),
-    FOREIGN KEY (product_id) REFERENCES products(product_id)
+    FOREIGN KEY (product_id) REFERENCES products(product_id),
+    FOREIGN KEY (lot_id) REFERENCES product_lots(lot_id)
 );
 
 CREATE TABLE reviews (
