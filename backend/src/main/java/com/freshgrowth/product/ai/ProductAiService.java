@@ -72,7 +72,7 @@ public class ProductAiService {
         usedData.add("전체 상품 " + products.size() + "개");
         usedData.add("폐기위험 상품 " + atRisk.size() + "개 (HIGH " + high + " · MEDIUM " + med + ")");
         usedData.add("방치 시 예상 폐기손실 약 " + wonL(wasteLoss) + "원");
-        usedData.add("AI 떨이가 적용 시 회수 예상 약 " + wonL(recovered) + "원");
+        usedData.add("AI 할인가 적용 시 회수 예상 약 " + wonL(recovered) + "원");
 
         SellerReport report = new SellerReport();
         report.setUsedData(usedData);
@@ -82,7 +82,8 @@ public class ProductAiService {
         }
 
         String system = "너는 신선식품 마켓 판매자의 운영 어시스턴트다. 주어진 폐기위험 데이터를 바탕으로 "
-                + "판매자가 오늘 알아야 할 핵심과 추천 행동을 1~2문장의 한국어로 담백하게 요약한다. 이모지·과장 없이.";
+                + "판매자가 오늘 알아야 할 핵심과 추천 행동을 1~2문장의 한국어로 담백하게 요약한다. 이모지·과장 없이. "
+                + "할인 관련 표현은 '떨이'라는 단어를 쓰지 말고 'AI 할인가를 적용하여 ~' 형태로 서술한다.";
         String user = "판매자 재고 폐기위험 현황:\n" + String.join("\n", usedData)
                 + "\n위 데이터를 바탕으로 핵심 요약과 추천 행동을 1~2문장으로 작성해줘.";
         report.setSummary(aiClient.chat(system, user, 250));
