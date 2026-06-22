@@ -26,7 +26,8 @@ import urllib.parse
 import urllib.request
 import numpy as np
 import pandas as pd
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from faker import Faker
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ENV_PATH = os.path.join(BASE_DIR, "..", "backend", ".env")
@@ -35,10 +36,13 @@ OUT_DIR = os.path.join(BASE_DIR, "data", "dummy")
 CONFIG = {
     "seed": 42,
     "base_url": "https://www.kamis.or.kr/service/price/xml.do",
+    "n_sellers": 30,            # KAMIS 상품을 분배할 더미 판매자 수(멀티셀러 마켓)
     "lots_per_item": 4,         # 품목당 폐기기간 옵션(lot) 수 → 목록은 품목 1장, 상세에 옵션 N개
     "lot_exp_days": [1, 3, 6, 10, 14, 18],  # lot 유통기한 후보(D-day). 떨이가는 엔진이 D-day로 계산
     "db_url": os.getenv("DB_URL",
         "mysql+pymysql://root:1234@127.0.0.1:3306/freshgrowth?charset=utf8mb4"),
+    # 비번 '1234' BCrypt 해시 — schema.sql 시드와 동일
+    "password_hash": "$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O",
 }
 
 # KAMIS category_name → 우리 products.category 코드
@@ -151,25 +155,37 @@ def _num(s):
 
 
 def get_db_context(cfg):
-    """기존 SELLER user_id 목록과 다음 product_id 를 DB에서 읽는다."""
+    """다음 user_id / product_id 를 DB에서 읽는다(기존 행 보존)."""
     from sqlalchemy import create_engine, text
     eng = create_engine(cfg["db_url"])
     with eng.connect() as c:
-        sellers = [r[0] for r in c.execute(text("SELECT user_id FROM users WHERE role='SELLER'"))]
+        next_uid = c.execute(text("SELECT COALESCE(MAX(user_id),0)+1 FROM users")).scalar()
         next_pid = c.execute(text("SELECT COALESCE(MAX(product_id),0)+1 FROM products")).scalar()
-    if not sellers:
-        sys.exit("  ✖ SELLER 가 없습니다. 먼저 판매자(users)를 적재하세요.")
-    return eng, sellers, int(next_pid)
+    return eng, int(next_uid), int(next_pid)
 
 
-def insert_catalog(products_df, lots_df, eng):
-    # FK 순서: products(명시 product_id) → product_lots(그 product_id 참조)
-    products_df.where(pd.notnull(products_df), None).to_sql(
-        "products", eng, if_exists="append", index=False, method="multi", chunksize=2_000)
-    print(f"  ✔ products: {len(products_df):,} rows appended")
-    lots_df.where(pd.notnull(lots_df), None).to_sql(
-        "product_lots", eng, if_exists="append", index=False, method="multi", chunksize=2_000)
-    print(f"  ✔ product_lots: {len(lots_df):,} rows appended")
+def make_sellers(start_uid, cfg):
+    """더미 판매자 N명 생성 → (sellers_df, seller_ids). 상품을 이들에게 분배한다."""
+    fake = Faker("ko_KR"); Faker.seed(cfg["seed"])
+    rng = np.random.default_rng(cfg["seed"])
+    rows, ids = [], []
+    for i in range(cfg["n_sellers"]):
+        uid = start_uid + i
+        created = (datetime(2025, 9, 1) + timedelta(days=int(rng.integers(0, 120)))).strftime("%Y-%m-%d %H:%M:%S")
+        rows.append({"user_id": uid, "role": "SELLER",
+                     "email": f"kseller{uid}@fresh.test", "password": cfg["password_hash"],
+                     "name": fake.company().replace(" ", "") + "농산", "intro": "KAMIS 시세 연동 산지직송",
+                     "phone": fake.numerify("010-####-####"), "status": "ACTIVE", "created_at": created})
+        ids.append(uid)
+    return pd.DataFrame(rows), ids
+
+
+def insert_catalog(sellers_df, products_df, lots_df, eng):
+    # FK 순서: users(판매자) → products(seller_id 참조) → product_lots(product_id 참조)
+    for df, table in [(sellers_df, "users"), (products_df, "products"), (lots_df, "product_lots")]:
+        df.where(pd.notnull(df), None).to_sql(
+            table, eng, if_exists="append", index=False, method="multi", chunksize=2_000)
+        print(f"  ✔ {table}: {len(df):,} rows appended")
 
 
 def run(dry_run=False, do_load=False):
@@ -192,15 +208,17 @@ def run(dry_run=False, do_load=False):
         print(f"  (dry-run: DB·CSV 미변경. 적재 시 품목 {len(items):,}개 + lot {len(items)*n_lots:,}개 예정)")
         return
 
-    eng, sellers, next_pid = get_db_context(cfg)
-    products_df, lots_df = build_catalog(items, sellers, next_pid, cfg)
+    eng, next_uid, next_pid = get_db_context(cfg)
+    sellers_df, seller_ids = make_sellers(next_uid, cfg)
+    products_df, lots_df = build_catalog(items, seller_ids, next_pid, cfg)
     os.makedirs(OUT_DIR, exist_ok=True)
+    sellers_df.to_csv(f"{OUT_DIR}/sellers.csv", index=False)
     products_df.to_csv(f"{OUT_DIR}/products.csv", index=False)
     lots_df.to_csv(f"{OUT_DIR}/product_lots.csv", index=False)
-    print(f"  · 품목 {len(products_df):,}개 (pid {next_pid}~{next_pid+len(products_df)-1}) "
-          f"+ lot {len(lots_df):,}개 생성 → {OUT_DIR}/")
+    print(f"  · 판매자 {len(sellers_df)}명 (uid {next_uid}~) + 품목 {len(products_df):,}개 "
+          f"(pid {next_pid}~{next_pid+len(products_df)-1}) + lot {len(lots_df):,}개 → {OUT_DIR}/")
     if do_load:
-        insert_catalog(products_df, lots_df, eng)
+        insert_catalog(sellers_df, products_df, lots_df, eng)
 
 
 # ── 네트워크 없는 자체검증: 대표 KAMIS 응답 샘플로 파싱/매핑 확인 ──

@@ -5,14 +5,14 @@
    그대로 유지하므로 모든 View가 안 깨지고 새 디자인으로 바뀝니다.
    ============================================================ */
 :root{
-  /* 브랜드 — 잎새 그린 스케일 */
-  --leaf-700:#3a7a22;
-  --leaf-600:#4d9a2c;
-  --leaf-500:#67b336;
-  --leaf-400:#86c557;
-  --leaf-300:#a9d77f;
-  --leaf-100:#e9f4d8;
-  --leaf-50:#f3f9ea;
+  /* 브랜드 — 딥 포레스트 그린 스케일 (중후·신뢰) */
+  --leaf-700:#0e4a2e;
+  --leaf-600:#176b42;   /* primary: 깊고 신뢰감 있는 녹색 */
+  --leaf-500:#2a8a5a;
+  --leaf-400:#5aa982;
+  --leaf-300:#93c9ac;
+  --leaf-100:#dcefe4;
+  --leaf-50:#eef7f1;
 
   /* 잉크 / 중립 */
   --ink:#1c2215;
@@ -22,7 +22,7 @@
   --line:#e9eae1;
   --line-2:#dcdecf;
   --paper:#ffffff;
-  --cream:#faf9f2;
+  --cream:#f6f8f6;   /* 켤리식 화이트 클린 배경 (카드 화이트와 미세 대비) */
 
   /* 강조 — 마감임박/가격 */
   --deal:#d6452f;
@@ -85,8 +85,8 @@ svg{ flex:none; }
   transition:transform .06s ease, background .15s ease, box-shadow .15s ease, border-color .15s ease;
 }
 .btn:active{ transform:translateY(1px); }
-.btn-primary{ background:var(--leaf-600); color:#fff; box-shadow:0 6px 16px rgba(77,154,44,.24); }
-.btn-primary:hover{ background:var(--leaf-700); box-shadow:0 10px 22px rgba(77,154,44,.30); }
+.btn-primary{ background:var(--leaf-600); color:#fff; box-shadow:0 6px 16px rgba(23,107,66,.24); }
+.btn-primary:hover{ background:var(--leaf-700); box-shadow:0 10px 22px rgba(23,107,66,.30); }
 .btn-accent{ background:var(--deal); color:#fff; box-shadow:0 6px 16px rgba(214,69,47,.22); }
 .btn-accent:hover{ background:#bd3a26; }
 .btn-outline{ background:#fff; color:var(--ink); border-color:var(--line-2); }

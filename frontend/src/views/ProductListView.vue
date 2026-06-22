@@ -6,6 +6,7 @@ import { useCartStore } from '../stores/cart'
 import { categoryLabel } from '../utils/format'
 import { track } from '../api/track'
 import ProductCard from '../components/ProductCard.vue'
+import HeroBanner from '../components/HeroBanner.vue'
 
 const cart = useCartStore()
 const route = useRoute()
@@ -106,69 +107,44 @@ function addToCart(product) {
 
 <template>
   <div>
-    <!-- 배너 -->
-    <div class="banner">
-      <span class="b-ic">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 8v4l3 2"/><circle cx="12" cy="12" r="9"/></svg>
-      </span>
-      <span class="b-txt">산지에서 바로, 오늘 마감임박 신선식품<small>버려질 뻔한 신선식품을 제값에 — 농가도 식탁도 알뜰하게</small></span>
-      <router-link :to="{ name: 'deals' }" class="b-link">
-        마감임박 특가 보기
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      </router-link>
-    </div>
+    <!-- 메인 상단 큰 히어로 배너 캐러셀 -->
+    <HeroBanner />
 
-    <div class="shop-grid">
-      <!-- 사이드바: 카테고리 -->
-      <aside>
-        <div class="panel">
-          <h4>카테고리</h4>
-          <div class="catlist">
-            <button
-              v-for="c in CATEGORIES" :key="c"
-              class="cat" :class="{ on: activeCategory === c }"
-              @click="setCategory(c)"
-            >
-              <span class="nm"><span class="dot" />{{ c === 'all' ? '전체' : categoryLabel(c) }}</span>
-            </button>
-          </div>
-        </div>
-      </aside>
+    <!-- 카테고리 가로 네비 -->
+    <nav class="cat-row">
+      <button
+        v-for="c in CATEGORIES" :key="c"
+        class="cat" :class="{ on: activeCategory === c }"
+        @click="setCategory(c)"
+      >{{ c === 'all' ? '전체' : categoryLabel(c) }}</button>
+    </nav>
 
-      <!-- 본문 -->
-      <div>
-        <div class="toolbar">
-          <div class="searchwrap">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-            <input v-model="keyword" class="search" placeholder="상품명으로 검색하세요 (예: 상추)" />
-          </div>
-          <div class="seg">
-            <button v-for="s in SORTS" :key="s" :class="{ on: sort === s }" @click="setSort(s)">{{ SORT_LABEL[s] }}</button>
-          </div>
-        </div>
-
-        <div class="prod-head">
-          <h2>오늘의 신선식품</h2>
-          <p class="muted">총 <b>{{ totalElements }}</b>개 상품 · {{ page + 1 }}/{{ Math.max(totalPages, 1) }} 페이지</p>
-        </div>
-
-        <div v-if="loading" class="empty"><span class="emoji">⏳</span>상품을 불러오는 중…</div>
-        <div v-else-if="error" class="empty"><span class="emoji">⚠️</span>{{ error }}<br /><button class="btn btn-outline" style="margin-top:12px" @click="load">다시 시도</button></div>
-        <div v-else-if="products.length === 0" class="empty"><span class="emoji">🔍</span>조건에 맞는 상품이 없어요.</div>
-
-        <template v-else>
-          <div class="grid">
-            <ProductCard v-for="p in products" :key="p.productId" :product="p" @add="addToCart" />
-          </div>
-
-          <div v-if="totalPages > 1" class="pagination">
-            <button class="pg" :disabled="page === 0" @click="goPage(page - 1)">‹</button>
-            <button v-for="p in pageWindow" :key="p" class="pg" :class="{ on: p === page }" @click="goPage(p)">{{ p + 1 }}</button>
-            <button class="pg" :disabled="page >= totalPages - 1" @click="goPage(page + 1)">›</button>
-          </div>
-        </template>
+    <!-- 섹션 헤더 + 정렬 -->
+    <div class="sec-head">
+      <div class="sh-l">
+        <h2>오늘의 신선식품</h2>
+        <span class="muted">총 {{ totalElements }}개</span>
+      </div>
+      <div class="seg">
+        <button v-for="s in SORTS" :key="s" :class="{ on: sort === s }" @click="setSort(s)">{{ SORT_LABEL[s] }}</button>
       </div>
     </div>
+
+    <div v-if="loading" class="empty"><span class="emoji">⏳</span>상품을 불러오는 중…</div>
+    <div v-else-if="error" class="empty"><span class="emoji">⚠️</span>{{ error }}<br /><button class="btn btn-outline" style="margin-top:12px" @click="load">다시 시도</button></div>
+    <div v-else-if="products.length === 0" class="empty"><span class="emoji">🔍</span>조건에 맞는 상품이 없어요.</div>
+
+    <template v-else>
+      <div class="grid">
+        <ProductCard v-for="p in products" :key="p.productId" :product="p" @add="addToCart" />
+      </div>
+
+      <div v-if="totalPages > 1" class="pagination">
+        <button class="pg" :disabled="page === 0" @click="goPage(page - 1)">‹</button>
+        <button v-for="p in pageWindow" :key="p" class="pg" :class="{ on: p === page }" @click="goPage(p)">{{ p + 1 }}</button>
+        <button class="pg" :disabled="page >= totalPages - 1" @click="goPage(page + 1)">›</button>
+      </div>
+    </template>
 
     <transition name="fade">
       <div v-if="toast" class="toast">
@@ -180,48 +156,32 @@ function addToCart(product) {
 </template>
 
 <style scoped>
-/* 배너 */
-.banner{
-  display:flex; align-items:center; gap:12px;
-  background:linear-gradient(120deg, var(--leaf-50), var(--leaf-100));
-  border:1px solid #d6ebc2; border-radius:16px; padding:16px 20px; margin-bottom:24px;
+/* 카테고리 가로 네비 */
+.cat-row{
+  display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:26px;
+  border-bottom:1px solid var(--line);
 }
-.b-ic{ width:38px; height:38px; border-radius:11px; background:#fff; display:flex; align-items:center; justify-content:center; color:var(--leaf-600); box-shadow:var(--shadow-sm); }
-.b-txt{ font-weight:700; color:var(--leaf-700); font-size:15.5px; }
-.b-txt small{ display:block; font-weight:500; color:#5b6a44; font-size:13px; margin-top:2px; }
-.b-link{ margin-left:auto; display:inline-flex; align-items:center; gap:7px; background:var(--deal); color:#fff; font-weight:700; font-size:13.5px; padding:9px 16px; border-radius:999px; transition:.15s; white-space:nowrap; }
-.b-link:hover{ background:#bd3a26; }
+.cat-row::-webkit-scrollbar{ height:0; }
+.cat{
+  flex:none; border:none; background:transparent; cursor:pointer;
+  padding:11px 16px; font-size:15px; font-weight:500; color:var(--ink-2);
+  border-bottom:2.5px solid transparent; margin-bottom:-1px; transition:.13s; white-space:nowrap;
+}
+.cat:hover{ color:var(--leaf-700); }
+.cat.on{ color:var(--leaf-700); font-weight:700; border-bottom-color:var(--leaf-600); }
 
-.shop-grid{ display:grid; grid-template-columns:230px 1fr; gap:32px; align-items:start; }
-aside{ position:sticky; top:130px; align-self:start; }
-.panel{ background:#fff; border:1px solid var(--line); border-radius:16px; padding:18px; box-shadow:var(--shadow-sm); }
-.panel h4{ font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--faint); font-weight:700; margin:0 0 12px; }
-.catlist{ display:flex; flex-direction:column; gap:2px; }
-.cat{ display:flex; align-items:center; justify-content:space-between; padding:9px 11px; border-radius:10px; font-size:15px; font-weight:500; color:var(--ink-2); transition:.13s; border:none; background:transparent; text-align:left; }
-.cat .nm{ display:flex; align-items:center; gap:10px; }
-.cat .dot{ width:8px; height:8px; border-radius:50%; background:var(--leaf-400); flex:none; }
-.cat:hover{ background:var(--leaf-50); }
-.cat.on{ background:var(--leaf-100); color:var(--leaf-700); font-weight:700; }
-.cat.on .dot{ background:var(--leaf-600); }
-
-/* 툴바 */
-.toolbar{ display:flex; align-items:center; gap:14px; margin-bottom:20px; flex-wrap:wrap; }
-.searchwrap{ display:flex; align-items:center; gap:9px; background:#fff; border:1.5px solid var(--line-2); border-radius:12px; padding:0 14px; height:46px; flex:1; min-width:240px; transition:.18s; }
-.searchwrap:focus-within{ border-color:var(--leaf-400); box-shadow:0 0 0 4px var(--leaf-50); }
-.searchwrap svg{ color:var(--faint); }
-.search{ border:none; outline:none; background:transparent; font-family:inherit; font-size:15px; width:100%; color:var(--ink); }
-.search::placeholder{ color:var(--faint); }
-.seg{ display:flex; background:#fff; border:1px solid var(--line); border-radius:10px; padding:3px; box-shadow:var(--shadow-sm); }
-.seg button{ border:none; background:transparent; font-size:13.5px; font-weight:600; color:var(--muted); padding:8px 13px; border-radius:7px; transition:.13s; white-space:nowrap; }
-.seg button.on{ background:var(--leaf-600); color:#fff; }
+/* 섹션 헤더 */
+.sec-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:22px; flex-wrap:wrap; }
+.sh-l{ display:flex; align-items:baseline; gap:10px; }
+.sh-l h2{ font-size:23px; font-weight:800; letter-spacing:-.02em; margin:0; }
+.sh-l .muted{ font-size:14px; }
+.seg{ display:flex; gap:2px; }
+.seg button{ border:none; background:transparent; font-size:13.5px; font-weight:600; color:var(--muted); padding:7px 11px; border-radius:8px; transition:.13s; white-space:nowrap; }
+.seg button.on{ color:var(--leaf-700); background:var(--leaf-50); }
 .seg button:not(.on):hover{ color:var(--ink); }
 
-.prod-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
-.prod-head h2{ font-size:24px; font-weight:800; letter-spacing:-.02em; margin:0; }
-.prod-head p{ margin:0; font-size:14px; }
-.prod-head p b{ color:var(--leaf-700); font-weight:700; }
-
-.grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; }
+/* 컬리식 4열 그리드 — 넉넉한 여백 */
+.grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:36px 22px; }
 
 .pagination{ display:flex; justify-content:center; gap:7px; margin:34px 0 0; }
 .pg{ min-width:38px; height:38px; padding:0 11px; border:1px solid var(--line); background:#fff; border-radius:10px; font-size:14px; font-weight:600; color:var(--ink-2); transition:.13s; }
@@ -239,16 +199,7 @@ aside{ position:sticky; top:130px; align-self:start; }
 .fade-enter-active, .fade-leave-active{ transition:opacity .25s ease, transform .25s ease; }
 .fade-enter-from, .fade-leave-to{ opacity:0; transform:translateX(-50%) translateY(12px); }
 
-@media (max-width:1080px){
-  .shop-grid{ grid-template-columns:200px 1fr; gap:24px; }
-  .grid{ grid-template-columns:repeat(2, 1fr); }
-}
-@media (max-width:780px){
-  .shop-grid{ grid-template-columns:1fr; }
-  aside{ position:static; }
-  .grid{ grid-template-columns:repeat(2, 1fr); }
-}
-@media (max-width:520px){
-  .grid{ grid-template-columns:1fr; }
-}
+@media (max-width:1080px){ .grid{ grid-template-columns:repeat(3, 1fr); } }
+@media (max-width:780px){ .grid{ grid-template-columns:repeat(2, 1fr); gap:28px 16px; } }
+@media (max-width:430px){ .grid{ grid-template-columns:repeat(2, 1fr); } }
 </style>

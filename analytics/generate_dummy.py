@@ -27,11 +27,10 @@ from faker import Faker
 
 CONFIG = {
     "seed": 42,
-    "n_sellers": 50,
-    "n_buyers": 5_000,
+    "n_buyers": 1_500,                 # 1만 주문 기준 1인당 ~6.7건 → 모델 시그널 적정 (판매자는 seed_products_kamis 가 생성)
     "start_date": "2026-01-01",
     "end_date": "2026-06-22",
-    "daily_orders_lambda": 320,
+    "daily_orders_lambda": 50,         # 평일 평균 주문수 → 총 ~1만 건(주말 1.5배 포함)
     "weekend_multiplier": 1.5,
     "price_elasticity": 1.3,
     "deal_purchase_boost": 1.8,        # 임박(D-3 이내) lot 선택 가중
@@ -104,10 +103,8 @@ def main(do_load=False):
     print(f"  · 주문대상 품목 {len(products):,}개 / lot {sum(len(p['lots']) for p in products):,}개, "
           f"카테고리 {list(by_cat)} / 기존 MAX(user_id)={max_uid}")
 
-    # ── ② users: 더미 판매자 + 구매자 (MAX 뒤 append) ────────────
+    # ── ② users: 구매자만 생성 (판매자는 seed_products_kamis 가 담당) ──
     users, uid = [], max_uid + 1
-    for _ in range(cfg["n_sellers"]):
-        users.append(_user_row(uid, "SELLER", fake)); uid += 1
     buyer_ids, buyer_persona = [], {}
     pnames = list(PERSONAS)
     pp = np.array([PERSONAS[p]["share"] for p in pnames]); pp /= pp.sum()
@@ -156,6 +153,7 @@ def main(do_load=False):
             orders.append({"order_id": order_id, "buyer_id": buyer,
                            "product_id": prod["product_id"], "lot_id": lot["lot_id"],
                            "quantity": qty, "total_price": lot["dprice"] * qty,
+                           "original_unit_price": lot["price"],   # 떨이 전 정가 → 절약액/회수매출 산출
                            "status": _status(rng), "order_date": odt.strftime("%Y-%m-%d %H:%M:%S")})
             order_id += 1
     orders_df = pd.DataFrame(orders)
@@ -164,7 +162,7 @@ def main(do_load=False):
     users_out = users_df[["user_id", "role", "email", "password", "name",
                           "intro", "phone", "status", "created_at"]]
     orders_out = orders_df[["order_id", "buyer_id", "product_id", "lot_id", "quantity",
-                            "total_price", "status", "order_date"]]
+                            "total_price", "original_unit_price", "status", "order_date"]]
     users_out.to_csv(f"{OUT_DIR}/users.csv", index=False)
     orders_out.to_csv(f"{OUT_DIR}/orders.csv", index=False)
     _summary(users_df, products, orders_df, cfg)
@@ -189,7 +187,8 @@ def load_db(cfg):
         days = (exp - today).days
         dprice, rate = waste_price(days, int(r.stock_qty), int(r.price))
         lots_by_pid.setdefault(int(r.product_id), []).append(
-            {"lot_id": int(r.lot_id), "days": days, "rate": rate, "dprice": dprice})
+            {"lot_id": int(r.lot_id), "days": days, "rate": rate,
+             "price": int(r.price), "dprice": dprice})   # price=정가, dprice=떨이가
     return prod, lots_by_pid, int(max_uid)
 
 
@@ -230,16 +229,18 @@ def _status(rng):
 
 def _summary(users, products, orders, cfg):
     gmv = orders["total_price"].sum()
+    saved = int((orders["original_unit_price"] * orders["quantity"] - orders["total_price"]).clip(lower=0).sum())
     wk = orders.copy(); wk["dow"] = pd.to_datetime(wk["order_date"]).dt.dayofweek
     wd = wk[wk["dow"] < 5].groupby(wk["order_date"].str[:10]).size().mean()
     we = wk[wk["dow"] >= 5].groupby(wk["order_date"].str[:10]).size().mean()
     print("=" * 60)
     print("  더미 생성 완료  (products·lots 는 DB 원본 그대로, 주문은 lot 참조)")
     print("=" * 60)
-    print(f"  더미 유저   {len(users):>10,}  (SELLER {cfg['n_sellers']:,} / BUYER {cfg['n_buyers']:,})")
+    print(f"  더미 구매자 {len(users):>10,}  (BUYER only · 판매자는 seed 단계)")
     print(f"  주문대상품목 {len(products):>9,}")
     print(f"  주문        {len(orders):>10,}")
     print(f"  GMV         {gmv:>13,} 원   AOV {gmv//max(1,len(orders)):,}")
+    print(f"  폐기회수 절약 {saved:>12,} 원  (정가 대비 떨이 할인 합계)")
     print(f"  평일 일평균 {wd:.0f} / 주말 {we:.0f}  (배수 {we/wd:.2f})")
     print(f"  저장: {OUT_DIR}/users.csv, orders.csv")
     print("=" * 60)
