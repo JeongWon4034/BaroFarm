@@ -142,7 +142,7 @@ async function submitReview(order) {
             <router-link :to="{ name: 'purchase-insights' }">📊 내 구매 분석</router-link>
             <template v-if="auth.isSeller">
               <span class="menu-sep"></span>
-              <router-link :to="{ name: 'seller-dashboard' }">📉 폐기 대시보드</router-link>
+              <router-link :to="{ name: 'seller-dashboard' }">📊 판매자 대시보드</router-link>
               <router-link :to="{ name: 'seller-products' }">📦 내 상품 관리</router-link>
             </template>
           </div>

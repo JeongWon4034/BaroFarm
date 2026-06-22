@@ -105,8 +105,8 @@ const reportHtml = computed(() => highlightNumbers(aiReport.value?.summary || su
     <div class="dash-head">
       <div class="dash-avatar">🏪</div>
       <div class="dash-head-tx">
-        <h1><b class="seller-name">{{ auth.user?.name }}</b>님의 폐기 대시보드</h1>
-        <p class="muted">재고 폐기위험과 AI 할인가를 한눈에</p>
+        <h1><b class="seller-name">{{ auth.user?.name }}</b>님의 판매자 대시보드</h1>
+        <p class="muted">마감임박 재고와 AI 할인가를 한눈에</p>
       </div>
     </div>
 

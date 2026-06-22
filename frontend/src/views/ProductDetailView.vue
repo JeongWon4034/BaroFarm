@@ -204,7 +204,7 @@ async function buyNow() {
         <!-- 폐기기간별 가격 옵션 — 클릭해 골라 담는다 -->
         <div v-if="hasLots" class="lots">
           <div class="lots-head">
-            ⏰ 폐기기간별 가격 <span class="muted">· 임박할수록 더 저렴해요</span>
+            ⏰ 가격 확인 <span class="muted">· 임박할수록 더 저렴해요</span>
           </div>
           <button
             v-for="lot in lots"
