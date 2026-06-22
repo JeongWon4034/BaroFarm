@@ -119,14 +119,21 @@ async function checkout() {
         <div class="srow"><span>상품 금액</span><span>{{ won(origTotal) }}</span></div>
         <div v-if="savedTotal > 0" class="srow save"><span>마감임박 할인</span><span>-{{ won(savedTotal) }}</span></div>
         <div v-if="auth.isLoggedIn && coupons.length" class="coupon-box">
-          <span class="cp-label">🎟️ 챌린지 쿠폰</span>
-          <select v-model="selectedCouponId" class="cp-select">
-            <option :value="null">사용 안 함</option>
-            <option v-for="c in coupons" :key="c.couponId" :value="c.couponId">
-              {{ c.discountRate }}% 할인 · {{ c.sourceChallengeTitle }}
-            </option>
-          </select>
+          <span class="cp-label">🎟️ 보유 쿠폰 <small>· 1개 적용 가능</small></span>
+          <div class="cp-chips">
+            <button
+              v-for="c in coupons"
+              :key="c.couponId"
+              type="button"
+              class="cp-chip"
+              :class="{ on: selectedCouponId === c.couponId }"
+              @click="selectedCouponId = selectedCouponId === c.couponId ? null : c.couponId"
+            >
+              <b>{{ c.discountRate }}%</b> {{ c.sourceChallengeTitle }}
+            </button>
+          </div>
         </div>
+        <p v-else-if="auth.isLoggedIn" class="cp-hint muted">🎟️ 챌린지를 완료하면 받은 쿠폰을 여기서 바로 쓸 수 있어요.</p>
         <div v-if="couponDiscount > 0" class="srow save"><span>쿠폰 할인</span><span>-{{ won(couponDiscount) }}</span></div>
         <div class="srow"><span>배송비</span><span :class="{ free: shipFee === 0 }">{{ shipFee === 0 ? '무료' : won(shipFee) }}</span></div>
         <div class="divider"></div>
@@ -180,10 +187,15 @@ async function checkout() {
 .summary h3 { font-size: 18px; font-weight: 800; margin: 0 0 16px; }
 .srow { display: flex; justify-content: space-between; align-items: center; font-size: 14.5px; color: var(--ink-2); margin-bottom: 12px; }
 .srow.save { color: var(--deal); font-weight: 600; }
-.coupon-box { display: flex; flex-direction: column; gap: 6px; margin: 2px 0 14px; }
+.coupon-box { display: flex; flex-direction: column; gap: 8px; margin: 2px 0 14px; }
 .cp-label { font-size: 13px; font-weight: 700; color: var(--ink-2); }
-.cp-select { width: 100%; padding: 9px 11px; border: 1.5px solid var(--line-2); border-radius: 10px; font-size: 13.5px; font-family: inherit; color: var(--ink); background: #fff; }
-.cp-select:focus { outline: none; border-color: var(--leaf-500); }
+.cp-label small { font-weight: 500; color: var(--muted); }
+.cp-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.cp-chip { border: 1.5px solid var(--line-2); background: #fff; border-radius: 999px; padding: 7px 12px; font-size: 12.5px; color: var(--ink-2); cursor: pointer; transition: .13s; }
+.cp-chip b { color: var(--deal); }
+.cp-chip:hover { border-color: var(--leaf-300); }
+.cp-chip.on { border-color: var(--leaf-600); background: var(--leaf-50); color: var(--leaf-700); }
+.cp-hint { font-size: 12.5px; margin: 0 0 14px; line-height: 1.5; }
 .srow .free { color: var(--leaf-700); font-weight: 700; }
 .divider { height: 1px; background: var(--line); margin: 16px 0; }
 .srow.total { font-size: 16px; font-weight: 700; color: var(--ink); }
