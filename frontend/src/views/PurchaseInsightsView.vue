@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { orderApi } from '../api/orders'
 import { won, categoryLabel, thumbEmoji, dateOnly } from '../utils/format'
 import { useAuthStore } from '../stores/auth'
+import AiLoading from '../components/AiLoading.vue'
 
 const auth = useAuthStore()
 const orders = ref([])
@@ -104,7 +105,7 @@ function monthLabel(ym) {
       <p class="muted">{{ auth.user?.name }}님의 거래 현황과 소비 패턴을 한눈에</p>
     </div>
 
-    <div v-if="loading" class="empty"><span class="emoji">⏳</span>불러오는 중…</div>
+    <AiLoading v-if="loading" :name="auth.user?.name" title="구매 리포트" />
     <div v-else-if="error" class="empty">
       <span class="emoji">⚠️</span>{{ error }}<br />
       <button class="btn btn-outline" style="margin-top:12px" @click="load">다시 시도</button>

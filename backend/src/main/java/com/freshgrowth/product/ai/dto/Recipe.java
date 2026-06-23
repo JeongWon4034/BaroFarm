@@ -11,8 +11,9 @@ public class Recipe {
     private String title;                 // 요리명
     private String eyebrow;               // 상단 한 줄 문구
     private List<Ingredient> ingredients; // 핵심 재료(상품 매핑 포함)
-    private List<String> steps;           // 상세: 조리 단계(목록 응답에선 null)
-    private String image;                 // 상세: AI 생성 이미지 data URL(목록 응답에선 null)
+    private List<String> steps;           // 상세: 조리 단계 텍스트
+    private List<String> stepImages;      // 상세: 단계별 이미지 URL(steps와 같은 순서, 없으면 빈 문자열)
+    private String image;                 // 대표(완성) 이미지 URL
 
     public Recipe() {}
     public Recipe(String title, String eyebrow, List<Ingredient> ingredients) {
@@ -29,6 +30,8 @@ public class Recipe {
     public void setIngredients(List<Ingredient> ingredients) { this.ingredients = ingredients; }
     public List<String> getSteps() { return steps; }
     public void setSteps(List<String> steps) { this.steps = steps; }
+    public List<String> getStepImages() { return stepImages; }
+    public void setStepImages(List<String> stepImages) { this.stepImages = stepImages; }
     public String getImage() { return image; }
     public void setImage(String image) { this.image = image; }
 

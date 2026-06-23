@@ -33,6 +33,11 @@ kamis:
   cert-key: ${KAMIS_CERT_KEY:}   # KAMIS 인증키 (비밀!)
   cert-id: ${KAMIS_CERT_ID:}     # KAMIS 인증ID (비밀!)
 
+# 식약처 조리식품 레시피 DB(COOKRCP01). 'sample'은 5건만, 전체는 foodsafetykorea.go.kr 무료키 발급.
+recipe:
+  base-url: ${RECIPE_BASE_URL:http://openapi.foodsafetykorea.go.kr/api}
+  api-key: ${RECIPE_API_KEY:sample}
+
 # JWT 인증. 운영에선 JWT_SECRET 환경변수로 override 권장.
 jwt:
   secret: ${JWT_SECRET:freshgrowth-dev-secret-key-change-me-in-production-0123456789ab}

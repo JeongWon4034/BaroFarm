@@ -28,7 +28,9 @@ onBeforeUnmount(stop)
   <section class="hero" @mouseenter="stop" @mouseleave="start">
     <div class="track" :style="{ transform: `translateX(-${idx * 100}%)` }">
       <div v-for="(src, i) in slides" :key="i" class="slide">
-        <img :src="src" :alt="`배너 ${i + 1}`" class="banner-img" />
+        <router-link :to="{ name: 'benefits' }" class="slide-link" aria-label="혜택 및 공지로 이동">
+          <img :src="src" :alt="`배너 ${i + 1}`" class="banner-img" />
+        </router-link>
       </div>
     </div>
 
@@ -74,6 +76,12 @@ onBeforeUnmount(stop)
 .slide {
   flex: 0 0 100%;
   min-width: 100%;
+}
+
+.slide-link {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .banner-img {
