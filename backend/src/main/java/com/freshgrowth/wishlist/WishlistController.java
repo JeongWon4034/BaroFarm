@@ -16,7 +16,7 @@ public class WishlistController {
         this.wishlistService = wishlistService;
     }
 
-    @LoginRequired(role = "BUYER")
+    @LoginRequired
     @PostMapping("/wishlist")
     public ApiResponse<?> add(@LoginUser Long userId,
                               @Valid @RequestBody WishlistRequest request) {
@@ -24,7 +24,7 @@ public class WishlistController {
         return ApiResponse.ok("찜 목록에 추가했습니다.", null);
     }
 
-    @LoginRequired(role = "BUYER")
+    @LoginRequired
     @DeleteMapping("/wishlist/{productId}")
     public ApiResponse<?> remove(@LoginUser Long userId,
                                  @PathVariable Long productId) {
@@ -32,7 +32,7 @@ public class WishlistController {
         return ApiResponse.ok("찜을 해제했습니다.", null);
     }
 
-    @LoginRequired(role = "BUYER")
+    @LoginRequired
     @GetMapping("/wishlist")
     public ApiResponse<?> myWishlist(@LoginUser Long userId) {
         return ApiResponse.ok("찜 목록을 조회했습니다.", wishlistService.findMyWishlist(userId));

@@ -76,4 +76,35 @@ public class AiClient {
             throw new AppException(HttpStatus.BAD_GATEWAY, "AI_ERROR", "AI 호출에 실패했습니다.");
         }
     }
+
+    /**
+     * GMS 이미지 생성(gpt-image-1) → data URL(base64) 반환. 실패/미설정 시 null(치명적 아님).
+     * 생성은 수 초~십수 초 걸리므로 호출부에서 캐시할 것.
+     */
+    @SuppressWarnings("unchecked")
+    public String generateImage(String prompt) {
+        if (!configured) return null;
+        Map<String, Object> body = Map.of(
+                "model", "gpt-image-1",
+                "prompt", prompt,
+                "n", 1,
+                "size", "1024x1024",
+                "quality", "low" // 생성 속도 우선(데모) — 고품질 필요 시 medium/high
+        );
+        try {
+            Map<String, Object> resp = rest.post()
+                    .uri("/images/generations")
+                    .header("Authorization", "Bearer " + apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(Map.class);
+            List<Map<String, Object>> data = resp == null ? null : (List<Map<String, Object>>) resp.get("data");
+            if (data == null || data.isEmpty()) return null;
+            Object b64 = data.get(0).get("b64_json");
+            return b64 == null ? null : "data:image/png;base64," + b64;
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }

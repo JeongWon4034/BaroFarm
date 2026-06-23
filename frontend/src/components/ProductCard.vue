@@ -64,10 +64,10 @@ function onOpen() {
       <div v-if="soldOut" class="soldout">품절</div>
       <!-- 호버 액션: 찜 · 담기(컬리식 장바구니 아이콘) -->
       <div v-else class="acts">
-        <button v-if="!auth.isSeller" class="act like" :class="{ on: wished }" :title="wished ? '찜 해제' : '찜하기'" @click.prevent="toggleWish">
+        <button class="act like" :class="{ on: wished }" :title="wished ? '찜 해제' : '찜하기'" @click.prevent="toggleWish">
           <svg viewBox="0 0 24 24" :fill="wished ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"><path d="M19 14c1.5-1.5 3-3.3 3-5.5A4.5 4.5 0 0 0 12 6 4.5 4.5 0 0 0 2 8.5C2 13 12 21 12 21s4-3.2 7-7Z"/></svg>
         </button>
-        <button class="act cart" :disabled="isExpired" :title="hasLots ? '가격 확인' : '담기'" @click.prevent="add">
+        <button v-if="!auth.isSeller" class="act cart" :disabled="isExpired" :title="hasLots ? '가격 확인' : '담기'" @click.prevent="add">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h2.2l2 13.4a1.5 1.5 0 0 0 1.5 1.3h9.7a1.5 1.5 0 0 0 1.5-1.2L21 7H5.5"/><circle cx="9" cy="21" r="1.3"/><circle cx="18" cy="21" r="1.3"/></svg>
         </button>
       </div>

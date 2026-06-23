@@ -47,4 +47,16 @@ public class AiController {
                                           @RequestParam String category) {
         return ApiResponse.ok("추천가를 산출했습니다.", productAiService.suggestPrice(name, category));
     }
+
+    // 홈 'AI 추천 레시피' — 비로그인 공개. 판매중 재료로 만들 레시피(상품 매핑 포함).
+    @GetMapping("/recipes")
+    public ApiResponse<?> recipes() {
+        return ApiResponse.ok("AI 추천 레시피", productAiService.recommendRecipes());
+    }
+
+    // 레시피 상세 — 조리법 + AI 생성 이미지(첫 호출만 생성, 하루 캐시). 비로그인 공개.
+    @GetMapping("/recipes/{idx}")
+    public ApiResponse<?> recipeDetail(@PathVariable int idx) {
+        return ApiResponse.ok("레시피 상세", productAiService.recipeDetail(idx));
+    }
 }

@@ -95,7 +95,7 @@ async function logout() {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
           <input v-model="keyword" placeholder="신선한 상품 검색" />
         </form>
-        <router-link v-if="auth.isBuyer" :to="{ name: 'wishlist' }" class="ibtn" aria-label="찜">
+        <router-link v-if="auth.isLoggedIn" :to="{ name: 'wishlist' }" class="ibtn" aria-label="찜">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.5-1.5 3-3.3 3-5.5A4.5 4.5 0 0 0 12 6 4.5 4.5 0 0 0 2 8.5C2 13 12 21 12 21s4-3.2 7-7Z"/></svg>
           <span v-if="wishlist.ids?.length" class="cnt">{{ wishlist.ids.length }}</span>
         </router-link>

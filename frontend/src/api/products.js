@@ -16,4 +16,6 @@ export const productApi = {
   priceSuggestion: (name, category) => http.get('/products/ai/price-suggestion', { params: { name, category } }),
   generateDescription: (payload) => http.post('/products/ai/description', payload), // {name, category, expirationDate, stockQty}
   sellerReport: () => http.get('/products/ai/seller-report'),
+  recipes: () => http.get('/products/ai/recipes'), // 홈 AI 추천 레시피(판매중 재료 매핑)
+  recipeDetail: (idx) => http.get(`/products/ai/recipes/${idx}`), // 조리법 + AI 생성 이미지(첫 호출 ~십수초)
 }
