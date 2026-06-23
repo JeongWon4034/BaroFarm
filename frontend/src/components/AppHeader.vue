@@ -17,7 +17,7 @@ const cartCount = computed(() => cart.count)
 
 // 카테고리 코드(백엔드 enum) — 클릭 시 상품목록(products)으로 ?category= 쿼리 전달.
 // ProductListView 가 route.query.category 를 복원해 필터링한다.
-const CATEGORY_CODES = ['vegetable', 'fruit', 'seafood', 'meat', 'grain', 'mushroom', 'root', 'processed']
+const CATEGORY_CODES = ['vegetable', 'fruit', 'seafood', 'meat', 'grain', 'mushroom', 'root']
 
 // 카테고리 플라이아웃 토글 (바깥 클릭 시 닫힘)
 const catOpen = ref(false)
@@ -114,7 +114,7 @@ async function logout() {
         </button>
         <div class="cat-flyout" :class="{ open: catOpen }">
           <div class="cat-vlist">
-            <router-link class="cat" :to="{ name: 'products' }" @click="closeCat">
+            <router-link class="cat" :to="{ name: 'products', query: { category: 'all' } }" @click="closeCat">
               <span class="nm">전체</span>
             </router-link>
             <router-link
@@ -166,7 +166,7 @@ async function logout() {
 .cnt{ background:var(--deal); color:#fff; font-size:10.5px; font-weight:700; min-width:16px; height:16px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; padding:0 4px; }
 
 /* 브랜드 바 */
-.brand-row{ display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; height:78px; }
+.brand-row{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; height:78px; }
 .br-side{ display:flex; align-items:center; }
 .br-right{ justify-self:end; gap:10px; }
 .logo{ display:flex; align-items:center; gap:10px; justify-self:center; }
@@ -183,7 +183,7 @@ async function logout() {
 .ibtn .cnt{ position:absolute; top:4px; right:4px; }
 
 /* 네비 바 */
-.nav-row{ display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; height:58px; }
+.nav-row{ display:flex; align-items:center; gap:20px; height:58px; justify-content:center; position:relative; }
 nav.main{ display:flex; align-items:center; gap:20px; }
 nav.main a{ padding:8px 14px; border-radius:9px; font-size:15.5px; font-weight:600; color:var(--ink-2); transition:.15s; position:relative; white-space:nowrap; }
 nav.main a:hover{ background:var(--leaf-50); color:var(--leaf-700); }
@@ -196,7 +196,7 @@ nav.main a.deal.active::after{ background:var(--deal); }
 .navsep{ width:1px; height:15px; background:var(--line-2); flex:none; }
 
 /* 카테고리 플라이아웃 */
-.cat-menu{ position:relative; justify-self:start; }
+.cat-menu{ position:absolute; left:0; top:50%; transform:translateY(-50%); }
 .cat-btn{ display:inline-flex; align-items:center; gap:8px; height:44px; padding:0 16px; border-radius:11px; border:1.5px solid var(--line-2); background:#fff; font-size:15px; font-weight:700; color:var(--ink); transition:.15s; }
 .cat-btn svg{ width:18px; height:18px; }
 .cat-btn:hover{ border-color:var(--leaf-400); background:var(--leaf-50); color:var(--leaf-700); }

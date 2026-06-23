@@ -7,6 +7,10 @@ import { categoryLabel } from '../utils/format'
 import { track } from '../api/track'
 import ProductCard from '../components/ProductCard.vue'
 import HeroBanner from '../components/HeroBanner.vue'
+import DailyDeal from '../components/home/DailyDeal.vue'
+import GardenPick from '../components/home/GardenPick.vue'
+import RecipeSection from '../components/home/RecipeSection.vue'
+import ReviewSection from '../components/home/ReviewSection.vue'
 
 const cart = useCartStore()
 const route = useRoute()
@@ -27,8 +31,55 @@ const page = ref(Math.max(0, (parseInt(route.query.page) || 1) - 1))
 const totalPages = ref(0)
 const totalElements = ref(0)
 
+// 홈(랜딩) 여부 — 카테고리 쿼리(전체 포함)·검색·페이지가 없는 첫 화면일 때만 랜딩 노출.
+// '전체'(?category=all)는 홈이 아니라 '전체 상품 그리드'로 취급한다.
+const isHome = computed(() => !route.query.category && !keyword.value.trim() && page.value === 0)
+// 일일특가에 넘길 상품 — 현재 목록 중 할인율 최고 1개.
+const dailyDeal = computed(() =>
+  products.value.length
+    ? [...products.value].sort((a, b) => (b.discountRate ?? 0) - (a.discountRate ?? 0))[0]
+    : null
+)
+// 섹션 제목 — 홈='오늘의 신선식품', 전체='전체 상품', 카테고리 선택 시 그 카테고리명(예: 채소).
+const sectionTitle = computed(() =>
+  route.query.category === 'all'
+    ? '전체 상품'
+    : activeCategory.value === 'all'
+      ? '오늘의 신선식품'
+      : categoryLabel(activeCategory.value)
+)
+
+// 홈 '오늘의 신선식품' — 서로 다른 카테고리에서 랜덤 4개를 뽑아 다양하게 노출.
+const homePicks = ref([])
+async function loadHomePicks() {
+  try {
+    const res = await productApi.list({ page: 0, size: 100 })
+    const all = res.content || []
+    const byCat = {}
+    for (const p of all) {
+      if (p.category === 'processed') continue // 정체불명 카테고리는 추천에서 제외
+      if (!byCat[p.category]) byCat[p.category] = []
+      byCat[p.category].push(p)
+    }
+    const cats = Object.keys(byCat).sort(() => Math.random() - 0.5) // 카테고리 순서 셔플
+    const picks = []
+    for (const c of cats) {                                        // 카테고리당 1개씩
+      picks.push(byCat[c][Math.floor(Math.random() * byCat[c].length)])
+      if (picks.length >= 4) break
+    }
+    if (picks.length < 4) {                                        // 카테고리가 4개 미만이면 보충
+      const rest = all.filter((p) => !picks.includes(p)).sort(() => Math.random() - 0.5)
+      picks.push(...rest.slice(0, 4 - picks.length))
+    }
+    homePicks.value = picks
+  } catch {
+    homePicks.value = []
+  }
+}
+
 onMounted(() => {
   track('view_home') // 퍼널 1단계 — 홈/상품목록 진입
+  loadHomePicks()
   load()
 })
 
@@ -37,6 +88,7 @@ function syncUrl() {
   const q = {}
   if (keyword.value.trim()) q.keyword = keyword.value.trim()
   if (activeCategory.value !== 'all') q.category = activeCategory.value
+  else if (route.query.category === 'all') q.category = 'all' // '전체 둘러보기' 상태 유지
   if (sort.value !== 'latest') q.sort = sort.value
   if (page.value > 0) q.page = page.value + 1
   router.replace({ query: q }).catch(() => {})
@@ -75,6 +127,11 @@ watch(() => route.query.keyword, (k) => {
   const nk = k || ''
   if (nk !== keyword.value) keyword.value = nk
 })
+// 헤더 '카테고리' 플라이아웃이 URL category를 바꾸면 필터에 반영(이미 홈에 있어도 동작)
+watch(() => route.query.category, (c) => {
+  const nc = CATEGORIES.includes(c) ? c : 'all'
+  if (nc !== activeCategory.value) activeCategory.value = nc
+})
 watch([activeCategory, sort], () => { page.value = 0; load() })
 
 function setCategory(c) { activeCategory.value = c }
@@ -107,43 +164,64 @@ function addToCart(product) {
 
 <template>
   <div>
-    <!-- 메인 상단 큰 히어로 배너 캐러셀 -->
-    <HeroBanner />
-
-    <!-- 카테고리 가로 네비 -->
-    <nav class="cat-row">
-      <button
-        v-for="c in CATEGORIES" :key="c"
-        class="cat" :class="{ on: activeCategory === c }"
-        @click="setCategory(c)"
-      >{{ c === 'all' ? '전체' : categoryLabel(c) }}</button>
-    </nav>
+    <!-- 메인 배너 — 홈 최상단 -->
+    <HeroBanner v-if="isHome" />
 
     <!-- 섹션 헤더 + 정렬 -->
     <div class="sec-head">
       <div class="sh-l">
-        <h2>오늘의 신선식품</h2>
-        <span class="muted">총 {{ totalElements }}개</span>
+        <span v-if="activeCategory !== 'all'" class="badge">카테고리</span>
+        <h2>{{ sectionTitle }}</h2>
+        <span class="muted">{{ isHome ? '카테고리별 추천 4가지' : '총 ' + totalElements + '개' }}</span>
       </div>
-      <div class="seg">
+      <div v-if="!isHome" class="seg">
         <button v-for="s in SORTS" :key="s" :class="{ on: sort === s }" @click="setSort(s)">{{ SORT_LABEL[s] }}</button>
       </div>
     </div>
 
-    <div v-if="loading" class="empty"><span class="emoji">⏳</span>상품을 불러오는 중…</div>
-    <div v-else-if="error" class="empty"><span class="emoji">⚠️</span>{{ error }}<br /><button class="btn btn-outline" style="margin-top:12px" @click="load">다시 시도</button></div>
-    <div v-else-if="products.length === 0" class="empty"><span class="emoji">🔍</span>조건에 맞는 상품이 없어요.</div>
+    <!-- 홈: 서로 다른 카테고리에서 랜덤 4개만 -->
+    <div v-if="isHome" class="grid">
+      <ProductCard v-for="p in homePicks" :key="p.productId" :product="p" @add="addToCart" />
+    </div>
 
+    <!-- 카테고리/검색: 전체 그리드 + 페이지네이션 -->
     <template v-else>
-      <div class="grid">
-        <ProductCard v-for="p in products" :key="p.productId" :product="p" @add="addToCart" />
-      </div>
+      <div v-if="loading" class="empty"><span class="emoji">⏳</span>상품을 불러오는 중…</div>
+      <div v-else-if="error" class="empty"><span class="emoji">⚠️</span>{{ error }}<br /><button class="btn btn-outline" style="margin-top:12px" @click="load">다시 시도</button></div>
+      <div v-else-if="products.length === 0" class="empty"><span class="emoji">🔍</span>조건에 맞는 상품이 없어요.</div>
+      <template v-else>
+        <div class="grid">
+          <ProductCard v-for="p in products" :key="p.productId" :product="p" @add="addToCart" />
+        </div>
+        <div v-if="totalPages > 1" class="pagination">
+          <button class="pg" :disabled="page === 0" @click="goPage(page - 1)">‹</button>
+          <button v-for="p in pageWindow" :key="p" class="pg" :class="{ on: p === page }" @click="goPage(p)">{{ p + 1 }}</button>
+          <button class="pg" :disabled="page >= totalPages - 1" @click="goPage(page + 1)">›</button>
+        </div>
+      </template>
+    </template>
 
-      <div v-if="totalPages > 1" class="pagination">
-        <button class="pg" :disabled="page === 0" @click="goPage(page - 1)">‹</button>
-        <button v-for="p in pageWindow" :key="p" class="pg" :class="{ on: p === page }" @click="goPage(p)">{{ p + 1 }}</button>
-        <button class="pg" :disabled="page >= totalPages - 1" @click="goPage(page + 1)">›</button>
-      </div>
+    <!-- 홈 랜딩 섹션 (오늘의 신선식품 아래, 카테고리·검색 중엔 숨김) -->
+    <template v-if="isHome">
+      <GardenPick />
+      <RecipeSection />
+      <ReviewSection />
+
+      <!-- 마감임박 특가 배너 (빨간 박스) → 특가 탭으로 이동 -->
+      <section class="sec">
+        <router-link :to="{ name: 'deals' }" class="deal-banner">
+          <div class="db-l">
+            <span class="eyebrow">오늘의 마감임박 특가</span>
+            <h2>오늘 안 팔리면 사라지는 신선식품, 제값에</h2>
+            <p>마감 임박 상품을 모아 더 알뜰하게 — 매일 밤 리셋돼요</p>
+          </div>
+          <span class="db-go">특가 전체 보기
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </span>
+        </router-link>
+      </section>
+
+      <DailyDeal :product="dailyDeal" @add="addToCart" />
     </template>
 
     <transition name="fade">
@@ -202,4 +280,18 @@ function addToCart(product) {
 @media (max-width:1080px){ .grid{ grid-template-columns:repeat(3, 1fr); } }
 @media (max-width:780px){ .grid{ grid-template-columns:repeat(2, 1fr); gap:28px 16px; } }
 @media (max-width:430px){ .grid{ grid-template-columns:repeat(2, 1fr); } }
+
+/* 마감임박 특가 배너 (빨간/코랄 박스) */
+.sec{ padding-top:46px; }
+.deal-banner{ position:relative; overflow:hidden; border-radius:22px; border:1px solid var(--deal-soft);
+  background:linear-gradient(120deg,#fbe9e3,#f7ddd4); display:flex; align-items:center;
+  justify-content:space-between; gap:24px; padding:34px 40px; min-height:172px; }
+.deal-banner .eyebrow{ display:inline-flex; align-items:center; gap:7px; background:#fff; color:var(--deal);
+  font-weight:700; font-size:12.5px; padding:6px 13px; border-radius:999px; margin-bottom:14px; }
+.deal-banner h2{ margin:0 0 8px; font-size:28px; font-weight:800; letter-spacing:-.03em; color:#5a1e13; line-height:1.2; }
+.deal-banner p{ margin:0; font-size:14.5px; color:#7a3326; }
+.db-go{ display:inline-flex; align-items:center; gap:8px; background:var(--deal); color:#fff; font-weight:700;
+  font-size:15px; padding:13px 24px; border-radius:11px; white-space:nowrap; box-shadow:0 8px 18px rgba(214,69,47,.3); }
+.db-go svg{ width:16px; height:16px; }
+@media (max-width:780px){ .deal-banner{ flex-direction:column; align-items:flex-start; } }
 </style>

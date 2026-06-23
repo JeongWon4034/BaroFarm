@@ -46,9 +46,10 @@ CONFIG = {
 }
 
 # KAMIS category_name → 우리 products.category 코드
+# 기존 카테고리에 매핑 안 되는 품목(특용작물 등)은 'etc'(기타)로 분류.
 CAT_MAP = {
     "식량작물": "grain", "채소류": "vegetable", "과일류": "fruit",
-    "축산물": "meat", "수산물": "seafood", "특용작물": "processed",
+    "축산물": "meat", "수산물": "seafood",
 }
 
 
@@ -116,7 +117,7 @@ def build_catalog(items, seller_ids, start_pid, cfg):
     exp_pool = cfg["lot_exp_days"]
     n_lots = min(cfg["lots_per_item"], len(exp_pool))
     for it in items:
-        cat = CAT_MAP.get(it["category_name"], "processed")
+        cat = CAT_MAP.get(it["category_name"], "etc")
         base = int(max(300, it["price"]) // 100 * 100)            # 품목 정가(100원 단위)
         unit = f" ({it['unit']})" if it["unit"] else ""
         prods.append({
@@ -243,7 +244,7 @@ def selftest():
     assert "#" not in "".join(prods["name"])                          # 목록 간결(중복 #pid 없음)
     assert len(lots) == 5 * n_lots                                    # 품목당 lot N개
     assert lots["product_id"].isin(prods["product_id"]).all()         # FK 정합
-    assert set(prods["category"]) <= {"vegetable", "fruit", "meat", "seafood", "grain", "processed"}
+    assert set(prods["category"]) <= {"vegetable", "fruit", "meat", "seafood", "grain", "etc"}
     # 한 품목의 lot 들은 같은 정가, 다른 유통기한 → 떨이가는 엔진이 D-day로 차등
     g = lots[lots["product_id"] == 100]
     assert g["price"].nunique() == 1 and g["expiration_date"].nunique() == len(g)

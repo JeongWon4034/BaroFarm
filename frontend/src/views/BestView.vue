@@ -13,7 +13,7 @@ const loading = ref(true)
 const error = ref('')
 
 // 카테고리 탭 (전체 + 백엔드 코드). 라벨은 categoryLabel(code).
-const TAB_CODES = ['all', 'vegetable', 'fruit', 'seafood', 'meat', 'grain', 'processed']
+const TAB_CODES = ['all', 'vegetable', 'fruit', 'seafood', 'meat', 'grain']
 const activeTab = ref('all')
 
 onMounted(load)
@@ -21,9 +21,17 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    // 응답은 인터셉터가 unwrap → res 가 곧 Page. 목록은 res.content.
-    const res = await productApi.list({ page: 0, size: 50 })
-    products.value = res.content || []
+    // 백엔드가 페이지 크기를 100으로 캡 → 전 카테고리 랭킹을 위해 모든 페이지를 받아 합친다.
+    const first = await productApi.list({ page: 0, size: 100 })
+    let all = first.content || []
+    const totalPages = first.totalPages || 1
+    if (totalPages > 1) {
+      const rest = await Promise.all(
+        Array.from({ length: totalPages - 1 }, (_, i) => productApi.list({ page: i + 1, size: 100 }))
+      )
+      for (const r of rest) all = all.concat(r.content || [])
+    }
+    products.value = all
   } catch (e) {
     error.value = e?.message || '상품을 불러오지 못했어요.'
   } finally {

@@ -29,7 +29,7 @@ export function thumbEmoji(product) {
 // 카테고리 코드 → 한글 라벨
 const CATEGORY_LABEL = {
   vegetable: '채소', fruit: '과일', grain: '곡물', root: '구근', mushroom: '버섯',
-  seafood: '해산물', meat: '육류',
+  seafood: '해산물', meat: '육류', etc: '기타',
 }
 export function categoryLabel(code) {
   return CATEGORY_LABEL[code] || code || '기타'
