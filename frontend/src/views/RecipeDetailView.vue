@@ -26,13 +26,13 @@ onMounted(async () => {
 
     <div v-if="loading" class="empty">
       <span class="spin"></span>
-      <p>AI가 레시피 이미지와 조리법을 만들고 있어요…<br /><small>처음 한 번만 시간이 걸려요</small></p>
+      <p>레시피를 불러오는 중…</p>
     </div>
 
     <div v-else-if="error || !recipe" class="empty"><span class="emoji">⚠️</span>{{ error || '레시피가 없어요.' }}</div>
 
     <template v-else>
-      <!-- 이미지(AI 생성) 또는 그라데이션 폴백 -->
+      <!-- 완성 사진(식약처) 또는 그라데이션 폴백 -->
       <div class="hero" :class="{ ph: !recipe.image }">
         <img v-if="recipe.image" :src="recipe.image" :alt="recipe.title" />
         <div class="hero-copy">
@@ -52,14 +52,20 @@ onMounted(async () => {
         </div>
       </section>
 
-      <!-- 조리법 -->
+      <!-- 조리법 (식약처 단계 텍스트 + 단계 이미지) -->
       <section class="block" v-if="recipe.steps?.length">
         <h2>조리법</h2>
         <ol class="steps">
-          <li v-for="(s, i) in recipe.steps" :key="i"><span class="no">{{ i + 1 }}</span><p>{{ s }}</p></li>
+          <li v-for="(s, i) in recipe.steps" :key="i">
+            <span class="no">{{ i + 1 }}</span>
+            <div class="st-body">
+              <p>{{ s }}</p>
+              <img v-if="recipe.stepImages?.[i]" :src="recipe.stepImages[i]" class="st-img" :alt="'단계 ' + (i + 1)" loading="lazy" />
+            </div>
+          </li>
         </ol>
       </section>
-      <p v-else class="muted">조리법을 불러오지 못했어요. (AI 미연결 시 재료만 표시)</p>
+      <p v-else class="muted">조리법이 제공되지 않는 레시피예요.</p>
     </template>
   </div>
 </template>
@@ -96,6 +102,8 @@ onMounted(async () => {
 .steps li{ display:flex; gap:14px; align-items:flex-start; }
 .steps .no{ flex:none; width:28px; height:28px; border-radius:50%; background:var(--leaf-600); color:#fff;
   font-size:14px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+.st-body{ flex:1; }
 .steps p{ margin:2px 0 0; font-size:15.5px; line-height:1.55; color:var(--ink-2); }
+.st-img{ display:block; margin-top:10px; width:100%; max-width:420px; border-radius:12px; }
 .muted{ color:var(--muted); }
 </style>

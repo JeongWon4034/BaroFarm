@@ -1,38 +1,21 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { productApi } from '../../api/products'
 
-// AI 추천 레시피 — 판매중 재료로 만들 수 있는 레시피를 서버(하루 1회 캐시)에서 받아온다.
-// 각 재료는 실제 상품(productId)에 매핑되어, 클릭하면 그 상품으로 연결된다.
-// AI 미설정/실패 시 서버가 정적 폴백을 내려준다.
+// 오늘의 레시피 — 식약처 레시피 DB(실제 사진·조리법)에서, 우리가 파는 재료와 겹치는 레시피를 받아온다.
+// 각 재료는 실제 판매 상품에 매핑되어, 클릭하면 그 상품으로 연결된다. (하루 1회 서버 캐시)
 const RECIPES = ref([])
 const active = ref(0)
 const cur = computed(() => RECIPES.value[active.value] || null)
-
-// 활성 레시피의 AI 이미지를 배너에 표시(상세 엔드포인트 재사용 → 그날 첫 호출만 생성, 이후 캐시).
-const images = ref({}) // idx → data URL
-const imgLoading = ref(false)
-async function ensureImage(idx) {
-  if (idx == null || images.value[idx]) return
-  imgLoading.value = true
-  try {
-    const d = await productApi.recipeDetail(idx) // 첫 호출 ~25초(생성), 이후 즉시
-    if (d?.image) images.value = { ...images.value, [idx]: d.image }
-  } catch { /* 실패 시 그라데이션 유지 */ } finally {
-    imgLoading.value = false
-  }
-}
 
 onMounted(async () => {
   try {
     const r = await productApi.recipes()
     RECIPES.value = Array.isArray(r) ? r : []
-    if (RECIPES.value.length) ensureImage(0)
   } catch {
     RECIPES.value = []
   }
 })
-watch(active, (i) => ensureImage(i))
 </script>
 
 <template>
@@ -49,8 +32,8 @@ watch(active, (i) => ensureImage(i))
     </div>
 
     <router-link class="rbanner" v-if="cur" :to="{ name: 'recipe-detail', params: { idx: active } }">
-      <img v-if="images[active]" :src="images[active]" :alt="cur.title" class="rb-img" />
-      <span class="ph-tag">{{ (imgLoading && !images[active]) ? 'AI 이미지 생성 중…' : '레시피' }}</span>
+      <img v-if="cur.image" :src="cur.image" :alt="cur.title" class="rb-img" />
+      <span class="ph-tag">레시피</span>
       <div class="grad"></div>
       <div class="rb-copy">
         <div class="rb-eye">{{ cur.eyebrow }}</div>

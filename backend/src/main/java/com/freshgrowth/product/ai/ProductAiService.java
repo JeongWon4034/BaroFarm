@@ -45,12 +45,16 @@ public class ProductAiService {
 
     private static final double FAST_SALE_FACTOR = 0.92; // 빠른 판매: 시세보다 8% 낮게
 
+    private final RecipeApiClient recipeApiClient;
+
     public ProductAiService(AiClient aiClient, KamisClient kamisClient,
-                            ProductMapper productMapper, ProductService productService) {
+                            ProductMapper productMapper, ProductService productService,
+                            RecipeApiClient recipeApiClient) {
         this.aiClient = aiClient;
         this.kamisClient = kamisClient;
         this.productMapper = productMapper;
         this.productService = productService;
+        this.recipeApiClient = recipeApiClient;
     }
 
     /** 판매자 폐기위험 데이터를 LLM에 넣어 운영 요약 리포트 생성 (입력 데이터도 함께 반환) */
@@ -241,109 +245,81 @@ public class ProductAiService {
         return String.format("%,d", v);
     }
 
-    // ── 홈 'AI 추천 레시피' ─ 판매중(마감임박 우선) 재료로 만들 수 있는 레시피. 하루 1회 캐시 ──
+    // ── 홈 '오늘의 레시피' ─ 식약처 레시피 DB(실제 사진·조리법)에서, 우리가 파는 재료와 ──
+    // ── 가장 많이 겹치는(마감임박 우선) 레시피를 골라 보여준다. 하루 1회 캐시. ─────────────
     private List<Recipe> cachedRecipes;
     private LocalDate recipesCachedOn;
 
     public List<Recipe> recommendRecipes() {
         LocalDate today = LocalDate.now();
         if (cachedRecipes != null && today.equals(recipesCachedOn)) return cachedRecipes;
-        List<Recipe> result = buildRecipes();
-        cachedRecipes = result;
+        cachedRecipes = buildRecipes();
         recipesCachedOn = today;
-        return result;
+        return cachedRecipes;
     }
 
-    // ── 레시피 상세(클릭 시): 조리법 + AI 생성 이미지. (날짜,idx)별 캐시 — 첫 호출만 생성 ──
-    private final Map<String, Recipe> recipeDetailCache = new HashMap<>();
-
+    /** 상세 = 이미 만들어둔 목록에서 idx 선택(식약처 데이터라 추가 생성 없이 즉시). */
     public Recipe recipeDetail(int idx) {
         List<Recipe> list = recommendRecipes();
         if (list.isEmpty()) return null;
-        int i = Math.max(0, Math.min(idx, list.size() - 1));
-        String key = LocalDate.now() + "|" + i;
-        Recipe cached = recipeDetailCache.get(key);
-        if (cached != null) return cached;
-
-        Recipe base = list.get(i);
-        Recipe detail = new Recipe(base.getTitle(), base.getEyebrow(), base.getIngredients());
-        detail.setSteps(generateSteps(base));
-        detail.setImage(generateRecipeImage(base));
-        recipeDetailCache.put(key, detail);
-        return detail;
-    }
-
-    private List<String> generateSteps(Recipe r) {
-        if (!aiClient.isConfigured()) return List.of();
-        String ings = r.getIngredients() == null ? "" :
-                r.getIngredients().stream().map(Recipe.Ingredient::getLabel).collect(Collectors.joining(", "));
-        String system = "너는 가정식 요리 선생님이다. 주어진 요리를 집에서 만드는 조리 과정을 "
-                + "초보자도 따라할 수 있게 4~6단계로 설명한다. 각 단계는 한 줄, 한 문장으로 간결하게. "
-                + "번호·이모지 없이 단계당 한 줄씩만 출력한다.";
-        String user = "요리: " + r.getTitle() + " / 주재료: " + ings + "\n조리 단계를 4~6줄로 알려줘.";
-        String raw;
-        try {
-            raw = aiClient.chat(system, user, 350);
-        } catch (Exception e) {
-            return List.of();
-        }
-        List<String> steps = new ArrayList<>();
-        for (String line : raw.split("\n")) {
-            String s = line.trim().replaceAll("^[0-9.)\\-•\\s]+", "");
-            if (!s.isEmpty()) steps.add(s);
-        }
-        return steps;
-    }
-
-    private String generateRecipeImage(Recipe r) {
-        String ings = r.getIngredients() == null ? "" :
-                r.getIngredients().stream().map(Recipe.Ingredient::getLabel).collect(Collectors.joining(", "));
-        String prompt = "A Korean home-style dish '" + r.getTitle() + "' made with " + ings
-                + ", appetizing food photography, plated on a ceramic dish, top-down view, natural soft light, no text.";
-        return aiClient.generateImage(prompt);
+        return list.get(Math.max(0, Math.min(idx, list.size() - 1)));
     }
 
     private List<Recipe> buildRecipes() {
-        // 마감임박(expiry 정렬) 재고 보유 상품에서 재료 키워드를 뽑는다.
-        List<Product> products = productService.findAll(0, 60, null, null, "expiry").getContent();
+        // 1) 판매중(마감임박 우선) 재고 상품 → 재료 키워드 맵
+        List<Product> products = productService.findAll(0, 100, null, null, "expiry").getContent();
         LinkedHashMap<String, Long> kwMap = new LinkedHashMap<>();
         for (Product p : products) {
             if (p.getStockQty() == null || p.getStockQty() <= 0) continue;
             String kw = coreKeyword(p.getName());
-            if (!kw.isEmpty()) kwMap.putIfAbsent(kw, p.getProductId());
-            if (kwMap.size() >= 18) break;
+            if (kw.length() >= 2) kwMap.putIfAbsent(kw, p.getProductId());
         }
-        if (!aiClient.isConfigured() || kwMap.size() < 3) return fallbackRecipes();
+        // 2) 식약처 레시피 가져와 우리 재료와 겹치는 순으로 정렬 → 상위 4개
+        List<Map<String, Object>> rows = recipeApiClient.fetch(1, 100);
+        if (rows.isEmpty()) return List.of();
+        List<Recipe> all = new ArrayList<>();
+        for (Map<String, Object> row : rows) all.add(toRecipe(row, kwMap));
+        all.sort((a, b) -> mappedCount(b) - mappedCount(a)); // 매칭 많은 레시피 우선
+        return all.stream().limit(4).collect(Collectors.toList());
+    }
 
-        String system = "너는 신선식품 마켓의 레시피 큐레이터다. 주어진 '판매중 재료' 목록의 재료만 사용해 "
-                + "집에서 만들 수 있는 가정식 레시피 4개를 추천한다. 각 레시피는 정확히 한 줄, "
-                + "'요리명 | 재료1, 재료2, 재료3' 형식으로 출력한다. 재료는 반드시 주어진 목록에서 2~3개만 고른다. "
-                + "번호·이모지·따옴표·설명 없이 정확히 4줄만 출력한다.";
-        String user = "판매중 재료: " + String.join(", ", kwMap.keySet())
-                + "\n위 재료들로 만들 레시피 4개를 형식대로 추천해줘.";
-        String raw;
-        try {
-            raw = aiClient.chat(system, user, 400);
-        } catch (Exception e) {
-            return fallbackRecipes();
-        }
+    /** 식약처 row → Recipe(요리명·대표사진·재료 매핑·조리단계·단계사진). */
+    private Recipe toRecipe(Map<String, Object> row, Map<String, Long> kwMap) {
+        String name = str(row, "RCP_NM");
+        String pat = str(row, "RCP_PAT2");
+        String way = str(row, "RCP_WAY2");
+        String eyebrow = (pat.isEmpty() ? "오늘의 레시피" : pat) + (way.isEmpty() ? "" : " · " + way);
 
-        List<Recipe> out = new ArrayList<>();
-        for (String line : raw.split("\n")) {
-            String s = line.trim();
-            if (s.isEmpty() || !s.contains("|")) continue;
-            String[] parts = s.split("\\|", 2);
-            String title = parts[0].trim().replaceAll("^[0-9.)\\-•\\s]+", "");
-            if (title.isEmpty()) continue;
-            List<Recipe.Ingredient> ings = new ArrayList<>();
-            for (String tok : parts[1].split(",")) {
-                String label = tok.trim();
-                if (!label.isEmpty()) ings.add(new Recipe.Ingredient(label, matchProduct(label, kwMap)));
+        // 재료 = 이 레시피에 들어가는 '우리 판매 상품'(겹치는 것만 → 사서 만들 수 있게 연결)
+        String parts = str(row, "RCP_PARTS_DTLS");
+        List<Recipe.Ingredient> ings = new ArrayList<>();
+        for (Map.Entry<String, Long> e : kwMap.entrySet()) {
+            if (parts.contains(e.getKey())) {
+                ings.add(new Recipe.Ingredient(e.getKey(), e.getValue()));
+                if (ings.size() >= 6) break;
             }
-            if (!ings.isEmpty()) out.add(new Recipe(title, "오늘의 제철 재료로", ings));
-            if (out.size() >= 4) break;
         }
-        return out.isEmpty() ? fallbackRecipes() : out;
+
+        Recipe r = new Recipe(name, eyebrow, ings);
+        r.setImage(firstNonBlank(str(row, "ATT_FILE_NO_MAIN"), str(row, "ATT_FILE_NO_MK")));
+
+        // 조리 단계(MANUAL01~20) + 단계 이미지(MANUAL_IMG01~20), 같은 순서로 정렬
+        List<String> steps = new ArrayList<>();
+        List<String> stepImgs = new ArrayList<>();
+        for (int i = 1; i <= 20; i++) {
+            String num = String.format("%02d", i);
+            String text = str(row, "MANUAL" + num).replaceAll("^\\s*\\d+\\.?\\s*", "").trim();
+            if (text.isEmpty()) continue;
+            steps.add(text);
+            stepImgs.add(str(row, "MANUAL_IMG" + num));
+        }
+        r.setSteps(steps);
+        r.setStepImages(stepImgs);
+        return r;
+    }
+
+    private static int mappedCount(Recipe r) {
+        return r.getIngredients() == null ? 0 : (int) r.getIngredients().stream().filter(g -> g.getProductId() != null).count();
     }
 
     /** "양파/양파 (1kg)" → "양파", "꼬막/국산(새꼬막) (1kg)" → "꼬막" */
@@ -357,25 +333,12 @@ public class ProductAiService {
         return s.trim();
     }
 
-    private static Long matchProduct(String label, Map<String, Long> kwMap) {
-        if (kwMap.containsKey(label)) return kwMap.get(label);
-        for (Map.Entry<String, Long> e : kwMap.entrySet()) {
-            if (label.contains(e.getKey()) || e.getKey().contains(label)) return e.getValue();
-        }
-        return null;
+    private static String str(Map<String, Object> row, String key) {
+        Object v = row.get(key);
+        return v == null ? "" : v.toString().trim();
     }
 
-    /** AI 미설정·실패 시 정적 레시피(상품 매핑 없음). */
-    private static List<Recipe> fallbackRecipes() {
-        return List.of(
-                new Recipe("매콤 마늘 등갈비 구이", "오늘의 제철 재료로",
-                        List.of(new Recipe.Ingredient("등갈비", null), new Recipe.Ingredient("마늘", null), new Recipe.Ingredient("양파", null))),
-                new Recipe("연어 메밀면 샐러드", "오늘의 제철 재료로",
-                        List.of(new Recipe.Ingredient("연어", null), new Recipe.Ingredient("채소", null))),
-                new Recipe("저온숙성 목살 스테이크", "오늘의 제철 재료로",
-                        List.of(new Recipe.Ingredient("목살", null), new Recipe.Ingredient("방울토마토", null))),
-                new Recipe("제철 채소 된장국", "오늘의 제철 재료로",
-                        List.of(new Recipe.Ingredient("무", null), new Recipe.Ingredient("두부", null), new Recipe.Ingredient("대파", null)))
-        );
+    private static String firstNonBlank(String a, String b) {
+        return (a != null && !a.isBlank()) ? a : (b == null ? "" : b);
     }
 }
