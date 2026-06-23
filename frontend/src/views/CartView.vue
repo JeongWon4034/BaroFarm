@@ -90,7 +90,10 @@ async function checkout() {
     <div v-else class="cart-grid">
       <div class="cart-list">
         <div class="citem" v-for="item in cart.items" :key="item.key">
-          <div class="ci-tile">{{ thumbEmoji(item) }}</div>
+          <div class="ci-tile">
+            <img v-if="item.thumbnailUrl" class="photo" :src="item.thumbnailUrl" :alt="item.name" @error="$event.target.style.display='none'" />
+            <template v-else>{{ thumbEmoji(item) }}</template>
+          </div>
           <div class="ci-info">
             <div class="ci-meta">
               <span v-if="item.discountRate" class="chip urgent">{{ item.discountRate }}% 할인</span>
@@ -162,7 +165,8 @@ async function checkout() {
 .cart-list { display: flex; flex-direction: column; gap: 14px; }
 .citem { display: grid; grid-template-columns: 96px 1fr auto; gap: 18px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 16px; box-shadow: var(--shadow-sm); transition: box-shadow .15s; }
 .citem:hover { box-shadow: var(--shadow-md); }
-.ci-tile { width: 96px; height: 96px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 50px; background: radial-gradient(circle at 50% 36%, var(--leaf-50), var(--leaf-100)); }
+.ci-tile { width: 96px; height: 96px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 50px; background: radial-gradient(circle at 50% 36%, var(--leaf-50), var(--leaf-100)); overflow: hidden; }
+.ci-tile .photo { width: 100%; height: 100%; object-fit: cover; }
 .ci-info { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
 .ci-meta { display: flex; gap: 6px; flex-wrap: wrap; min-height: 1px; }
 .chip { font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 7px; background: var(--leaf-50); color: var(--leaf-700); white-space: nowrap; }

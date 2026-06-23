@@ -10,6 +10,9 @@ const cart = useCartStore()
 
 const products = ref([])
 const loading = ref(true)
+// 실사진 로드 실패한 상품 id (이모지로 폴백)
+const imgFailed = ref(new Set())
+function onImgError(id) { imgFailed.value = new Set(imgFailed.value).add(id) }
 const error = ref('')
 
 // 카테고리 탭 (전체 + 백엔드 코드). 라벨은 categoryLabel(code).
@@ -89,7 +92,8 @@ function addToCart(p) {
     <div v-else class="best-grid">
       <article v-for="(p, i) in ranked" :key="p.productId" class="rank">
         <router-link :to="{ name: 'product-detail', params: { id: p.productId } }" class="rimg" :class="'t-' + p.category">
-          <span class="emoji">{{ thumbEmoji(p) }}</span>
+          <img v-if="p.thumbnailUrl && !imgFailed.has(p.productId)" class="photo" :src="p.thumbnailUrl" :alt="p.name" loading="lazy" @error="onImgError(p.productId)" />
+          <span v-else class="emoji">{{ thumbEmoji(p) }}</span>
           <div v-if="soldOut(p)" class="soldout">품절</div>
         </router-link>
         <div class="rinfo">
@@ -131,6 +135,7 @@ function addToCart(p) {
 .rank{ display:grid; grid-template-columns:122px 1fr; gap:16px; }
 .rank .rimg{ position:relative; aspect-ratio:1/1; border-radius:14px; overflow:hidden; background:#f4f5f3; display:flex; align-items:center; justify-content:center; }
 .rank .rimg .emoji{ font-size:52px; transition:transform .3s ease; }
+.rank .rimg .photo{ width:100%; height:100%; object-fit:cover; }
 .rank:hover .rimg .emoji{ transform:scale(1.06); }
 .t-vegetable, .t-root, .t-mushroom{ background:#eef6e6; }
 .t-fruit{ background:#fbf2e6; } .t-seafood{ background:#eaf2f7; } .t-meat{ background:#f8eeeb; } .t-grain{ background:#f6f1e3; }

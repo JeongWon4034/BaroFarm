@@ -29,6 +29,7 @@ export const useCartStore = defineStore('cart', {
           productId: product.productId,
           lotId: lot?.lotId ?? null,
           name: product.name,
+          thumbnailUrl: product.thumbnailUrl ?? null,
           price: src.discountedPrice ?? src.price,
           originalPrice: src.price ?? product.price,
           discountRate: src.discountRate ?? 0,
