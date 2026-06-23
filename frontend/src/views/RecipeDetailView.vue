@@ -82,9 +82,9 @@ onMounted(async () => {
   display:inline-block; margin-bottom:16px; animation:sp .8s linear infinite; }
 @keyframes sp{ to{ transform:rotate(360deg); } }
 
-.hero{ position:relative; border-radius:22px; overflow:hidden; aspect-ratio:16/10; margin-bottom:28px; background:#000; }
+.hero{ position:relative; border-radius:22px; overflow:hidden; aspect-ratio:16/10; margin-bottom:28px; background:var(--leaf-600); }
 .hero.ph{ background:linear-gradient(135deg,#cfe0d4,#b6d3c0); }
-.hero img{ width:100%; height:100%; object-fit:cover; display:block; }
+.hero img{ width:100%; height:100%; object-fit:contain; display:block; }
 .hero-copy{ position:absolute; left:0; right:0; bottom:0; padding:30px 32px; color:#fff;
   background:linear-gradient(180deg,rgba(20,24,14,0),rgba(20,24,14,.78)); }
 .hero-copy .eye{ font-size:13.5px; font-weight:500; font-style:italic; opacity:.9; }

@@ -66,7 +66,7 @@ onMounted(async () => {
 .rbanner{ display:block; position:relative; border-radius:22px; overflow:hidden; aspect-ratio:1240/440; margin-bottom:18px; background:linear-gradient(135deg,#cfe0d4,#b6d3c0); transition:transform .15s; }
 .rbanner:hover{ transform:translateY(-2px); }
 .rb-cta{ display:inline-block; margin-top:14px; background:#fff; color:var(--leaf-700); font-weight:700; font-size:13.5px; padding:8px 15px; border-radius:999px; }
-.rb-img{ position:absolute; inset:0; z-index:0; width:100%; height:100%; object-fit:cover; }
+.rb-img{ position:absolute; inset:0; z-index:0; width:100%; height:100%; object-fit:contain; background:var(--leaf-600); }
 .ph-tag{ position:absolute; top:14px; left:14px; z-index:3; background:rgba(28,34,21,.55); color:#fff; font-size:11.5px; font-weight:700; padding:5px 11px; border-radius:999px; }
 .grad{ position:absolute; inset:0; z-index:1; background:linear-gradient(180deg,rgba(20,24,14,0) 34%,rgba(20,24,14,.74) 100%); }
 .rb-copy{ position:absolute; left:36px; bottom:34px; z-index:2; color:#fff; max-width:72%; }
