@@ -58,6 +58,10 @@ async function loadAll() {
 }
 
 const emoji = computed(() => (product.value ? thumbEmoji(product.value) : '🥗'))
+// 실사진(thumbnailUrl) 우선, 없거나 로드 실패 시 이모지 폴백
+const imgError = ref(false)
+const showImg = computed(() => !!product.value?.thumbnailUrl && !imgError.value)
+watch(() => product.value?.productId, () => { imgError.value = false })
 // 가격·재고·유통기한의 권위 = 선택된 lot(있으면), 없으면 상품 대표값
 const hasLots = computed(() => lots.value.length > 0)
 const active = computed(() => selectedLot.value ?? product.value)
@@ -164,8 +168,11 @@ async function buyNow() {
       <div class="gallery">
         <div class="gmain">
           <span v-if="hasDeal" class="disc-big">{{ discRate }}%</span>
-          <span class="g-emoji">{{ emoji }}</span>
-          <span class="ph">상품 사진 자리 · 실사/AI 이미지로 교체</span>
+          <img v-if="showImg" class="g-photo" :src="product.thumbnailUrl" :alt="product.name" @error="imgError = true" />
+          <template v-else>
+            <span class="g-emoji">{{ emoji }}</span>
+            <span class="ph">상품 사진 자리 · 실사/AI 이미지로 교체</span>
+          </template>
         </div>
         <div class="trust">
           <div class="ti"><div class="em">🚚</div><b>당일 산지직송</b><span>내일 도착</span></div>
@@ -302,6 +309,7 @@ async function buyNow() {
 .gallery { position: sticky; top: 130px; display: flex; flex-direction: column; gap: 14px; }
 .gmain { position: relative; aspect-ratio: 4/3; border-radius: 22px; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; overflow: hidden; background: radial-gradient(circle at 50% 36%, var(--leaf-50), var(--leaf-100)); }
 .gmain .g-emoji { font-size: 150px; filter: drop-shadow(0 20px 26px rgba(40,40,20,.18)); }
+.gmain .g-photo { width: 100%; height: 100%; object-fit: cover; }
 .gmain .disc-big { position: absolute; top: 18px; left: 18px; background: var(--deal); color: #fff; font-weight: 800; font-size: 18px; padding: 6px 14px; border-radius: 12px; box-shadow: 0 8px 16px rgba(214,69,47,.3); }
 .gmain .ph { position: absolute; bottom: 16px; right: 16px; font-size: 12px; color: var(--muted); background: rgba(255,255,255,.75); padding: 3px 10px; border-radius: 6px; }
 .trust { display: flex; gap: 10px; }

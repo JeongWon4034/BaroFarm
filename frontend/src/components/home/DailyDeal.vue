@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { won, thumbEmoji } from '../../utils/format'
 
@@ -7,6 +7,10 @@ import { won, thumbEmoji } from '../../utils/format'
 const props = defineProps({ product: { type: Object, default: null } })
 const emit = defineEmits(['add'])
 const router = useRouter()
+
+// 실사진(thumbnailUrl) 우선, 없거나 로드 실패 시 이모지 폴백
+const imgError = ref(false)
+const showImg = computed(() => !!props.product?.thumbnailUrl && !imgError.value)
 
 // 오늘 자정까지 남은 시간 카운트다운 (매일 밤 12시 리셋).
 const cd = ref('00:00:00')
@@ -44,7 +48,10 @@ function add() {
     </div>
 
     <div class="daily-card" @click="goDetail">
-      <div class="dc-img" :class="'t-' + product.category"><span class="emoji">{{ thumbEmoji(product) }}</span></div>
+      <div class="dc-img" :class="'t-' + product.category">
+        <img v-if="showImg" class="photo" :src="product.thumbnailUrl" :alt="product.name" @error="imgError = true" />
+        <span v-else class="emoji">{{ thumbEmoji(product) }}</span>
+      </div>
       <div class="dc-info">
         <h3 class="dc-name">{{ product.name }}</h3>
         <div class="price">
@@ -77,6 +84,7 @@ function add() {
 .daily-card:hover{ box-shadow:var(--shadow-lg); transform:translateY(-3px); }
 .dc-img{ position:relative; aspect-ratio:4/3; background:#f4f5f3; display:flex; align-items:center; justify-content:center; }
 .dc-img .emoji{ font-size:96px; }
+.dc-img .photo{ width:100%; height:100%; object-fit:cover; }
 .t-vegetable, .t-root, .t-mushroom{ background:#eef6e6; }
 .t-fruit{ background:#fbf2e6; } .t-seafood{ background:#eaf2f7; } .t-meat{ background:#f8eeeb; } .t-grain{ background:#f6f1e3; }
 .dc-info{ padding:38px 42px; display:flex; flex-direction:column; justify-content:center; }

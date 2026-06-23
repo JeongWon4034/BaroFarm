@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { won, thumbEmoji, categoryLabel, dDayLabel, riskMeta } from '../utils/format'
 import { useWishlistStore } from '../stores/wishlist'
@@ -17,6 +17,9 @@ const wishlist = useWishlistStore()
 const auth = useAuthStore()
 
 const emoji = computed(() => thumbEmoji(props.product))
+// 실사진(thumbnailUrl)이 있으면 사진, 없거나 로드 실패 시 이모지 폴백
+const imgError = ref(false)
+const showImg = computed(() => !!props.product.thumbnailUrl && !imgError.value)
 const soldOut = computed(() => (props.product.stockQty ?? 0) <= 0)
 const lowStock = computed(() => !soldOut.value && (props.product.stockQty ?? 0) <= 5)
 // 유통기한 경과(마감) — 상세 페이지와 동일 기준. 장바구니 담기 불가.
@@ -56,7 +59,8 @@ function onOpen() {
 <template>
   <article class="pcard">
     <router-link :to="{ name: 'product-detail', params: { id: product.productId } }" class="thumb" :class="'t-' + product.category" @click="onOpen">
-      <span class="emoji">{{ emoji }}</span>
+      <img v-if="showImg" class="photo" :src="product.thumbnailUrl" :alt="product.name" loading="lazy" @error="imgError = true" />
+      <span v-else class="emoji">{{ emoji }}</span>
       <!-- 마감임박(USP)만 작은 태그로 -->
       <span v-if="risk.cls === 'risk-high' || risk.cls === 'risk-medium'" class="dday" :class="risk.cls">
         {{ dDayLabel(product.daysToExpiry) }}
@@ -109,7 +113,9 @@ function onOpen() {
   background:#f4f5f3;
 }
 .thumb .emoji{ font-size:62px; transition:transform .3s ease; }
-.pcard:hover .thumb .emoji{ transform:scale(1.06); }
+.thumb .photo{ width:100%; height:100%; object-fit:cover; transition:transform .3s ease; }
+.pcard:hover .thumb .emoji,
+.pcard:hover .thumb .photo{ transform:scale(1.06); }
 
 /* 카테고리별 옅은 틴트 (깔끔하게 단색에 가깝게) */
 .t-vegetable, .t-root, .t-mushroom{ background:#eef6e6; }
