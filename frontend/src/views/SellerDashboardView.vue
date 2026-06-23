@@ -4,6 +4,7 @@ import { productApi } from '../api/products'
 import { orderApi } from '../api/orders'
 import { won, riskMeta, dDayLabel, categoryLabel } from '../utils/format'
 import { useAuthStore } from '../stores/auth'
+import AiLoading from '../components/AiLoading.vue'
 
 const auth = useAuthStore()
 const products = ref([])
@@ -110,7 +111,7 @@ const reportHtml = computed(() => highlightNumbers(aiReport.value?.summary || su
       </div>
     </div>
 
-    <div v-if="loading" class="empty"><span class="emoji">⏳</span>불러오는 중…</div>
+    <AiLoading v-if="loading" :name="auth.user?.name" title="판매자 리포트" />
     <div v-else-if="error" class="empty">
       <span class="emoji">⚠️</span>{{ error }}<br />
       <button class="btn btn-outline" style="margin-top:12px" @click="load">다시 시도</button>
