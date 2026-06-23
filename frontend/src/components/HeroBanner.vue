@@ -59,20 +59,21 @@ onBeforeUnmount(stop)
   overflow: hidden;
   margin-bottom: 30px;
   box-shadow: var(--shadow-md);
-  height: 360px;
   background: #111;
+  width: 100%;
+  aspect-ratio: 16 / 5;
 }
 
 .track {
   display: flex;
-  height: 100%;
+  position: absolute;
+  inset: 0;
   transition: transform .55s cubic-bezier(.4, .0, .2, 1);
 }
 
 .slide {
+  flex: 0 0 100%;
   min-width: 100%;
-  height: 100%;
-  flex-shrink: 0;
 }
 
 .banner-img {
@@ -139,6 +140,6 @@ onBeforeUnmount(stop)
 }
 
 @media (max-width: 760px) {
-  .hero { height: 220px; }
+  .hero { aspect-ratio: 16 / 7; border-radius: 14px; }
 }
 </style>
