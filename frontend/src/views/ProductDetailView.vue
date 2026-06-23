@@ -91,6 +91,12 @@ function changeQty(delta) {
   qty.value = Math.min(maxQty.value, Math.max(1, qty.value + delta))
 }
 
+function onQtyInput(e) {
+  const v = parseInt(e.target.value, 10)
+  qty.value = isNaN(v) ? 1 : Math.min(maxQty.value, Math.max(1, v))
+  e.target.value = qty.value
+}
+
 function addToCart() {
   if (isExpired.value) return
   cart.add(product.value, qty.value, selectedLot.value)
@@ -242,7 +248,11 @@ async function buyNow() {
         <div class="buybar">
           <div class="qtybox">
             <button @click="changeQty(-1)" :disabled="qty <= 1">−</button>
-            <span class="q">{{ qty }}</span>
+            <input
+              type="number" class="q"
+              :value="qty" :min="1" :max="maxQty"
+              @change="onQtyInput"
+            />
             <button @click="changeQty(1)" :disabled="qty >= maxQty">+</button>
           </div>
           <div class="sub">결제 예정<b>{{ won(estimated) }}</b></div>
@@ -363,7 +373,13 @@ async function buyNow() {
 .qtybox button { width: 42px; height: 46px; border: none; background: #fff; font-size: 20px; color: var(--ink-2); }
 .qtybox button:hover:not(:disabled) { background: var(--leaf-50); color: var(--leaf-700); }
 .qtybox button:disabled { opacity: .35; }
-.qtybox .q { width: 48px; text-align: center; font-weight: 700; font-size: 17px; font-variant-numeric: tabular-nums; }
+.qtybox .q {
+  width: 48px; text-align: center; font-weight: 700; font-size: 17px;
+  font-variant-numeric: tabular-nums; border: none; outline: none;
+  background: transparent; -moz-appearance: textfield;
+}
+.qtybox .q::-webkit-inner-spin-button,
+.qtybox .q::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .buybar .sub { font-size: 15px; color: var(--muted); }
 .buybar .sub b { font-size: 24px; font-weight: 800; color: var(--ink); letter-spacing: -.02em; margin-left: 6px; }
 

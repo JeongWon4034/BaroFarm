@@ -44,7 +44,7 @@ export function dateOnly(value) {
 export function dDayLabel(days) {
   if (days == null) return ''
   if (days < 0) return '마감'
-  if (days === 0) return '오늘 마감'
+  if (days === 0) return '오늘마감'
   return 'D-' + days
 }
 
