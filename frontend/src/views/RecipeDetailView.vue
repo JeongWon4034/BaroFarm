@@ -10,7 +10,7 @@ const error = ref('')
 
 onMounted(async () => {
   try {
-    // 첫 호출은 AI 이미지 생성으로 십수 초 걸릴 수 있음(그날 이후엔 캐시).
+    // 식약처 레시피 데이터(실제 사진·조리법). 서버에서 하루 1회 캐시되어 즉시 응답.
     recipe.value = await productApi.recipeDetail(route.params.idx)
   } catch (e) {
     error.value = e?.message || '레시피를 불러오지 못했어요.'

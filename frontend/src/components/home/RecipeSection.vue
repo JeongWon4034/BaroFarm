@@ -33,7 +33,7 @@ onBeforeUnmount(stop)
     <div class="sec-head">
       <div class="l">
         <h2>오늘의 레시피</h2>
-        <p>판매 중인 제철 재료로 만드는 한 끼 — AI 추천</p>
+        <p>판매 중인 제철 재료로 만드는 한 끼</p>
       </div>
     </div>
 
