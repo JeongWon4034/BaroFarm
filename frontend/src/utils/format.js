@@ -94,7 +94,7 @@ export function challengeStatus(challenge, my) {
 
 // 폐기위험 등급 → 표시 메타 (라벨/뱃지 클래스)
 const RISK_META = {
-  HIGH: { label: '폐기 임박', cls: 'risk-high' },
+  HIGH: { label: '마감 임박', cls: 'risk-high' },
   MEDIUM: { label: '서두르세요', cls: 'risk-medium' },
   LOW: { label: '여유', cls: 'risk-low' },
   EXPIRED: { label: '판매종료', cls: 'risk-expired' },
@@ -104,11 +104,11 @@ export function riskMeta(level) {
 }
 
 // 유통기한 D-day '숫자'만으로 정하는 상태 — 재고/복합위험과 무관하게 항상 일관(D-10이 D-14보다 급함).
-// 표시용 상태칩(폐기 임박/서두르세요/여유)은 이 함수를 쓴다. (할인 산정은 백엔드 복합 risk 유지)
+// 표시용 상태칩(마감 임박/서두르세요/여유)은 이 함수를 쓴다. (할인 산정은 백엔드 복합 risk 유지)
 export function expiryStatus(days) {
   if (days == null) return { label: '', cls: '' }
   if (days < 0) return { label: '판매종료', cls: 'risk-expired' }
-  if (days <= 2) return { label: '폐기 임박', cls: 'risk-high' }   // 오늘마감~D-2
+  if (days <= 2) return { label: '마감 임박', cls: 'risk-high' }   // 오늘마감~D-2
   if (days <= 6) return { label: '서두르세요', cls: 'risk-medium' } // D-3~6
   return { label: '여유', cls: 'risk-low' }                        // D-7 이상
 }
