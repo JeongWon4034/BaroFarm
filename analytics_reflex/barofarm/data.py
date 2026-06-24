@@ -413,13 +413,17 @@ def fig_season_growth(growth) -> go.Figure:
 # ════════════════════════════════════════════════════════════════
 #  📅 달력 데이터 (주문일 + 재고만료일)
 # ════════════════════════════════════════════════════════════════
-def calendar_data(sid: int, year: int, month: int) -> list:
+def calendar_data(sid: int, year: int, month: int, ref=None) -> list:
     """해당 월의 달력 셀 목록(42셀 = 6주×7일) 반환.
     각 셀: [day_str, order_count_str, type_str]
     type_str: 'today' | 'expiry' | 'order' | 'normal' | 'empty'
+    ref(date) 지정 시 그 날짜를 'today'(활성)로 강조. 미지정 시 시스템 오늘.
     """
     import calendar as cal_lib
     from datetime import date as _date
+
+    if ref is None:
+        ref = _date.today()
 
     first_weekday, total_days = cal_lib.monthrange(year, month)
     # Python Mon=0,Sun=6 → 일요일 시작(Sun=0)
@@ -452,12 +456,11 @@ def calendar_data(sid: int, year: int, month: int) -> list:
     except Exception:
         expiry_set = set()
 
-    today = _date.today()
     cells = []
     for i in range(42):
         day_num = i - start_offset + 1
         if 1 <= day_num <= total_days:
-            is_today = (year == today.year and month == today.month and day_num == today.day)
+            is_today = (year == ref.year and month == ref.month and day_num == ref.day)
             cnt = order_map.get(day_num, 0)
             has_expiry = day_num in expiry_set
             if is_today:
@@ -500,28 +503,51 @@ def today_delivery_summary(sid: int) -> dict:
     return {"today_orders": int(ord_today), "expiry_week": int(exp_week)}
 
 
-def weekly_orders_data(sid: int) -> list:
-    """이번 주(월~일) 7일의 주문 이벤트 카드 목록 반환.
+_STATUS_KR = {
+    "PENDING": "접수", "CONFIRMED": "확정", "SHIPPING": "배송중",
+    "COMPLETED": "완료", "CANCELLED": "취소",
+}
+
+
+@lru_cache(maxsize=64)
+def latest_order_date(sid: int):
+    """판매자의 가장 최근 주문일(date). 없으면 시스템 오늘."""
+    from datetime import date as _date
+    try:
+        r = q(f"""
+            SELECT MAX(DATE(o.order_date)) md
+            FROM orders o JOIN products p ON o.product_id=p.product_id
+            WHERE p.seller_id={sid}
+        """)
+        v = r.iloc[0, 0]
+        if v is None:
+            return _date.today()
+        return pd.to_datetime(str(v)).date()
+    except Exception:
+        return _date.today()
+
+
+def weekly_orders_data(sid: int, ref=None) -> list:
+    """기준일까지의 최근 7일(ref-6 ~ ref) 주문 이벤트 카드 목록 반환.
+    기준일(ref) 미지정 시 가장 최근 주문일을 사용(데모 데이터가 과거일 수 있어서).
     반환: list[dict] 길이=7, 각 dict:
-      {weekday: str, date_str: str, is_today: bool,
-       orders: list[{product: str, buyer: str, amount_str: str, status: str}]}
+      {weekday, date_str, iso, is_today(bool), revenue_str, orders:[...]}
     """
-    from datetime import date as _date, timedelta
+    from datetime import timedelta
 
-    today = _date.today()
-    # 이번 주 월요일
-    mon = today - timedelta(days=today.weekday())
-    days = [mon + timedelta(days=i) for i in range(7)]
-    dow_kr = ["월", "화", "수", "목", "금", "토", "일"]
+    if ref is None:
+        ref = latest_order_date(sid)
+    days = [ref - timedelta(days=6 - i) for i in range(7)]
+    dow_full = ["월", "화", "수", "목", "금", "토", "일"]
+    dow_kr = [dow_full[d.weekday()] for d in days]
 
-    d0_str = str(days[0])
-    d1_str = str(days[6])
+    d0_str, d1_str = str(days[0]), str(days[6])
 
     try:
         df = q(f"""
             SELECT
                 DATE(o.order_date) AS od,
-                p.product_name,
+                p.name AS product_name,
                 o.buyer_id,
                 o.total_price,
                 o.status
@@ -531,33 +557,51 @@ def weekly_orders_data(sid: int) -> list:
               AND DATE(o.order_date) BETWEEN '{d0_str}' AND '{d1_str}'
             ORDER BY o.order_date
         """)
+        if not df.empty:
+            df["od"] = pd.to_datetime(df["od"]).dt.date
     except Exception:
         df = pd.DataFrame()
 
     result = []
     for i, d in enumerate(days):
-        if df.empty:
-            day_orders = []
-        else:
+        day_orders = []
+        day_rev = 0.0
+        if not df.empty:
             rows = df[df["od"] == d]
-            day_orders = []
+            day_rev = float(rows["total_price"].sum())
             for _, row in rows.iterrows():
-                status = str(row.get("status", ""))
-                status_label = {
-                    "pending": "접수", "processing": "처리중",
-                    "shipped": "배송중", "delivered": "완료",
-                    "cancelled": "취소",
-                }.get(status, status or "접수")
+                status = str(row.get("status", "")).upper()
                 day_orders.append({
-                    "product": str(row["product_name"])[:10],
+                    "product": str(row["product_name"])[:12],
                     "buyer": f"고객{str(row['buyer_id'])[-3:]}",
                     "amount_str": won(float(row["total_price"])),
-                    "status": status_label,
+                    "status": _STATUS_KR.get(status, "접수"),
                 })
         result.append({
             "weekday": dow_kr[i],
             "date_str": f"{d.month}/{d.day}",
-            "is_today": (d == today),
+            "iso": str(d),
+            "is_today": (d == ref),
+            "revenue_str": won(day_rev),
             "orders": day_orders,
         })
     return result
+
+
+def daily_detail(sid: int, date_str: str) -> dict:
+    """특정 날짜의 매출/주문건수/판매수량/대표상품."""
+    try:
+        df = q(f"""
+            SELECT o.total_price, o.quantity, p.name AS product_name
+            FROM orders o JOIN products p ON o.product_id=p.product_id
+            WHERE p.seller_id={sid} AND DATE(o.order_date)='{date_str}'
+        """)
+    except Exception:
+        df = pd.DataFrame()
+    if df.empty:
+        return {"revenue": "0원", "orders": "0건", "items": "0개", "top": "주문 없음"}
+    revenue = won(float(df["total_price"].sum()))
+    orders = f"{len(df)}건"
+    items = f"{int(df['quantity'].sum())}개"
+    top = str(df.groupby("product_name")["total_price"].sum().idxmax())
+    return {"revenue": revenue, "orders": orders, "items": items, "top": top}

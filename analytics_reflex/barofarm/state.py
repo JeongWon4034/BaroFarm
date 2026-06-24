@@ -66,13 +66,24 @@ class DashState(rx.State):
     cal_year: int = 0
     cal_month: int = 0
     cal_month_label: str = ""
+    cal_key: str = ""                # 현재 보고있는 월 "Y-M"
     cal_grid: list[list[str]] = []   # 42셀: [day_str, count_str, type_str]
 
     # ── 📅 주간 뷰 ── 7일 × 주문 카드
-    # weekly_days[i] = [weekday_kr, date_str, is_today_str, order_count_str]
+    # weekly_days[i] = [weekday_kr, date_str, is_today_str, order_count_str, iso, revenue_str]
     weekly_days: list[list[str]] = []
     # weekly_orders[i][j] = [product, buyer, amount_str, status]
     weekly_orders: list[list[list[str]]] = []
+
+    # ── 선택한 날짜 상세 (당일 매출) ──
+    sel_date: str = ""               # "YYYY-MM-DD"
+    sel_date_label: str = "날짜를 선택하세요"
+    sel_revenue: str = "-"
+    sel_orders: str = "0"
+    sel_items: str = "0"
+    sel_top: str = "-"
+    sel_cal_key: str = ""            # 선택 날짜가 속한 월 "Y-M"
+    sel_cal_day: str = ""            # 선택 날짜의 일(day) 문자열
 
     # ── nav active tab ──
     active_nav: str = "dashboard"
@@ -125,16 +136,19 @@ class DashState(rx.State):
             self.kpi_deal = k["deal_rev"]
             self.kpi_deal_share = k["deal_share"]
 
-            # 오늘 요약
+            # 기준일 = 가장 최근 주문일(데모 데이터가 과거일 수 있어서)
+            ref = data.latest_order_date(sid)
+
+            # 오늘 요약(최근 영업일 기준)
             td = data.today_delivery_summary(sid)
             self.today_orders = str(td["today_orders"])
             self.expiry_week = str(td["expiry_week"])
-            today = _date.today()
-            self.today_label = f"{today.year}.{today.month:02d}.{today.day:02d}"
+            self.today_label = f"{ref.year}.{ref.month:02d}.{ref.day:02d}"
 
-            # 달력 (현재 월 + 주간 뷰)
-            self._load_calendar(sid, today.year, today.month)
-            self._load_weekly(sid)
+            # 달력 (기준 월 + 주간 뷰), 기본 선택일 = 기준일
+            self._load_calendar(sid, ref.year, ref.month, ref)
+            self._load_weekly(sid, ref)
+            self.select_date(str(ref))
 
             self._compute_ml(sid, d0, d1)
             self.loaded = True
@@ -142,14 +156,15 @@ class DashState(rx.State):
             self.error = f"데이터 로드 중 오류: {e}"
             self.loaded = True
 
-    def _load_calendar(self, sid: int, year: int, month: int):
+    def _load_calendar(self, sid: int, year: int, month: int, ref=None):
         self.cal_year = year
         self.cal_month = month
         self.cal_month_label = f"{year}년 {month}월"
-        self.cal_grid = data.calendar_data(sid, year, month)
+        self.cal_key = f"{year}-{month}"
+        self.cal_grid = data.calendar_data(sid, year, month, ref)
 
-    def _load_weekly(self, sid: int):
-        week_data = data.weekly_orders_data(sid)
+    def _load_weekly(self, sid: int, ref=None):
+        week_data = data.weekly_orders_data(sid, ref)
         days_flat = []
         orders_flat = []
         for d in week_data:
@@ -157,11 +172,39 @@ class DashState(rx.State):
                 d["weekday"], d["date_str"],
                 "true" if d["is_today"] else "false",
                 str(len(d["orders"])),
+                d["iso"], d["revenue_str"],
             ])
             orders_flat.append([[o["product"], o["buyer"], o["amount_str"], o["status"]]
                                  for o in d["orders"]])
         self.weekly_days = days_flat
         self.weekly_orders = orders_flat
+
+    def select_date(self, date_str: str):
+        """달력 날짜 클릭 → 당일 매출 상세 로드."""
+        if not date_str:
+            return
+        self.sel_date = date_str
+        try:
+            y, m, d = (int(x) for x in date_str.split("-"))
+            dow = ["월", "화", "수", "목", "금", "토", "일"][_date(y, m, d).weekday()]
+            self.sel_date_label = f"{m}월 {d}일 ({dow})"
+            self.sel_cal_key = f"{y}-{m}"
+            self.sel_cal_day = str(d)
+        except Exception:
+            self.sel_date_label = date_str
+            self.sel_cal_key = ""
+            self.sel_cal_day = ""
+        detail = data.daily_detail(self.seller_id, date_str)
+        self.sel_revenue = detail["revenue"]
+        self.sel_orders = detail["orders"]
+        self.sel_items = detail["items"]
+        self.sel_top = detail["top"]
+
+    def select_cal_day(self, day_str: str):
+        """월간 달력 셀 클릭 → 현재 보는 월 + 일 → select_date."""
+        if not day_str:
+            return
+        self.select_date(f"{self.cal_year}-{self.cal_month:02d}-{int(day_str):02d}")
 
     def prev_month(self):
         m, y = self.cal_month - 1, self.cal_year
