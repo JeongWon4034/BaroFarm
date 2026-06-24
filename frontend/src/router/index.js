@@ -25,6 +25,7 @@ const routes = [
   { path: '/coupons', name: 'my-coupons', component: () => import('../views/CouponsView.vue'), meta: { auth: true } },
   { path: '/seller', name: 'seller-center', component: () => import('../views/SellerCenterView.vue'), meta: { auth: true, seller: true } },
   { path: '/seller/dashboard', name: 'seller-dashboard', component: () => import('../views/SellerDashboardView.vue'), meta: { auth: true, seller: true } },
+  { path: '/admin/analytics', name: 'analytics', component: () => import('../views/AnalyticsView.vue'), meta: { auth: true, admin: true } },
   { path: '/seller/products', name: 'seller-products', component: () => import('../views/SellerProductsView.vue'), meta: { auth: true, seller: true } },
   { path: '/seller/orders', name: 'seller-orders', component: () => import('../views/SellerOrdersView.vue'), meta: { auth: true, seller: true } },
   { path: '/login', name: 'login', component: () => import('../views/LoginView.vue') },
@@ -44,6 +45,10 @@ router.beforeEach((to) => {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
   if (to.meta.seller && !auth.isSeller) {
+    return { name: 'products' }
+  }
+  // 분석 대시보드(Streamlit 직결)는 전체 데이터가 보이므로 관리자 전용
+  if (to.meta.admin && !auth.isAdmin) {
     return { name: 'products' }
   }
 })

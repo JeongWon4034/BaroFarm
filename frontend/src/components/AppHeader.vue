@@ -67,7 +67,10 @@ async function logout() {
             <span class="uname">{{ auth.user?.name }}님</span>
             <button class="link-btn" @click="logout">로그아웃</button>
             <span class="sep"></span>
-            <router-link v-if="auth.isSeller" :to="{ name: 'seller-center' }" class="hub">
+            <router-link v-if="auth.isAdmin" :to="{ name: 'analytics' }" class="hub">
+              관리자 대시보드
+            </router-link>
+            <router-link v-else-if="auth.isSeller" :to="{ name: 'seller-center' }" class="hub">
               판매자 센터<span v-if="noti.count" class="cnt">{{ noti.count }}</span>
             </router-link>
             <router-link v-else :to="{ name: 'my-hub' }" class="hub">

@@ -140,6 +140,7 @@ CREATE TABLE comments (
 
 -- 시드 비밀번호: '1234' (BCrypt cost=10, python bcrypt 생성)
 INSERT INTO users(role, email, password, name) VALUES
+('ADMIN',  'admin@barofarm.com', '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '바로팜 관리자'),
 ('SELLER', 'seller@example.com', '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '도연농장'),
 ('BUYER',  'buyer@example.com',  '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '김도연');
 
