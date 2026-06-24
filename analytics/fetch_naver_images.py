@@ -47,20 +47,54 @@ def core_term(name):
     return max(toks, key=len) if toks else s
 
 
-def search(name, retries=2, timeout=15):
-    """상품명 → (이미지URL, 매칭제목). 핵심 명사 포함 결과 우선, 없으면 첫 결과."""
-    q = urllib.parse.urlencode({"query": name.strip(), "display": 5, "sort": "sim"})
-    req = urllib.request.Request(f"{API}?{q}",
+# 가공품·비식품 제외(원물 사진을 우선). 예: '사과 젤리', '명태 액막이', '배 티세트'
+PROCESSED = {"젤리", "즙", "칩", "잼", "말랭이", "식초", "주스", "건조", "분말", "말린", "과자", "디저트",
+             "음료", "요거트", "파이", "빵", "차", "티", "스낵", "견과", "엑기스", "농축", "환", "정과",
+             "절임", "장아찌", "통조림", "소스", "양념", "다시", "육수", "분유", "케이크", "쿠키",
+             "액막이", "모형", "장식", "인형", "비누", "캔들", "방향제",
+             "구미", "하이츄", "캔디", "사탕", "초콜릿", "초콜렛", "캐러멜", "마이쮸", "젤라또", "아이스크림",
+             "북어", "황태", "코다리"}  # 사탕·가공/건어물(원물 사진 우선)
+
+
+def _clean(t):
+    return re.sub(r"<[^>]+>", "", t or "")
+
+
+def _query(q, timeout):
+    enc = urllib.parse.urlencode({"query": q, "display": 10, "sort": "sim"})
+    req = urllib.request.Request(f"{API}?{enc}",
                                  headers={"X-Naver-Client-Id": CID, "X-Naver-Client-Secret": CSECRET})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.load(r).get("items", [])
+
+
+def search(name, retries=2, timeout=15):
+    """상품명 → (이미지URL, 매칭제목). 핵심명사 포함 + 가공품/비식품 제외한 원물 사진 우선.
+    상품명(통짜)→핵심명사 순으로 검색 쿼리를 완화해 KAMIS식 지저분한 이름도 매칭."""
     term = core_term(name)
+    full = name.strip()
+    # KAMIS식 지저분한 이름('사과/후지 (10개)')은 핵심명사를 먼저, 깔끔한 이름은 통짜를 먼저
+    messy = "/" in name or "(" in name
+    queries = [term, full] if messy else [full, term]
+    queries = [q for i, q in enumerate(queries) if q and q not in queries[:i]]
+    last = None
     for attempt in range(retries + 1):
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                items = json.load(r).get("items", [])
-            if not items:
-                return None, None
-            picked = next((it for it in items if term in re.sub(r"<[^>]+>", "", it.get("title", ""))), items[0])
-            return picked.get("image"), re.sub(r"<[^>]+>", "", picked.get("title", ""))
+            fallback = None
+            for q in queries:
+                items = _query(q, timeout)
+                if not items:
+                    continue
+                if fallback is None:
+                    fallback = items[0]
+                pool = [it for it in items if not any(b in _clean(it.get("title")) for b in PROCESSED)]
+                if not pool:
+                    continue  # 이 쿼리는 전부 가공품/비식품 → 다음 쿼리 시도
+                picked = next((it for it in pool if term in _clean(it.get("title"))), pool[0])
+                return picked.get("image"), _clean(picked.get("title"))
+            if fallback is not None:  # 모든 쿼리가 가공품뿐이면 그나마 1순위
+                return fallback.get("image"), _clean(fallback.get("title"))
+            return None, None
         except Exception as e:  # noqa: BLE001
             time.sleep(0.6 * (attempt + 1))
             last = e

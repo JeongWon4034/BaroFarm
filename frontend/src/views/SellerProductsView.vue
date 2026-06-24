@@ -238,13 +238,21 @@ async function remove(p) {
         </label>
         <label class="fld"><span>유통기한</span><input v-model="form.expirationDate" type="date" class="input" /></label>
         <div class="fld">
-          <span class="fld-top">가격(원) *
-            <button v-if="!editingId" type="button" class="ai-btn" :disabled="aiPriceLoading" @click="suggestPrice">{{ aiPriceLoading ? '분석 중…' : '💡 AI 추천가' }}</button>
-          </span>
+          <span>가격(원) *</span>
           <input v-model.number="form.price" type="number" min="0" class="input" placeholder="3900" />
         </div>
         <label class="fld"><span>재고(개) *</span><input v-model.number="form.stockQty" type="number" min="0" class="input" placeholder="50" /></label>
         <label v-if="!editingId" class="fld span2"><span>판매 단위 <span class="fld-hint">(AI 추천가용 · 선택 — 비우면 AI가 상품명에서 추론)</span></span><input v-model="form.unit" class="input" placeholder="예: 1kg, 500g, 1단, 5개입" /></label>
+        <div v-if="!editingId" class="span2">
+          <button type="button" class="ai-cta" :disabled="aiPriceLoading" @click="suggestPrice">
+            <span class="ai-cta-icon">💡</span>
+            <span class="ai-cta-text">
+              <strong>{{ aiPriceLoading ? 'AI가 시세·경쟁가 분석 중…' : 'AI 추천가 받기' }}</strong>
+              <small>KAMIS 시세 + 네이버 경쟁 소매가를 분석해 최적 판매가를 제안해드려요</small>
+            </span>
+            <span class="ai-cta-arrow">{{ aiPriceLoading ? '⏳' : '→' }}</span>
+          </button>
+        </div>
         <div class="fld span2">
           <span class="fld-top">설명
             <button type="button" class="ai-btn" :disabled="aiDescLoading" @click="generateDesc">{{ aiDescLoading ? '생성 중…' : '✍️ AI 설명 생성' }}</button>
@@ -486,6 +494,18 @@ async function remove(p) {
 .btn-sm { padding: 6px 12px; font-size: 13px; align-self: flex-start; }
 .img-hint { font-size: 11px; color: var(--color-muted); margin: 0; }
 .url-input { font-size: 12px; }
+/* AI 추천가 CTA — 판매자가 적극 활용하도록 크고 눈에 띄게 */
+.ai-cta { width: 100%; display: flex; align-items: center; gap: 14px; padding: 15px 18px; border: none; border-radius: var(--radius-sm); cursor: pointer; text-align: left;
+  background: linear-gradient(135deg, #4caf6e, var(--color-primary-dark)); color: #fff;
+  box-shadow: 0 6px 18px rgba(46,125,80,.28); transition: transform .12s, box-shadow .12s; }
+.ai-cta:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(46,125,80,.36); }
+.ai-cta:active:not(:disabled) { transform: translateY(0); }
+.ai-cta:disabled { opacity: .75; cursor: default; }
+.ai-cta-icon { font-size: 26px; line-height: 1; }
+.ai-cta-text { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.ai-cta-text strong { font-size: 16px; font-weight: 800; }
+.ai-cta-text small { font-size: 12px; font-weight: 500; opacity: .92; }
+.ai-cta-arrow { font-size: 20px; font-weight: 900; }
 .ai-btn { background: var(--color-primary-soft); color: var(--color-primary-dark); border: 1px solid #cfe8d4; border-radius: 999px; font-size: 12px; font-weight: 700; padding: 3px 10px; cursor: pointer; }
 .ai-btn:hover:not(:disabled) { background: #cfe8d4; }
 .ai-btn:disabled { opacity: 0.5; cursor: default; }
