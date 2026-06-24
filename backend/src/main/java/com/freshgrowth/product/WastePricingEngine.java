@@ -6,7 +6,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 
 /**
- * 폐기위험 + 동적 떨이가 산출 엔진 (MVP: 규칙 기반).
+ * 폐기위험 + 동적 할인가 산출 엔진 (MVP: 규칙 기반).
  *
  * 입력: 유통기한까지 남은 일수(D-day), 재고.
  *   (※ 수요예측 기반 판매속도 반영은 다음 단계 — 주문 데이터가 쌓이면 고도화)
@@ -69,7 +69,7 @@ public class WastePricingEngine {
         }
     }
 
-    /** 유통기한·재고·정가만으로 폐기위험/떨이가 계산. 입력 부족 시 null. */
+    /** 유통기한·재고·정가만으로 폐기위험/할인가 계산. 입력 부족 시 null. */
     public Pricing compute(LocalDate expirationDate, Integer stockQty, Integer price) {
         if (expirationDate == null || price == null) {
             return null;

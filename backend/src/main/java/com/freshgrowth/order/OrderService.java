@@ -42,12 +42,12 @@ public class OrderService {
         }
 
         // lot(폐기기간 옵션) 선택 구매 vs 상품단위(레거시) 구매 분기.
-        // 두 경로 모두 서버가 떨이가를 권위 있게 재계산하고, 차감 단위(lot/product)에서만 재고를 깐다.
+        // 두 경로 모두 서버가 할인가를 권위 있게 재계산하고, 차감 단위(lot/product)에서만 재고를 깐다.
         Long lotId = request.getLotId();
         int qty = request.getQuantity();
         int unitPrice;
         int discountRate;
-        int originalPrice; // 주문 시점 정가(떨이 전) — 절약액/회수매출 산출용
+        int originalPrice; // 주문 시점 정가(할인 전) — 절약액/회수매출 산출용
 
         if (lotId != null) {
             ProductLot lot = lotMapper.findById(lotId);
@@ -65,7 +65,7 @@ public class OrderService {
             discountRate = lot.getDiscountRate() == null ? 0 : lot.getDiscountRate();
             originalPrice = lot.getPrice();
         } else {
-            // 폐기위험·떨이가 계산(서버 권위) — 유통기한 지난 상품은 재고 차감 전에 차단한다.
+            // 폐기위험·할인가 계산(서버 권위) — 유통기한 지난 상품은 재고 차감 전에 차단한다.
             pricingEngine.apply(product);
             if ("EXPIRED".equals(product.getRiskLevel())) {
                 throw new AppException(HttpStatus.BAD_REQUEST, "PRODUCT_EXPIRED", "유통기한이 지나 구매할 수 없는 상품입니다.");

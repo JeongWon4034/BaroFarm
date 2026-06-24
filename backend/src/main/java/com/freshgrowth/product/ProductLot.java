@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 
 /**
  * 폐기기간별 판매 옵션(lot). 같은 품목(products)에 여러 lot 이 매달리며,
- * 각 lot 은 자체 유통기한·재고·정가를 가진다. 떨이가/위험도는 DB 비저장 —
+ * 각 lot 은 자체 유통기한·재고·정가를 가진다. 할인가/위험도는 DB 비저장 —
  * 조회 시 {@link WastePricingEngine} 이 계산해 채운다.
  */
 public class ProductLot {
@@ -21,7 +21,7 @@ public class ProductLot {
     private String riskLevel;        // HIGH | MEDIUM | LOW | EXPIRED
     private Double riskScore;        // 0.0 ~ 1.0
     private Integer discountRate;    // 추천 할인율(%)
-    private Integer discountedPrice; // 동적 떨이가
+    private Integer discountedPrice; // 동적 할인가
 
     public Long getLotId() { return lotId; }
     public void setLotId(Long lotId) { this.lotId = lotId; }

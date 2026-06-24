@@ -51,11 +51,11 @@ public class ProductService {
             throw new AppException(HttpStatus.NOT_FOUND, "PRODUCT_NOT_FOUND", "상품을 찾을 수 없습니다.");
         }
         withPricing(product);
-        product.setLots(findLots(productId));   // 상세: 폐기기간별 옵션 + 옵션별 떨이가
+        product.setLots(findLots(productId));   // 상세: 폐기기간별 옵션 + 옵션별 할인가
         return product;
     }
 
-    /** 한 품목의 폐기기간 옵션(lot) 목록 + 옵션별 동적 떨이가. */
+    /** 한 품목의 폐기기간 옵션(lot) 목록 + 옵션별 동적 할인가. */
     public List<ProductLot> findLots(Long productId) {
         List<ProductLot> lots = lotMapper.findByProductId(productId);
         lots.forEach(pricingEngine::apply);

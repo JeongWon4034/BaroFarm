@@ -49,13 +49,13 @@ CREATE TABLE products (
 -- 대표값일 뿐이고, 실제 판매 단위·가격·유통기한은 product_lots 가 권위를 가진다.
 
 -- 폐기기간별 판매 옵션(lot). 같은 품목(새우젓)을 유통기한·재고·가격이 다른 여러 lot 으로 묶어
--- 목록은 품목 1장으로 간결하게, 상세에서 lot 별 떨이가를 골라 구매하게 한다.
+-- 목록은 품목 1장으로 간결하게, 상세에서 lot 별 할인가를 골라 구매하게 한다.
 CREATE TABLE product_lots (
     lot_id          BIGINT NOT NULL AUTO_INCREMENT,
     product_id      BIGINT NOT NULL,
     expiration_date DATE   NOT NULL,
     stock_qty       INT    NOT NULL DEFAULT 0,
-    price           INT    NOT NULL,                 -- 이 lot 의 정가(떨이가는 WastePricingEngine 이 조회 시 계산)
+    price           INT    NOT NULL,                 -- 이 lot 의 정가(할인가는 WastePricingEngine 이 조회 시 계산)
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (lot_id),
     INDEX idx_lot_product (product_id),
@@ -68,8 +68,8 @@ CREATE TABLE orders (
     product_id BIGINT NOT NULL,
     lot_id BIGINT NULL,                              -- 구매한 폐기기간 옵션(lot). 레거시·상품단위 구매는 NULL
     quantity INT NOT NULL DEFAULT 1,
-    total_price INT NOT NULL,                         -- 실제 결제액(떨이가 반영) = 단가 × 수량
-    original_unit_price INT,                          -- 주문 시점 정가(떨이 전). 절약액/회수 매출 산출용. 절약액 = original_unit_price×수량 − total_price
+    total_price INT NOT NULL,                         -- 실제 결제액(할인가 반영) = 단가 × 수량
+    original_unit_price INT,                          -- 주문 시점 정가(할인 전). 절약액/회수 매출 산출용. 절약액 = original_unit_price×수량 − total_price
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',   -- 판매자 처리 흐름: PENDING→CONFIRMED→SHIPPING→COMPLETED
     order_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (order_id),
@@ -143,7 +143,7 @@ INSERT INTO users(role, email, password, name) VALUES
 ('SELLER', 'seller@example.com', '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '도연농장'),
 ('BUYER',  'buyer@example.com',  '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '김도연');
 
--- 마감임박/떨이 데모용 시드 (유통기한을 오늘 기준 상대값으로 → 언제 실행해도 D-1~D-12 유지)
+-- 마감임박/할인 데모용 시드 (유통기한을 오늘 기준 상대값으로 → 언제 실행해도 D-1~D-12 유지)
 INSERT INTO products(seller_id, name, description, category, price, stock_qty, thumbnail_url, expiration_date) VALUES
 (1, '무농약 청상추',      '아침에 수확한 신선한 청상추.',   'vegetable', 3900,  48, NULL, CURDATE() + INTERVAL 1 DAY),  -- D-1, 재고많음 → HIGH
 (1, '친환경 방울토마토',  '간식용 방울토마토.',             'vegetable', 5500,  50, NULL, CURDATE() + INTERVAL 1 DAY),  -- D-1, 재고만땅 → HIGH
@@ -158,7 +158,7 @@ INSERT INTO posts(author_id, category, title, content, view_count) VALUES
 (1, 'tip',      '청상추 오래 보관하는 법 공유합니다',   '키친타월로 감싸 밀폐용기에 넣으면 일주일은 거뜬해요. 마감임박으로 산 상추도 이렇게 하면 안 버립니다.', 152),
 (2, 'question', '토마토 후숙 꿀팁 있나요?',              '덜 익은 토마토 받았는데 빨리 익히는 방법 아시는 분?', 88),
 (1, 'general',  '제주 감귤 시세 요즘 어떤가요',          '노지 감귤 가격이 작년보다 오른 느낌인데 다들 어떻게 보시나요.', 47),
-(2, 'review',   '마감임박 떨이로 장 본 후기',            '한우 불고기감을 반값에 샀어요. 떨이 탭 자주 보게 되네요.', 230),
+(2, 'review',   '마감임박 할인으로 장 본 후기',            '한우 불고기감을 반값에 샀어요. 할인 탭 자주 보게 되네요.', 230),
 (1, 'tip',      '시금치 데치기 좋은 물 온도',            '끓는 물에 소금 약간, 30초면 충분합니다. 오래 데치면 물러져요.', 64),
 (2, 'question', '오징어 손질 처음인데 무서워요',         '통오징어 손질 영상 추천 좀 부탁드립니다.', 39),
 (1, 'tip',      '냉장고 채소칸 정리법',                  '채소별로 적정 습도가 달라요. 잎채소는 위, 뿌리채소는 아래.', 113),
@@ -172,7 +172,7 @@ INSERT INTO posts(author_id, category, title, content, view_count) VALUES
 INSERT INTO comments(post_id, author_id, content) VALUES
 (1, 2, '오 키친타월 꿀팁이네요. 바로 해볼게요!'),
 (1, 1, '네 상추는 물기가 적이라 금방 무르더라고요.'),
-(4, 1, '떨이 탭 반응이 좋아서 뿌듯합니다 :)'),
+(4, 1, '할인 탭 반응이 좋아서 뿌듯합니다 :)'),
 (9, 2, '확실히 직거래가 신선도가 다르긴 해요.'),
 (10, 1, '감귤청 좋네요. 껍질 세척만 잘 하면 됩니다.');
 
