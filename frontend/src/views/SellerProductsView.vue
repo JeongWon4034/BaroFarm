@@ -237,11 +237,6 @@ async function remove(p) {
           </select>
         </label>
         <label class="fld"><span>유통기한</span><input v-model="form.expirationDate" type="date" class="input" /></label>
-        <div class="fld">
-          <span>가격(원) *</span>
-          <input v-model.number="form.price" type="number" min="0" class="input" placeholder="3900" />
-        </div>
-        <label class="fld"><span>재고(개) *</span><input v-model.number="form.stockQty" type="number" min="0" class="input" placeholder="50" /></label>
         <label v-if="!editingId" class="fld span2"><span>판매 단위 <span class="fld-hint">(AI 추천가용 · 선택 — 비우면 AI가 상품명에서 추론)</span></span><input v-model="form.unit" class="input" placeholder="예: 1kg, 500g, 1단, 5개입" /></label>
         <div v-if="!editingId" class="span2">
           <button type="button" class="ai-cta" :disabled="aiPriceLoading" @click="suggestPrice">
@@ -253,6 +248,11 @@ async function remove(p) {
             <span class="ai-cta-arrow">{{ aiPriceLoading ? '⏳' : '→' }}</span>
           </button>
         </div>
+        <div class="fld">
+          <span>가격(원) *</span>
+          <input v-model.number="form.price" type="number" min="0" class="input" placeholder="0" />
+        </div>
+        <label class="fld"><span>재고(개) *</span><input v-model.number="form.stockQty" type="number" min="0" class="input" placeholder="0" /></label>
         <div class="fld span2">
           <span class="fld-top">설명
             <button type="button" class="ai-btn" :disabled="aiDescLoading" @click="generateDesc">{{ aiDescLoading ? '생성 중…' : '✍️ AI 설명 생성' }}</button>
