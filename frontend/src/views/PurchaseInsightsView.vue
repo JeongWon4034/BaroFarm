@@ -3,8 +3,12 @@ import { ref, computed, onMounted } from 'vue'
 import { orderApi } from '../api/orders'
 import { won, categoryLabel, thumbEmoji, dateOnly } from '../utils/format'
 import { useAuthStore } from '../stores/auth'
+import { useCartStore } from '../stores/cart'
+import AiLoading from '../components/AiLoading.vue'
 
 const auth = useAuthStore()
+const cart = useCartStore()
+const addedIds = ref(new Set())
 const orders = ref([])
 const loading = ref(true)
 const error = ref('')
@@ -77,7 +81,33 @@ const topProducts = computed(() => {
   return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 5)
 })
 
+// 마감임박 할인으로 아낀 금액 — 주문 시점 정가(originalUnitPrice) 대비 실결제액 차이
+const savedDetail = computed(() => {
+  let saved = 0
+  let rescued = 0
+  orders.value.forEach((o) => {
+    if (o.originalUnitPrice == null) return
+    const diff = o.originalUnitPrice * (o.quantity || 0) - (o.totalPrice || 0)
+    if (diff > 0) { saved += diff; rescued++ }
+  })
+  return { saved, rescued }
+})
+
 const recentOrders = computed(() => orders.value.slice(0, 8))
+
+// AI 추천 상품을 장바구니에 담기 (실제 product 기반이라 결제 흐름과 동일)
+function addRec(rec) {
+  cart.add({
+    productId: rec.productId,
+    name: rec.name,
+    category: rec.category,
+    price: rec.price,
+    discountedPrice: rec.discountedPrice ?? null,
+    discountRate: rec.discountedPrice ? Math.round((1 - rec.discountedPrice / rec.price) * 100) : 0,
+    thumbnailUrl: rec.thumbnailUrl ?? null,
+  }, 1)
+  addedIds.value = new Set(addedIds.value).add(rec.productId)
+}
 
 function monthLabel(ym) {
   const [, mm] = ym.split('-')
@@ -92,7 +122,7 @@ function monthLabel(ym) {
       <p class="muted">{{ auth.user?.name }}님의 거래 현황과 소비 패턴을 한눈에</p>
     </div>
 
-    <div v-if="loading" class="empty"><span class="emoji">⏳</span>불러오는 중…</div>
+    <AiLoading v-if="loading" :name="auth.user?.name" title="구매 리포트" />
     <div v-else-if="error" class="empty">
       <span class="emoji">⚠️</span>{{ error }}<br />
       <button class="btn btn-outline" style="margin-top:12px" @click="load">다시 시도</button>
@@ -117,16 +147,33 @@ function monthLabel(ym) {
         <p v-else class="report-note muted">※ AI 연결 전이라 규칙 기반 요약입니다.</p>
       </div>
 
-      <!-- AI 다음 장보기 추천 -->
+      <!-- AI 다음 장보기 추천 — 실제 판매 상품 기반(클릭·담기 가능) -->
       <div v-if="aiInsight?.recommendations?.length" class="rec-card card">
         <div class="rec-title">🛒 AI 맞춤 추천 — 다음 장보기</div>
-        <p class="rec-desc muted">구매 패턴을 분석해 AI가 직접 고른 신선식품이에요.</p>
-        <ul class="rec-list">
-          <li v-for="(rec, i) in aiInsight.recommendations" :key="i" class="rec-item">
-            <span class="rec-num">{{ i + 1 }}</span>
-            <span class="rec-text">{{ rec }}</span>
-          </li>
-        </ul>
+        <p class="rec-desc muted">구매 패턴을 분석해 AI가 <strong>실제 판매 중인 상품</strong>에서 직접 골랐어요.</p>
+        <div class="rec-grid">
+          <div v-for="rec in aiInsight.recommendations" :key="rec.productId" class="rec-prod card">
+            <router-link :to="{ name: 'product-detail', params: { id: rec.productId } }" class="rec-thumb">
+              <img v-if="rec.thumbnailUrl" :src="rec.thumbnailUrl" :alt="rec.name" loading="lazy" />
+              <span v-else class="rec-emoji">{{ thumbEmoji({ name: rec.name }) }}</span>
+              <span v-if="rec.discountedPrice" class="rec-deal">할인</span>
+            </router-link>
+            <div class="rec-body">
+              <router-link :to="{ name: 'product-detail', params: { id: rec.productId } }" class="rec-name">{{ rec.name }}</router-link>
+              <div class="rec-price">
+                <template v-if="rec.discountedPrice">
+                  <span class="rec-now">{{ won(rec.discountedPrice) }}</span>
+                  <span class="rec-was">{{ won(rec.price) }}</span>
+                </template>
+                <span v-else class="rec-now">{{ won(rec.price) }}</span>
+              </div>
+              <p class="rec-why">“{{ rec.reason }}”</p>
+              <button class="rec-add" :class="{ done: addedIds.has(rec.productId) }" @click="addRec(rec)">
+                {{ addedIds.has(rec.productId) ? '담음 ✓' : '장바구니 담기' }}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- KPI -->
@@ -229,10 +276,23 @@ function monthLabel(ym) {
 .rec-card { padding: 18px; margin-bottom: 18px; border-left: 4px solid #f39c12; }
 .rec-title { font-size: 14px; font-weight: 800; color: #d68910; margin-bottom: 4px; }
 .rec-desc { font-size: 12px; margin: 0 0 14px; }
-.rec-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
-.rec-item { display: flex; align-items: flex-start; gap: 10px; }
-.rec-num { width: 22px; height: 22px; flex-shrink: 0; background: #f39c12; color: #fff; border-radius: 50%; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
-.rec-text { font-size: 14px; line-height: 1.5; flex: 1; }
+.rec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 760px) { .rec-grid { grid-template-columns: 1fr; } }
+.rec-prod { padding: 0; overflow: hidden; display: flex; flex-direction: column; border: 1px solid var(--color-border); }
+.rec-thumb { position: relative; display: block; aspect-ratio: 4 / 3; background: var(--color-primary-soft); }
+.rec-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rec-emoji { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 40px; }
+.rec-deal { position: absolute; top: 8px; left: 8px; background: #f39c12; color: #fff; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; }
+.rec-body { padding: 12px 13px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.rec-name { font-size: 14px; font-weight: 700; color: var(--color-text); text-decoration: none; line-height: 1.35; }
+.rec-name:hover { color: var(--color-primary-dark); }
+.rec-price { display: flex; align-items: baseline; gap: 7px; }
+.rec-now { font-size: 16px; font-weight: 800; color: var(--color-primary-dark); }
+.rec-was { font-size: 12px; color: var(--color-muted); text-decoration: line-through; }
+.rec-why { margin: 0; font-size: 12.5px; color: var(--color-muted); line-height: 1.4; flex: 1; }
+.rec-add { margin-top: 6px; width: 100%; padding: 8px 0; border: none; border-radius: 9px; background: var(--color-primary); color: #fff; font-weight: 700; font-size: 13px; cursor: pointer; transition: background .15s; }
+.rec-add:hover { background: var(--color-primary-dark); }
+.rec-add.done { background: var(--color-primary-soft); color: var(--color-primary-dark); }
 
 .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
 @media (max-width: 760px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }

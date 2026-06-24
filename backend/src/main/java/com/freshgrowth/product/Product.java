@@ -2,6 +2,7 @@ package com.freshgrowth.product;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class Product {
     private Long productId;
@@ -21,7 +22,15 @@ public class Product {
     private String riskLevel;        // HIGH | MEDIUM | LOW | EXPIRED
     private Double riskScore;        // 0.0 ~ 1.0
     private Integer discountRate;    // 추천 할인율(%)
-    private Integer discountedPrice; // 동적 떨이가
+    private Integer discountedPrice; // 동적 할인가
+
+    // --- 리뷰 통계 (조회 시 reviews 집계) ---
+    private Integer reviewCount;     // 리뷰 수
+    private Double avgRating;        // 평균 별점(소수1자리), 리뷰 없으면 null
+
+    // --- 폐기기간 옵션(lot) ---
+    private Integer lotCount;        // 묶인 lot 수(0이면 단일상품·레거시). 목록 카드의 "옵션 N개" 배지용
+    private List<ProductLot> lots;   // 상세조회 시 채워지는 폐기기간별 옵션 목록
 
     public Long getProductId() { return productId; }
     public void setProductId(Long productId) { this.productId = productId; }
@@ -55,4 +64,12 @@ public class Product {
     public void setDiscountRate(Integer discountRate) { this.discountRate = discountRate; }
     public Integer getDiscountedPrice() { return discountedPrice; }
     public void setDiscountedPrice(Integer discountedPrice) { this.discountedPrice = discountedPrice; }
+    public Integer getReviewCount() { return reviewCount; }
+    public void setReviewCount(Integer reviewCount) { this.reviewCount = reviewCount; }
+    public Double getAvgRating() { return avgRating; }
+    public void setAvgRating(Double avgRating) { this.avgRating = avgRating; }
+    public Integer getLotCount() { return lotCount; }
+    public void setLotCount(Integer lotCount) { this.lotCount = lotCount; }
+    public List<ProductLot> getLots() { return lots; }
+    public void setLots(List<ProductLot> lots) { this.lots = lots; }
 }

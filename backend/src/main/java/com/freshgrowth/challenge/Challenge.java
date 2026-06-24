@@ -10,6 +10,7 @@ public class Challenge {
     private Integer goalCount;    // 달성 목표 횟수
     private Integer periodDays;
     private String badgeEmoji;
+    private Integer rewardDiscountRate; // 완료 시 발급 쿠폰 할인율(%)
     private LocalDateTime createdAt;
 
     public Long getChallengeId() { return challengeId; }
@@ -26,6 +27,8 @@ public class Challenge {
     public void setPeriodDays(Integer periodDays) { this.periodDays = periodDays; }
     public String getBadgeEmoji() { return badgeEmoji; }
     public void setBadgeEmoji(String badgeEmoji) { this.badgeEmoji = badgeEmoji; }
+    public Integer getRewardDiscountRate() { return rewardDiscountRate; }
+    public void setRewardDiscountRate(Integer rewardDiscountRate) { this.rewardDiscountRate = rewardDiscountRate; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

@@ -13,12 +13,14 @@
         WHERE user_id = #{userId} AND product_id = #{productId}
     </delete>
 
+    <!-- 목록과 동일하게 lot 집계(재고·최저가·임박일)·리뷰 통계를 포함해야 품절/할인 표시가 일치한다. -->
     <select id="findWishedProducts" resultType="com.freshgrowth.product.Product">
-        SELECT p.product_id, p.seller_id, p.name, p.description, p.category,
-               p.price, p.stock_qty, p.thumbnail_url, p.expiration_date,
-               p.created_at, p.updated_at
-        FROM wishlists w
-        JOIN products p ON w.product_id = p.product_id
+        SELECT
+            <include refid="com.freshgrowth.product.ProductMapper.lotCols"/>
+            <include refid="com.freshgrowth.product.ProductMapper.reviewStats"/>
+        FROM products
+        <include refid="com.freshgrowth.product.ProductMapper.lotJoin"/>
+        JOIN wishlists w ON w.product_id = products.product_id
         WHERE w.user_id = #{userId}
         ORDER BY w.wishlist_id DESC
     </select>

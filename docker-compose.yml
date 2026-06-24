@@ -1,0 +1,85 @@
+# FreshGrowth 통합 개발환경 
+#   docker compose up --build   →  프론트 5173 / 백엔드 8080 / MySQL 3306
+# 시크릿(AI·KAMIS 키 등)은 같은 폴더의 .env 에서 주입 (.env 는 gitignore).
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: freshgrowth-mysql
+    # 서버가 클라이언트 charset(컨테이너 기본 latin1)을 무시하고 무조건 utf8mb4 사용.
+    # 없으면 init 스크립트가 UTF-8 시드를 latin1로 읽어 한글이 이중인코딩됨(글자 깨짐).
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+    environment:
+      MYSQL_ROOT_PASSWORD: "1234"
+      MYSQL_DATABASE: freshgrowth
+      TZ: Asia/Seoul
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # 최초 1회(빈 볼륨일 때)만 자동 실행: 스키마 → 시드 순서
+      - ./backend/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./backend/src/main/resources/seed_testdata.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - ./backend/src/main/resources/seed_products_kamis.sql:/docker-entrypoint-initdb.d/03-products.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p1234"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  backend:
+    build: ./backend
+    container_name: freshgrowth-backend
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      # datasource를 컨테이너 네트워크의 mysql 서비스로 override (코드 수정 불필요)
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/freshgrowth?serverTimezone=Asia/Seoul&characterEncoding=UTF-8"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: "1234"
+      # 아래 키들은 .env 에서 주입(없으면 빈 값 → 해당 AI/시세 기능만 비활성, 앱은 정상 기동)
+      AI_BASE_URL: "${AI_BASE_URL:-}"
+      AI_API_KEY: "${AI_API_KEY:-}"
+      AI_MODEL: "${AI_MODEL:-gpt-4o-mini}"
+      KAMIS_CERT_KEY: "${KAMIS_CERT_KEY:-}"
+      KAMIS_CERT_ID: "${KAMIS_CERT_ID:-}"
+      JWT_SECRET: "${JWT_SECRET:-freshgrowth-dev-secret-key-change-me-in-production-0123456789ab}"
+      TZ: Asia/Seoul
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build: ./frontend
+    container_name: freshgrowth-frontend
+    depends_on:
+      - backend
+    environment:
+      VITE_PROXY_TARGET: "http://backend:8080" # 컨테이너 내부에선 서비스명으로 백엔드 접근
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src           # 소스 수정 → HMR 즉시 반영
+      - ./frontend/public:/app/public     # 정적 자산(favicon 등) — dev에서 / 루트로 서빙
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.js:/app/vite.config.js
+      - /app/node_modules                  # 이미지의 node_modules 보존(호스트로 덮지 않음)
+
+  # 분석 대시보드(Streamlit) — 같은 MySQL을 직접 읽어 차트 제공. 프론트에서 iframe 임베드.
+  streamlit:
+    build: ./analytics
+    container_name: freshgrowth-streamlit
+    depends_on:
+      - mysql
+    environment:
+      DB_URL: "mysql+pymysql://root:1234@mysql:3306/freshgrowth?charset=utf8mb4" # 도커 내부는 서비스명 mysql
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./analytics:/app          # 대시보드 수정 시 즉시 반영(streamlit 자동 리런)
+
+volumes:
+  mysql-data:

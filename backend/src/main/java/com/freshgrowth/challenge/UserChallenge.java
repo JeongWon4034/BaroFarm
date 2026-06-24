@@ -19,6 +19,7 @@ public class UserChallenge {
     private String title;
     private String description;
     private Integer goalCount;
+    private Integer rewardDiscountRate; // 완료 시 발급 쿠폰 할인율(%)
     private String badgeEmoji;
 
     public Long getUserChallengeId() { return userChallengeId; }
@@ -41,6 +42,8 @@ public class UserChallenge {
     public void setDescription(String description) { this.description = description; }
     public Integer getGoalCount() { return goalCount; }
     public void setGoalCount(Integer goalCount) { this.goalCount = goalCount; }
+    public Integer getRewardDiscountRate() { return rewardDiscountRate; }
+    public void setRewardDiscountRate(Integer rewardDiscountRate) { this.rewardDiscountRate = rewardDiscountRate; }
     public String getBadgeEmoji() { return badgeEmoji; }
     public void setBadgeEmoji(String badgeEmoji) { this.badgeEmoji = badgeEmoji; }
 }

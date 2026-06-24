@@ -1,6 +1,8 @@
 CREATE DATABASE IF NOT EXISTS freshgrowth CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE freshgrowth;
 
+DROP TABLE IF EXISTS user_coupons;
+DROP TABLE IF EXISTS user_behavior_logs;
 DROP TABLE IF EXISTS invalidated_tokens;
 DROP TABLE IF EXISTS user_challenges;
 DROP TABLE IF EXISTS challenges;
@@ -10,6 +12,7 @@ DROP TABLE IF EXISTS wishlists;
 DROP TABLE IF EXISTS follows;
 DROP TABLE IF EXISTS reviews;
 DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS product_lots;
 DROP TABLE IF EXISTS products;
 DROP TABLE IF EXISTS users;
 
@@ -42,18 +45,37 @@ CREATE TABLE products (
     PRIMARY KEY (product_id),
     FOREIGN KEY (seller_id) REFERENCES users(user_id)
 );
+-- products 는 '품목 마스터'(이름·카테고리·판매자). lot 이 있으면 price/stock_qty/expiration_date 는
+-- 대표값일 뿐이고, 실제 판매 단위·가격·유통기한은 product_lots 가 권위를 가진다.
+
+-- 폐기기간별 판매 옵션(lot). 같은 품목(새우젓)을 유통기한·재고·가격이 다른 여러 lot 으로 묶어
+-- 목록은 품목 1장으로 간결하게, 상세에서 lot 별 할인가를 골라 구매하게 한다.
+CREATE TABLE product_lots (
+    lot_id          BIGINT NOT NULL AUTO_INCREMENT,
+    product_id      BIGINT NOT NULL,
+    expiration_date DATE   NOT NULL,
+    stock_qty       INT    NOT NULL DEFAULT 0,
+    price           INT    NOT NULL,                 -- 이 lot 의 정가(할인가는 WastePricingEngine 이 조회 시 계산)
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (lot_id),
+    INDEX idx_lot_product (product_id),
+    FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE
+);
 
 CREATE TABLE orders (
     order_id BIGINT NOT NULL AUTO_INCREMENT,
     buyer_id BIGINT NOT NULL,
     product_id BIGINT NOT NULL,
+    lot_id BIGINT NULL,                              -- 구매한 폐기기간 옵션(lot). 레거시·상품단위 구매는 NULL
     quantity INT NOT NULL DEFAULT 1,
-    total_price INT NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'COMPLETED',
+    total_price INT NOT NULL,                         -- 실제 결제액(할인가 반영) = 단가 × 수량
+    original_unit_price INT,                          -- 주문 시점 정가(할인 전). 절약액/회수 매출 산출용. 절약액 = original_unit_price×수량 − total_price
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',   -- 판매자 처리 흐름: PENDING→CONFIRMED→SHIPPING→COMPLETED
     order_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (order_id),
     FOREIGN KEY (buyer_id) REFERENCES users(user_id),
-    FOREIGN KEY (product_id) REFERENCES products(product_id)
+    FOREIGN KEY (product_id) REFERENCES products(product_id),
+    FOREIGN KEY (lot_id) REFERENCES product_lots(lot_id)
 );
 
 CREATE TABLE reviews (
@@ -117,11 +139,14 @@ CREATE TABLE comments (
 );
 
 -- 시드 비밀번호: '1234' (BCrypt cost=10, python bcrypt 생성)
-INSERT INTO users(role, email, password, name) VALUES
-('SELLER', 'seller@example.com', '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '도연농장'),
-('BUYER',  'buyer@example.com',  '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '김도연');
+-- user_id 명시 고정: products/posts가 seller_id=1(도연농장)을 하드코딩하므로 SELLER=1, BUYER=2 보장.
+-- ADMIN은 seed_products_kamis(명시 id 11~40) 범위 밖인 1000으로 둬 AUTO_INCREMENT 충돌 방지.
+INSERT INTO users(user_id, role, email, password, name) VALUES
+(1,    'SELLER', 'seller@example.com', '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '도연농장'),
+(2,    'BUYER',  'buyer@example.com',  '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '김도연'),
+(1000, 'ADMIN',  'admin@barofarm.com', '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '바로팜 관리자');
 
--- 마감임박/떨이 데모용 시드 (유통기한을 오늘 기준 상대값으로 → 언제 실행해도 D-1~D-12 유지)
+-- 마감임박/할인 데모용 시드 (유통기한을 오늘 기준 상대값으로 → 언제 실행해도 D-1~D-12 유지)
 INSERT INTO products(seller_id, name, description, category, price, stock_qty, thumbnail_url, expiration_date) VALUES
 (1, '무농약 청상추',      '아침에 수확한 신선한 청상추.',   'vegetable', 3900,  48, NULL, CURDATE() + INTERVAL 1 DAY),  -- D-1, 재고많음 → HIGH
 (1, '친환경 방울토마토',  '간식용 방울토마토.',             'vegetable', 5500,  50, NULL, CURDATE() + INTERVAL 1 DAY),  -- D-1, 재고만땅 → HIGH
@@ -136,7 +161,7 @@ INSERT INTO posts(author_id, category, title, content, view_count) VALUES
 (1, 'tip',      '청상추 오래 보관하는 법 공유합니다',   '키친타월로 감싸 밀폐용기에 넣으면 일주일은 거뜬해요. 마감임박으로 산 상추도 이렇게 하면 안 버립니다.', 152),
 (2, 'question', '토마토 후숙 꿀팁 있나요?',              '덜 익은 토마토 받았는데 빨리 익히는 방법 아시는 분?', 88),
 (1, 'general',  '제주 감귤 시세 요즘 어떤가요',          '노지 감귤 가격이 작년보다 오른 느낌인데 다들 어떻게 보시나요.', 47),
-(2, 'review',   '마감임박 떨이로 장 본 후기',            '한우 불고기감을 반값에 샀어요. 떨이 탭 자주 보게 되네요.', 230),
+(2, 'review',   '마감임박 할인으로 장 본 후기',            '한우 불고기감을 반값에 샀어요. 할인 탭 자주 보게 되네요.', 230),
 (1, 'tip',      '시금치 데치기 좋은 물 온도',            '끓는 물에 소금 약간, 30초면 충분합니다. 오래 데치면 물러져요.', 64),
 (2, 'question', '오징어 손질 처음인데 무서워요',         '통오징어 손질 영상 추천 좀 부탁드립니다.', 39),
 (1, 'tip',      '냉장고 채소칸 정리법',                  '채소별로 적정 습도가 달라요. 잎채소는 위, 뿌리채소는 아래.', 113),
@@ -150,7 +175,7 @@ INSERT INTO posts(author_id, category, title, content, view_count) VALUES
 INSERT INTO comments(post_id, author_id, content) VALUES
 (1, 2, '오 키친타월 꿀팁이네요. 바로 해볼게요!'),
 (1, 1, '네 상추는 물기가 적이라 금방 무르더라고요.'),
-(4, 1, '떨이 탭 반응이 좋아서 뿌듯합니다 :)'),
+(4, 1, '할인 탭 반응이 좋아서 뿌듯합니다 :)'),
 (9, 2, '확실히 직거래가 신선도가 다르긴 해요.'),
 (10, 1, '감귤청 좋네요. 껍질 세척만 잘 하면 됩니다.');
 
@@ -163,6 +188,7 @@ CREATE TABLE challenges (
     goal_count   INT NOT NULL,                                     -- 달성 목표 횟수
     period_days  INT NOT NULL DEFAULT 7,
     badge_emoji  VARCHAR(8) DEFAULT '🥬',
+    reward_discount_rate INT NOT NULL DEFAULT 10,                     -- 완료 시 발급되는 쿠폰 할인율(%)
     created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (challenge_id)
 );
@@ -181,6 +207,43 @@ CREATE TABLE user_challenges (
     FOREIGN KEY (challenge_id) REFERENCES challenges(challenge_id)
 );
 
+-- ── 챌린지 완료 보상 쿠폰 ─────────────────────────────────────────────
+-- 챌린지를 완료하면 발급. 결제 시 1회 사용해 추가 할인. 서버가 소유·상태·만료 검증 후 차감.
+CREATE TABLE user_coupons (
+    coupon_id            BIGINT NOT NULL AUTO_INCREMENT,
+    user_id              BIGINT NOT NULL,
+    source_challenge_id  BIGINT,                                  -- 어떤 챌린지 보상인지(표시·추적용)
+    discount_rate        INT NOT NULL,                            -- 추가 할인율(%)
+    status               VARCHAR(20) NOT NULL DEFAULT 'ISSUED',   -- ISSUED / USED / EXPIRED
+    issued_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at           DATETIME,                                -- 만료 시각(NULL=무기한)
+    used_at              DATETIME,
+    used_order_id        BIGINT,                                  -- 사용된 주문
+    PRIMARY KEY (coupon_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (source_challenge_id) REFERENCES challenges(challenge_id),
+    FOREIGN KEY (used_order_id) REFERENCES orders(order_id)
+);
+
+-- 행동 로그 (Layer 2 원천 데이터) — 퍼널·코호트·A/B 분석, AI 수요예측 피처의 출발점.
+-- 적재 성능과 무결성 분리를 위해 user_id·product_id 에 FK 를 걸지 않는다(상품이 삭제돼도 과거 로그는 보존).
+CREATE TABLE IF NOT EXISTS user_behavior_logs (
+    log_id        BIGINT       NOT NULL AUTO_INCREMENT,
+    session_id    VARCHAR(64)  NOT NULL,                    -- 퍼널 분석 기준 키
+    user_id       BIGINT       NULL,                        -- 비로그인 NULL
+    event_type    VARCHAR(30)  NOT NULL,                    -- view_home / click_product / view_detail / click_checkout / complete_order
+    product_id    BIGINT       NULL,                        -- 이벤트 대상 상품
+    ab_test_group VARCHAR(10)  NULL,                        -- A_GROUP / B_GROUP
+    device_type   VARCHAR(15)  NULL,                        -- PC_WEB / MOBILE_WEB
+    stay_duration INT          NULL,                        -- 페이지 체류 시간(초)
+    occurred_at   DATETIME(3)  NOT NULL,                    -- 이벤트 발생 시각(서버 stamp)
+    created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (log_id),
+    INDEX idx_behavior_session (session_id),
+    INDEX idx_behavior_event_type (event_type),
+    INDEX idx_behavior_occurred_at (occurred_at)
+);
+
 -- 로그아웃·탈퇴 토큰 무효화 (DB 기반, 재시작·다중 인스턴스 안전)
 CREATE TABLE IF NOT EXISTS invalidated_tokens (
     token_hash  VARCHAR(64)  NOT NULL,   -- SHA-256 hex (토큰 원문 저장 지양)
@@ -189,7 +252,7 @@ CREATE TABLE IF NOT EXISTS invalidated_tokens (
     INDEX idx_expires_at (expires_at)
 );
 
-INSERT INTO challenges(title, description, goal_type, goal_count, period_days, badge_emoji) VALUES
-('알뜰 장보기 입문',   '마감임박 떨이 상품 1개 구매하기. 첫 폐기 절감 도전!',   'DEADLINE_PURCHASE', 1,  7,  '🌱'),
-('이번 주 폐기 구원자', '마감임박 상품 3개를 구매해 음식물 폐기를 줄여보세요.',  'DEADLINE_PURCHASE', 3,  7,  '🦸'),
-('폐기 절감 마스터',   '마감임박 상품 10개 구매로 진짜 절약왕 등극.',          'DEADLINE_PURCHASE', 10, 30, '🏆');
+INSERT INTO challenges(title, description, goal_type, goal_count, period_days, badge_emoji, reward_discount_rate) VALUES
+('알뜰 장보기 입문',   '마감임박 할인 상품 1개 구매. 완료하면 5% 할인 쿠폰을 드려요!',      'DEADLINE_PURCHASE', 1,  7,  '🌱', 5),
+('이번 주 폐기 구원자', '마감임박 상품 3개 구매로 음식물 폐기를 줄이고 10% 쿠폰 받기.',     'DEADLINE_PURCHASE', 3,  7,  '🦸', 10),
+('폐기 절감 마스터',   '마감임박 상품 10개 구매로 절약왕 등극 + 20% 할인 쿠폰!',           'DEADLINE_PURCHASE', 10, 30, '🏆', 20);

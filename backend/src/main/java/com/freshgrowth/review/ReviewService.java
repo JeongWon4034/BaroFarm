@@ -29,6 +29,9 @@ public class ReviewService {
         if (!order.getBuyerId().equals(buyerId)) {
             throw new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN", "본인 주문만 리뷰할 수 있습니다.");
         }
+        if (!"COMPLETED".equals(order.getStatus())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "ORDER_NOT_COMPLETED", "배송이 완료된 주문만 리뷰할 수 있습니다.");
+        }
         if (reviewMapper.findByOrderId(request.getOrderId()) != null) {
             throw new AppException(HttpStatus.CONFLICT, "DUPLICATED_REVIEW", "이미 리뷰를 작성한 주문입니다.");
         }

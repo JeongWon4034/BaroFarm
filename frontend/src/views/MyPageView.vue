@@ -3,11 +3,13 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { orderApi, reviewApi } from '../api/orders'
 import { useAuthStore } from '../stores/auth'
-import { won, thumbEmoji, dateOnly } from '../utils/format'
+import { useNotificationStore } from '../stores/notification'
+import { won, thumbEmoji, dateOnly, orderStatusMeta } from '../utils/format'
 import StarRating from '../components/StarRating.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
+const noti = useNotificationStore()
 const orders = ref([])
 const loading = ref(true)
 const error = ref('')
@@ -84,6 +86,7 @@ async function load() {
   error.value = ''
   try {
     orders.value = await orderApi.myOrders()
+    noti.markSeen(orders.value) // 구매내역 확인 → 새 주문 알림 배지 제거
   } catch (e) {
     error.value = e.message
   } finally {
@@ -139,7 +142,7 @@ async function submitReview(order) {
             <router-link :to="{ name: 'purchase-insights' }">📊 내 구매 분석</router-link>
             <template v-if="auth.isSeller">
               <span class="menu-sep"></span>
-              <router-link :to="{ name: 'seller-dashboard' }">📉 폐기 대시보드</router-link>
+              <router-link :to="{ name: 'seller-dashboard' }">📊 판매자 대시보드</router-link>
               <router-link :to="{ name: 'seller-products' }">📦 내 상품 관리</router-link>
             </template>
           </div>
@@ -186,12 +189,13 @@ async function submitReview(order) {
           <li v-for="o in orders" :key="o.orderId" class="order-card">
             <div class="order-top">
               <div class="date">{{ dateOnly(o.orderDate) }} <small>주문 #{{ o.orderId }}</small></div>
-              <span class="status">{{ o.status || '결제완료' }}</span>
+              <span class="status" :class="orderStatusMeta(o.status).cls">{{ orderStatusMeta(o.status).label }}</span>
             </div>
             <div class="order-prod">
               <div class="ci-tile">{{ thumbEmoji({ name: o.productName }) }}</div>
               <div class="op-info">
                 <div class="nm">{{ o.productName }}</div>
+                <div v-if="o.sellerName" class="seller">🏪 {{ o.sellerName }}</div>
                 <div class="q">수량 {{ o.quantity }}개</div>
               </div>
               <div class="p">{{ won(o.totalPrice) }}</div>
@@ -199,7 +203,8 @@ async function submitReview(order) {
 
             <div class="order-actions">
               <span v-if="o.reviewId" class="done">✅ 리뷰 작성 완료</span>
-              <button v-else-if="reviewing !== o.orderId" class="btn btn-outline" @click="openReview(o.orderId)">✍️ 리뷰 작성</button>
+              <button v-else-if="o.status === 'COMPLETED' && reviewing !== o.orderId" class="btn btn-outline" @click="openReview(o.orderId)">✍️ 리뷰 작성</button>
+              <span v-else-if="o.status !== 'COMPLETED'" class="await muted">🚚 배송 완료 후 리뷰를 작성할 수 있어요</span>
             </div>
 
             <!-- 리뷰 폼 -->
@@ -285,9 +290,15 @@ async function submitReview(order) {
 .order-top .date { font-weight: 700; font-size: 14.5px; }
 .order-top .date small { color: var(--muted); font-weight: 500; margin-left: 8px; font-size: 12.5px; }
 .order-top .status { font-size: 12.5px; font-weight: 700; color: var(--leaf-700); background: var(--leaf-50); padding: 4px 11px; border-radius: 999px; }
+.order-top .status.st-pending { color: #b76e00; background: #fef3e2; }
+.order-top .status.st-confirmed { color: #1a56b8; background: #e7f0ff; }
+.order-top .status.st-shipping { color: #5b3cc4; background: #eae6ff; }
+.order-top .status.st-completed { color: var(--leaf-700); background: var(--leaf-50); }
+.order-actions .await { font-size: 12.5px; }
 .order-prod { display: grid; grid-template-columns: 52px 1fr auto; gap: 12px; align-items: center; }
 .ci-tile { width: 52px; height: 52px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 27px; background: radial-gradient(circle at 50% 36%, var(--leaf-50), var(--leaf-100)); }
 .op-info .nm { font-weight: 700; font-size: 15px; }
+.op-info .seller { font-size: 12.5px; color: var(--ink-2); font-weight: 600; margin-top: 3px; }
 .op-info .q { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
 .order-prod .p { font-weight: 800; }
 

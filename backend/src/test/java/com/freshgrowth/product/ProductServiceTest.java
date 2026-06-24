@@ -24,6 +24,7 @@ import static org.mockito.Mockito.*;
 class ProductServiceTest {
 
     @Mock ProductMapper productMapper;
+    @Mock ProductLotMapper lotMapper;
     @Mock WastePricingEngine pricingEngine;
     @InjectMocks ProductService productService;
 
@@ -142,7 +143,7 @@ class ProductServiceTest {
     void findById_found_applies_pricing() {
         given(productMapper.findById(1L)).willReturn(product(1L, 10L));
         productService.findById(1L);
-        verify(pricingEngine).apply(any());
+        verify(pricingEngine).apply(any(Product.class));
     }
 
     @Test

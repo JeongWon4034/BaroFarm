@@ -8,6 +8,7 @@ import { useAuthStore } from '../stores/auth'
 import { useFollowStore } from '../stores/follow'
 import { followApi } from '../api/follow'
 import { won, thumbEmoji, categoryLabel, dateOnly, dDayLabel, riskMeta } from '../utils/format'
+import { track } from '../api/track'
 import StarRating from '../components/StarRating.vue'
 
 const route = useRoute()
@@ -17,6 +18,8 @@ const auth = useAuthStore()
 const follow = useFollowStore()
 
 const product = ref(null)
+const lots = ref([])              // 폐기기간별 옵션
+const selectedLot = ref(null)     // 선택한 옵션(없으면 상품 대표가)
 const seller = ref(null)
 const reviews = ref([])
 const loading = ref(true)
@@ -31,15 +34,22 @@ async function loadAll() {
   loading.value = true
   error.value = ''
   qty.value = 1
+  selectedLot.value = null
   try {
     product.value = await productApi.detail(route.params.id)
-    // 리뷰·판매자는 서로 의존이 없어 병렬로 조회
-    const [rv, sl] = await Promise.all([
+    // 리뷰·판매자·폐기기간옵션은 서로 의존이 없어 병렬로 조회
+    const [rv, sl, lt] = await Promise.all([
       productApi.reviews(route.params.id).catch(() => []),
       followApi.seller(product.value.sellerId).catch(() => null),
+      productApi.lots(route.params.id).catch(() => []),
     ])
     reviews.value = rv
     seller.value = sl
+    // 판매 가능(미만료) 옵션만, 임박순 정렬. 기본 선택 = 가장 임박(=할인 큰) 옵션.
+    lots.value = (lt || []).filter((l) => l.riskLevel !== 'EXPIRED')
+    selectedLot.value = lots.value[0] ?? null
+    // 퍼널 3단계 — 상품 상세 조회
+    track('view_detail', { productId: product.value.productId, abTestGroup: product.value.abVariant })
   } catch (e) {
     error.value = e.message
   } finally {
@@ -48,28 +58,52 @@ async function loadAll() {
 }
 
 const emoji = computed(() => (product.value ? thumbEmoji(product.value) : '🥗'))
-const soldOut = computed(() => (product.value?.stockQty ?? 0) <= 0)
-const isExpired = computed(() => product.value?.riskLevel === 'EXPIRED' || (product.value?.daysToExpiry ?? 0) < 0)
-const maxQty = computed(() => product.value?.stockQty ?? 1)
-const hasDeal = computed(() => (product.value?.discountRate ?? 0) > 0)
-const unitPrice = computed(() => product.value?.discountedPrice ?? product.value?.price ?? 0)
-const risk = computed(() => riskMeta(product.value?.riskLevel))
+// 실사진(thumbnailUrl) 우선, 없거나 로드 실패 시 이모지 폴백
+const imgError = ref(false)
+const showImg = computed(() => !!product.value?.thumbnailUrl && !imgError.value)
+watch(() => product.value?.productId, () => { imgError.value = false })
+// 가격·재고·유통기한의 권위 = 선택된 lot(있으면), 없으면 상품 대표값
+const hasLots = computed(() => lots.value.length > 0)
+const active = computed(() => selectedLot.value ?? product.value)
+const discRate = computed(() => active.value?.discountRate ?? 0)
+const dday = computed(() => active.value?.daysToExpiry)
+const basePrice = computed(() => active.value?.price ?? product.value?.price ?? 0)
+const expDate = computed(() => active.value?.expirationDate ?? product.value?.expirationDate)
+const selStock = computed(() => active.value?.stockQty ?? 0)
+
+const soldOut = computed(() => selStock.value <= 0)
+const isExpired = computed(() => active.value?.riskLevel === 'EXPIRED' || (dday.value ?? 0) < 0)
+const maxQty = computed(() => Math.max(1, selStock.value))
+const hasDeal = computed(() => discRate.value > 0)
+const unitPrice = computed(() => active.value?.discountedPrice ?? active.value?.price ?? 0)
+const risk = computed(() => riskMeta(active.value?.riskLevel))
 const estimated = computed(() => unitPrice.value * qty.value)
 const avgRating = computed(() => {
-  if (!reviews.value.length) return product.value?.averageRating || 0
+  if (!reviews.value.length) return product.value?.avgRating || 0
   return reviews.value.reduce((s, r) => s + (r.rating || 0), 0) / reviews.value.length
 })
 // 재고 게이지(시각용): 캐파 정보가 없어 20개 기준으로 환산
-const stockPct = computed(() => Math.max(6, Math.min(100, Math.round(((product.value?.stockQty ?? 0) / 20) * 100))))
-const saved = computed(() => Math.max(0, (product.value?.price ?? 0) - unitPrice.value))
+const stockPct = computed(() => Math.max(6, Math.min(100, Math.round((selStock.value / 20) * 100))))
+const saved = computed(() => Math.max(0, basePrice.value - unitPrice.value))
+
+function selectLot(lot) {
+  selectedLot.value = lot
+  qty.value = 1
+}
 
 function changeQty(delta) {
   qty.value = Math.min(maxQty.value, Math.max(1, qty.value + delta))
 }
 
+function onQtyInput(e) {
+  const v = parseInt(e.target.value, 10)
+  qty.value = isNaN(v) ? 1 : Math.min(maxQty.value, Math.max(1, v))
+  e.target.value = qty.value
+}
+
 function addToCart() {
   if (isExpired.value) return
-  cart.add(product.value, qty.value)
+  cart.add(product.value, qty.value, selectedLot.value)
   router.push({ name: 'cart' })
 }
 
@@ -94,6 +128,8 @@ async function toggleFollow() {
 
 async function buyNow() {
   if (isExpired.value) return
+  // 퍼널 4단계 — 결제 시도(로그인 분기 전, 구매 의도 시점)
+  track('click_checkout', { productId: product.value.productId, abTestGroup: product.value.abVariant })
   if (!auth.isLoggedIn) {
     router.push({ name: 'login', query: { redirect: route.fullPath } })
     return
@@ -101,7 +137,11 @@ async function buyNow() {
   submitting.value = true
   error.value = ''
   try {
-    const order = await orderApi.create({ productId: product.value.productId, quantity: qty.value })
+    const order = await orderApi.create({
+      productId: product.value.productId,
+      lotId: selectedLot.value?.lotId ?? null,
+      quantity: qty.value,
+    })
     router.push({ name: 'order-complete', query: { ids: order.orderId } })
   } catch (e) {
     error.value = e.message
@@ -127,9 +167,12 @@ async function buyNow() {
       <!-- gallery -->
       <div class="gallery">
         <div class="gmain">
-          <span v-if="hasDeal" class="disc-big">{{ product.discountRate }}%</span>
-          <span class="g-emoji">{{ emoji }}</span>
-          <span class="ph">상품 사진 자리 · 실사/AI 이미지로 교체</span>
+          <span v-if="hasDeal" class="disc-big">{{ discRate }}%</span>
+          <img v-if="showImg" class="g-photo" :src="product.thumbnailUrl" :alt="product.name" @error="imgError = true" />
+          <template v-else>
+            <span class="g-emoji">{{ emoji }}</span>
+            <span class="ph">상품 사진 자리 · 실사/AI 이미지로 교체</span>
+          </template>
         </div>
         <div class="trust">
           <div class="ti"><div class="em">🚚</div><b>당일 산지직송</b><span>내일 도착</span></div>
@@ -142,7 +185,7 @@ async function buyNow() {
       <div class="pinfo">
         <div class="chips">
           <span class="chip">{{ categoryLabel(product.category) }}</span>
-          <span v-if="product.daysToExpiry != null" class="chip" :class="risk.cls">{{ risk.label }}</span>
+          <span v-if="dday != null" class="chip" :class="risk.cls">{{ risk.label }}</span>
           <span class="chip muted">산지직송</span>
         </div>
         <h1>{{ product.name }}</h1>
@@ -160,15 +203,40 @@ async function buyNow() {
         <p v-if="followError" class="err follow-err">{{ followError }}</p>
 
         <div class="pricebox">
-          <div v-if="product.daysToExpiry != null && (risk.cls === 'risk-high' || risk.cls === 'risk-medium')" class="urgent-strip">
-            ⏰ {{ dDayLabel(product.daysToExpiry) }} · {{ risk.label }}
+          <div v-if="dday != null && (risk.cls === 'risk-high' || risk.cls === 'risk-medium')" class="urgent-strip">
+            ⏰ {{ dDayLabel(dday) }} · {{ risk.label }}
           </div>
           <div class="bigprice">
-            <span v-if="hasDeal" class="pct">{{ product.discountRate }}%</span>
+            <span v-if="hasDeal" class="pct">{{ discRate }}%</span>
             <span class="now">{{ won(unitPrice) }}</span>
-            <span v-if="hasDeal" class="was">{{ won(product.price) }}</span>
+            <span v-if="hasDeal" class="was">{{ won(basePrice) }}</span>
           </div>
           <div v-if="hasDeal" class="save">마감임박 할인으로 {{ won(saved) }} 절약 중이에요</div>
+        </div>
+
+        <!-- 폐기기간별 가격 옵션 — 클릭해 골라 담는다 -->
+        <div v-if="hasLots" class="lots">
+          <div class="lots-head">
+            ⏰ 가격 확인 <span class="muted">· 임박할수록 더 저렴해요</span>
+          </div>
+          <button
+            v-for="lot in lots"
+            :key="lot.lotId"
+            class="lot"
+            :class="[riskMeta(lot.riskLevel).cls, { sel: selectedLot && selectedLot.lotId === lot.lotId }]"
+            @click="selectLot(lot)"
+          >
+            <span class="lot-dday">{{ dDayLabel(lot.daysToExpiry) }}</span>
+            <span class="lot-exp">유통기한 {{ dateOnly(lot.expirationDate) }}</span>
+            <span class="lot-prices">
+              <span class="lot-now">{{ won(lot.discountedPrice ?? lot.price) }}</span>
+              <span v-if="(lot.discountRate ?? 0) > 0" class="lot-pct">{{ lot.discountRate }}%</span>
+            </span>
+            <span class="lot-stock" :class="{ low: (lot.stockQty ?? 0) <= 5 }">
+              {{ (lot.stockQty ?? 0) <= 0 ? '품절' : '재고 ' + lot.stockQty }}
+            </span>
+            <span class="lot-check">{{ selectedLot && selectedLot.lotId === lot.lotId ? '✓' : '' }}</span>
+          </button>
         </div>
 
         <p v-if="product.description" class="desc">{{ product.description }}</p>
@@ -176,18 +244,22 @@ async function buyNow() {
         <div class="meta-list">
           <div class="ml">
             <span>재고</span>
-            <b :class="{ hot: maxQty <= 5 }">{{ maxQty <= 5 ? '단 ' + product.stockQty + '개 남음' : product.stockQty + '개' }}</b>
+            <b :class="{ hot: selStock <= 5 }">{{ selStock <= 5 ? '단 ' + selStock + '개 남음' : selStock + '개' }}</b>
             <div class="gauge"><i :style="{ width: stockPct + '%' }"></i></div>
           </div>
           <div class="ml"><span>배송</span><b>산지직송 · 내일 도착 예정</b></div>
-          <div v-if="product.expirationDate" class="ml"><span>유통기한</span><b>{{ dateOnly(product.expirationDate) }}</b></div>
+          <div v-if="expDate" class="ml"><span>유통기한</span><b>{{ dateOnly(expDate) }}<span v-if="hasLots" class="muted sm"> · 선택한 옵션</span></b></div>
           <div class="ml"><span>분류</span><b>{{ categoryLabel(product.category) }} · 냉장</b></div>
         </div>
 
         <div class="buybar">
           <div class="qtybox">
             <button @click="changeQty(-1)" :disabled="qty <= 1">−</button>
-            <span class="q">{{ qty }}</span>
+            <input
+              type="number" class="q"
+              :value="qty" :min="1" :max="maxQty"
+              @change="onQtyInput"
+            />
             <button @click="changeQty(1)" :disabled="qty >= maxQty">+</button>
           </div>
           <div class="sub">결제 예정<b>{{ won(estimated) }}</b></div>
@@ -237,6 +309,7 @@ async function buyNow() {
 .gallery { position: sticky; top: 130px; display: flex; flex-direction: column; gap: 14px; }
 .gmain { position: relative; aspect-ratio: 4/3; border-radius: 22px; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; overflow: hidden; background: radial-gradient(circle at 50% 36%, var(--leaf-50), var(--leaf-100)); }
 .gmain .g-emoji { font-size: 150px; filter: drop-shadow(0 20px 26px rgba(40,40,20,.18)); }
+.gmain .g-photo { width: 100%; height: 100%; object-fit: cover; }
 .gmain .disc-big { position: absolute; top: 18px; left: 18px; background: var(--deal); color: #fff; font-weight: 800; font-size: 18px; padding: 6px 14px; border-radius: 12px; box-shadow: 0 8px 16px rgba(214,69,47,.3); }
 .gmain .ph { position: absolute; bottom: 16px; right: 16px; font-size: 12px; color: var(--muted); background: rgba(255,255,255,.75); padding: 3px 10px; border-radius: 6px; }
 .trust { display: flex; gap: 10px; }
@@ -270,6 +343,28 @@ async function buyNow() {
 .bigprice .was { color: var(--faint); text-decoration: line-through; font-size: 18px; }
 .save { margin-top: 8px; color: var(--leaf-700); font-weight: 600; font-size: 13.5px; }
 
+/* 폐기기간별 가격 옵션 */
+.lots { display: flex; flex-direction: column; gap: 8px; }
+.lots-head { font-size: 14px; font-weight: 800; color: var(--ink); }
+.lots-head .muted { font-weight: 500; color: var(--muted); font-size: 12.5px; }
+.lot {
+  display: grid; grid-template-columns: 64px 1fr auto 70px 18px; align-items: center; gap: 12px;
+  width: 100%; text-align: left; background: #fff; border: 1.5px solid var(--line-2);
+  border-radius: 13px; padding: 12px 14px; cursor: pointer; transition: .14s;
+}
+.lot:hover { border-color: var(--leaf-500); background: var(--leaf-50); }
+.lot.sel { border-color: var(--ink); background: var(--cream); box-shadow: var(--shadow-sm); }
+.lot-dday { font-weight: 800; font-size: 14px; padding: 4px 8px; border-radius: 8px; text-align: center; background: #eef1ea; color: var(--muted); }
+.lot.risk-high .lot-dday { background: var(--deal-soft); color: #bd3a26; }
+.lot.risk-medium .lot-dday { background: var(--gold-soft); color: #9a6a1c; }
+.lot-exp { font-size: 12.5px; color: var(--muted); }
+.lot-prices { display: inline-flex; align-items: baseline; gap: 6px; justify-self: end; }
+.lot-now { font-weight: 800; font-size: 18px; letter-spacing: -.02em; }
+.lot-pct { color: var(--deal); font-weight: 800; font-size: 13px; }
+.lot-stock { font-size: 12px; color: var(--muted); text-align: right; }
+.lot-stock.low { color: var(--deal); font-weight: 700; }
+.lot-check { color: var(--leaf-700); font-weight: 900; font-size: 15px; text-align: center; }
+
 .desc { line-height: 1.7; color: var(--ink-2); font-size: 15px; margin: 0; }
 
 .meta-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
@@ -286,7 +381,13 @@ async function buyNow() {
 .qtybox button { width: 42px; height: 46px; border: none; background: #fff; font-size: 20px; color: var(--ink-2); }
 .qtybox button:hover:not(:disabled) { background: var(--leaf-50); color: var(--leaf-700); }
 .qtybox button:disabled { opacity: .35; }
-.qtybox .q { width: 48px; text-align: center; font-weight: 700; font-size: 17px; font-variant-numeric: tabular-nums; }
+.qtybox .q {
+  width: 48px; text-align: center; font-weight: 700; font-size: 17px;
+  font-variant-numeric: tabular-nums; border: none; outline: none;
+  background: transparent; -moz-appearance: textfield;
+}
+.qtybox .q::-webkit-inner-spin-button,
+.qtybox .q::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .buybar .sub { font-size: 15px; color: var(--muted); }
 .buybar .sub b { font-size: 24px; font-weight: 800; color: var(--ink); letter-spacing: -.02em; margin-left: 6px; }
 

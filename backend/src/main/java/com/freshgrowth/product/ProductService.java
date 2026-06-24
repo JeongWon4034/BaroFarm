@@ -14,10 +14,13 @@ public class ProductService {
     private static final Set<String> VALID_SORTS = Set.of("latest", "priceAsc", "priceDesc", "expiry");
 
     private final ProductMapper productMapper;
+    private final ProductLotMapper lotMapper;
     private final WastePricingEngine pricingEngine;
 
-    public ProductService(ProductMapper productMapper, WastePricingEngine pricingEngine) {
+    public ProductService(ProductMapper productMapper, ProductLotMapper lotMapper,
+                          WastePricingEngine pricingEngine) {
         this.productMapper = productMapper;
+        this.lotMapper = lotMapper;
         this.pricingEngine = pricingEngine;
     }
 
@@ -47,7 +50,16 @@ public class ProductService {
         if (product == null) {
             throw new AppException(HttpStatus.NOT_FOUND, "PRODUCT_NOT_FOUND", "상품을 찾을 수 없습니다.");
         }
-        return withPricing(product);
+        withPricing(product);
+        product.setLots(findLots(productId));   // 상세: 폐기기간별 옵션 + 옵션별 할인가
+        return product;
+    }
+
+    /** 한 품목의 폐기기간 옵션(lot) 목록 + 옵션별 동적 할인가. */
+    public List<ProductLot> findLots(Long productId) {
+        List<ProductLot> lots = lotMapper.findByProductId(productId);
+        lots.forEach(pricingEngine::apply);
+        return lots;
     }
 
     public List<Product> findSellerProducts(Long sellerId) {

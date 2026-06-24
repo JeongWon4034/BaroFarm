@@ -26,6 +26,8 @@ batch/output/
 
 # Env / secrets
 *.env
+.env
+!.env.example          # 도커 환경변수 템플릿은 추적(키 없는 빈 양식)
 application-local.yml
 application-local.properties
 application-secret.*

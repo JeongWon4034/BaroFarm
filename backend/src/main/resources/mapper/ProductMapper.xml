@@ -2,15 +2,41 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.freshgrowth.product.ProductMapper">
+    <!-- 리뷰 통계(평균 별점·리뷰 수) — reviews→orders→product 경로로 상관 서브쿼리 집계. 리뷰 없으면 avg_rating NULL. -->
+    <sql id="reviewStats">
+        , (SELECT COUNT(*)            FROM reviews rv JOIN orders ro ON rv.order_id = ro.order_id WHERE ro.product_id = products.product_id) AS review_count
+        , (SELECT ROUND(AVG(rv.rating), 1) FROM reviews rv JOIN orders ro ON rv.order_id = ro.order_id WHERE ro.product_id = products.product_id) AS avg_rating
+    </sql>
+
+    <!-- 폐기기간 옵션(lot) 집계: 가격/재고/유통기한은 lot 이 있으면 그 값으로 대표(없으면 products 자기값). -->
+    <sql id="lotCols">
+        products.product_id, products.seller_id, products.name, products.description, products.category,
+        COALESCE(la.min_price,   products.price)           AS price,
+        COALESCE(la.total_stock, products.stock_qty)       AS stock_qty,
+        products.thumbnail_url,
+        COALESCE(la.nearest_exp, products.expiration_date) AS expiration_date,
+        products.created_at, products.updated_at,
+        COALESCE(la.lot_count, 0)                          AS lot_count
+    </sql>
+    <sql id="lotJoin">
+        LEFT JOIN (
+            SELECT product_id, MIN(price) AS min_price, SUM(stock_qty) AS total_stock,
+                   MIN(expiration_date) AS nearest_exp, COUNT(*) AS lot_count
+            FROM product_lots GROUP BY product_id
+        ) la ON la.product_id = products.product_id
+    </sql>
+
     <insert id="insert" parameterType="com.freshgrowth.product.Product" useGeneratedKeys="true" keyProperty="productId">
         INSERT INTO products(seller_id, name, description, category, price, stock_qty, thumbnail_url, expiration_date)
         VALUES (#{sellerId}, #{name}, #{description}, #{category}, #{price}, #{stockQty}, #{thumbnailUrl}, #{expirationDate})
     </insert>
 
     <select id="findById" resultType="com.freshgrowth.product.Product">
-        SELECT product_id, seller_id, name, description, category, price, stock_qty, thumbnail_url, expiration_date, created_at, updated_at
+        SELECT <include refid="lotCols"/>
+        <include refid="reviewStats"/>
         FROM products
-        WHERE product_id = #{productId}
+        <include refid="lotJoin"/>
+        WHERE products.product_id = #{productId}
     </select>
 
     <sql id="searchWhere">
@@ -25,14 +51,16 @@
     </sql>
 
     <select id="findAll" resultType="com.freshgrowth.product.Product">
-        SELECT product_id, seller_id, name, description, category, price, stock_qty, thumbnail_url, expiration_date, created_at, updated_at
+        SELECT <include refid="lotCols"/>
+        <include refid="reviewStats"/>
         FROM products
+        <include refid="lotJoin"/>
         <include refid="searchWhere"/>
         <choose>
-            <when test="sort == 'priceAsc'">ORDER BY price ASC, product_id DESC</when>
-            <when test="sort == 'priceDesc'">ORDER BY price DESC, product_id DESC</when>
-            <when test="sort == 'expiry'">ORDER BY (expiration_date IS NULL), expiration_date ASC, product_id DESC</when>
-            <otherwise>ORDER BY product_id DESC</otherwise>
+            <when test="sort == 'priceAsc'">ORDER BY price ASC, products.product_id DESC</when>
+            <when test="sort == 'priceDesc'">ORDER BY price DESC, products.product_id DESC</when>
+            <when test="sort == 'expiry'">ORDER BY (expiration_date IS NULL), expiration_date ASC, products.product_id DESC</when>
+            <otherwise>ORDER BY products.product_id DESC</otherwise>
         </choose>
         LIMIT #{size} OFFSET #{offset}
     </select>
@@ -43,10 +71,11 @@
     </select>
 
     <select id="findBySellerId" resultType="com.freshgrowth.product.Product">
-        SELECT product_id, seller_id, name, description, category, price, stock_qty, thumbnail_url, expiration_date, created_at, updated_at
+        SELECT <include refid="lotCols"/>
         FROM products
-        WHERE seller_id = #{sellerId}
-        ORDER BY product_id DESC
+        <include refid="lotJoin"/>
+        WHERE products.seller_id = #{sellerId}
+        ORDER BY products.product_id DESC
     </select>
 
     <update id="update" parameterType="com.freshgrowth.product.Product">

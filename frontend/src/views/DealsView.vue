@@ -24,7 +24,7 @@ async function load() {
   }
 }
 
-// 마감임박 = 떨이가가 적용된 상품(유통기한 임박). 임박순 정렬.
+// 마감임박 = 할인가가 적용된 상품(유통기한 임박). 임박순 정렬.
 const deals = computed(() =>
   products.value
     .filter((p) => (p.discountRate ?? 0) > 0)
@@ -45,7 +45,7 @@ function addToCart(product) {
   <div>
     <div class="deal-banner">
       <div class="deal-title">⏰ 마감임박 특가</div>
-      <p class="deal-sub">유통기한이 가까운 신선식품을 AI가 골라 폐기 전에 떨이가로 드려요. 빠를수록 더 싸게.</p>
+      <p class="deal-sub">유통기한이 가까운 신선식품을 AI가 골라 폐기 전에 할인가로 드려요. 빠를수록 더 싸게.</p>
     </div>
 
     <div v-if="loading" class="empty"><span class="emoji">⏳</span>마감임박 상품을 불러오는 중…</div>
