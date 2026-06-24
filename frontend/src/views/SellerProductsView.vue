@@ -495,12 +495,10 @@ async function remove(p) {
 .img-hint { font-size: 11px; color: var(--color-muted); margin: 0; }
 .url-input { font-size: 12px; }
 /* AI 추천가 CTA — 판매자가 적극 활용하도록 크고 눈에 띄게 */
-.ai-cta { width: 100%; display: flex; align-items: center; gap: 14px; padding: 15px 18px; border: none; border-radius: var(--radius-sm); cursor: pointer; text-align: left;
-  background: linear-gradient(135deg, #4caf6e, var(--color-primary-dark)); color: #fff;
-  box-shadow: 0 6px 18px rgba(46,125,80,.28); transition: transform .12s, box-shadow .12s; }
-.ai-cta:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(46,125,80,.36); }
-.ai-cta:active:not(:disabled) { transform: translateY(0); }
-.ai-cta:disabled { opacity: .75; cursor: default; }
+.ai-cta { width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px 18px; border: 1px solid var(--color-primary-dark); border-radius: var(--radius-sm); cursor: pointer; text-align: left;
+  background: var(--color-primary-dark); color: #fff; transition: background .12s; }
+.ai-cta:hover:not(:disabled) { background: var(--color-primary); border-color: var(--color-primary); }
+.ai-cta:disabled { opacity: .6; cursor: default; }
 .ai-cta-icon { font-size: 26px; line-height: 1; }
 .ai-cta-text { flex: 1; display: flex; flex-direction: column; gap: 3px; }
 .ai-cta-text strong { font-size: 16px; font-weight: 800; }
