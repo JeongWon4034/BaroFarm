@@ -67,6 +67,15 @@ def won(x) -> str:
 #  🏡 농장(단일 판매자) 대시보드
 # ════════════════════════════════════════════════════════════════
 def render_farm():
+    # URL 파라미터 ?seller_id=X 가 있으면 해당 농장에 고정 (셀러 전용 임베드용)
+    locked_sid = None
+    try:
+        raw = st.query_params.get("seller_id")
+        if raw:
+            locked_sid = int(raw)
+    except Exception:
+        pass
+
     sellers = q("""
         SELECT u.user_id, u.name,
                COUNT(o.order_id) AS orders,
@@ -87,8 +96,15 @@ def render_farm():
         st.header("🏡 농장 선택")
         labels = {int(r.user_id): f"{r.name}  ·  GMV {r.gmv/1e4:,.0f}만 · {int(r.orders)}건"
                   for r in sellers.itertuples()}
-        sid = st.selectbox("농장", list(labels), format_func=lambda i: labels[i])
-        sname = sellers.set_index("user_id").loc[sid, "name"]
+        if locked_sid and locked_sid in labels:
+            # seller_id 고정 — 셀러 전용 임베드 모드: selectbox 숨기고 고정
+            sid = locked_sid
+            sname = sellers.set_index("user_id").loc[sid, "name"]
+            st.markdown(f"**🏡 {sname}**")
+            st.caption("내 농장 전용 대시보드")
+        else:
+            sid = st.selectbox("농장", list(labels), format_func=lambda i: labels[i])
+            sname = sellers.set_index("user_id").loc[sid, "name"]
 
         dmm = q(f"SELECT MIN(o.order_date) a, MAX(o.order_date) b FROM orders o "
                 f"JOIN products p ON o.product_id=p.product_id WHERE p.seller_id={sid}")

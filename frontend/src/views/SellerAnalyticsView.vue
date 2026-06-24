@@ -2,9 +2,10 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useAuthStore } from '../stores/auth'
 
+// 내 seller_id를 URL 파라미터로 Streamlit에 전달 → 내 농장 데이터만 표시.
 const auth = useAuthStore()
 const base = import.meta.env.VITE_STREAMLIT_URL || 'http://localhost:8501'
-const SRC = computed(() => `${base}/?seller_id=${auth.user?.userId ?? ''}&embed=true`)
+const SRC = computed(() => `${base}/?seller_id=${auth.user?.userId ?? auth.user?.id ?? ''}&embed=true`)
 
 const loaded = ref(false)
 const failed = ref(false)
@@ -28,7 +29,7 @@ onBeforeUnmount(() => clearTimeout(timer))
   <div class="seller-analytics">
     <div class="head">
       <h1>📊 내 농장 분석 대시보드</h1>
-      <p class="muted">{{ auth.user?.name }} 농장의 매출·고객·리텐션 데이터를 실시간으로 확인하세요</p>
+      <p class="muted">{{ auth.user?.name }} 농장의 매출·고객·재고 데이터를 실시간으로 확인하세요</p>
     </div>
 
     <div class="frame-wrap">
