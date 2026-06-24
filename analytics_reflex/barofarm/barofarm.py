@@ -8,22 +8,28 @@ import reflex as rx
 
 from .state import DashState
 
-GREEN = "#2D6A4F"
-GREEN_L = "#52B788"
+GREEN = "#1B5E3F"
+GREEN_L = "#40916C"
+GREEN_GRAD = "linear-gradient(135deg, #1B5E3F 0%, #40916C 100%)"
 PAPER = "#ffffff"
 
 
 # ── 작은 헬퍼 ─────────────────────────────────────────────────────
 def kpi_card(label: str, value, sub: str = "", accent: bool = False) -> rx.Component:
     return rx.box(
-        rx.text(label, font_size="0.8rem", color="#667085"),
-        rx.text(value, font_size="1.5rem", font_weight="800",
-                color=rx.cond(accent, GREEN, "#1a1a1a")),
-        rx.cond(sub != "", rx.text(sub, font_size="0.72rem", color="#98a2b3"), rx.fragment()),
-        bg=PAPER, border="1px solid #e7eae6", border_top=f"3px solid {GREEN_L}",
-        border_radius="12px", padding="14px 18px",
-        display="flex", flex_direction="column", gap="2px", flex="1",
-        box_shadow="0 2px 8px rgba(0,0,0,0.03)",
+        rx.box(height="3px", width="36px", border_radius="3px",
+               background=rx.cond(accent, GREEN_GRAD, "#cfe3d6"), margin_bottom="10px"),
+        rx.text(label, font_size="0.78rem", color="#6b7280", font_weight="500",
+                letter_spacing="0.01em"),
+        rx.text(value, font_size="1.6rem", font_weight="800", line_height="1.15",
+                color=rx.cond(accent, GREEN, "#111827")),
+        rx.cond(sub != "", rx.text(sub, font_size="0.72rem", color="#9ca3af"), rx.fragment()),
+        bg=PAPER, border="1px solid #edf1ee", border_radius="16px", padding="16px 18px",
+        display="flex", flex_direction="column", gap="3px", flex="1",
+        box_shadow="0 1px 2px rgba(16,24,40,0.04), 0 4px 16px rgba(27,94,63,0.05)",
+        transition="transform .18s ease, box-shadow .18s ease",
+        _hover={"transform": "translateY(-3px)",
+                "box_shadow": "0 6px 24px rgba(27,94,63,0.13)"},
     )
 
 
@@ -37,7 +43,9 @@ def info_box(msg: str) -> rx.Component:
 
 def chart(fig) -> rx.Component:
     return rx.box(rx.plotly(data=fig, width="100%", height="430px"),
-                  width="100%", bg=PAPER, border_radius="12px", padding="6px")
+                  width="100%", bg=PAPER, border="1px solid #edf1ee",
+                  border_radius="16px", padding="12px",
+                  box_shadow="0 1px 2px rgba(16,24,40,0.04), 0 6px 20px rgba(27,94,63,0.05)")
 
 
 def str_table(headers: list[str], rows) -> rx.Component:
@@ -146,14 +154,24 @@ def tab_season() -> rx.Component:
 # ── 메인 대시보드 ─────────────────────────────────────────────────
 def dashboard() -> rx.Component:
     return rx.vstack(
-        # 헤더
-        rx.hstack(
-            rx.heading(rx.text("🏡 ", DashState.seller_name, " 애널리틱스"), size="6"),
-            rx.spacer(),
-            rx.badge("Reflex · ML", color_scheme="green", size="2"),
-            width="100%", align="center",
+        # 헤더 — 그라데이션 히어로 배너
+        rx.box(
+            rx.hstack(
+                rx.vstack(
+                    rx.heading(rx.text("🏡 ", DashState.seller_name, " 애널리틱스"),
+                               size="7", color="white", letter_spacing="-0.02em"),
+                    rx.text(DashState.period, " · 단일 판매자 셀러 대시보드",
+                            color="rgba(255,255,255,0.82)", font_size="0.86rem"),
+                    spacing="1", align="start",
+                ),
+                rx.spacer(),
+                rx.badge("Reflex · scikit-learn", color_scheme="green", variant="surface",
+                         size="2", high_contrast=True),
+                width="100%", align="center",
+            ),
+            background=GREEN_GRAD, border_radius="20px", padding="26px 30px",
+            width="100%", box_shadow="0 10px 30px rgba(27,94,63,0.22)",
         ),
-        rx.text(DashState.period, " · 단일 판매자 셀러 대시보드", color="#98a2b3", font_size="0.85rem"),
 
         # KPI 2줄
         rx.hstack(
@@ -213,7 +231,8 @@ def index() -> rx.Component:
                 height="80vh",
             ),
         ),
-        bg="#fbfdfb", min_height="100vh", width="100%",
+        background="linear-gradient(180deg, #eef5ef 0%, #fbfdfb 240px)",
+        min_height="100vh", width="100%",
         font_family="Pretendard, sans-serif",
     )
 
