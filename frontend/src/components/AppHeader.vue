@@ -6,6 +6,7 @@ import { useCartStore } from '../stores/cart'
 import { useWishlistStore } from '../stores/wishlist'
 import { useNotificationStore } from '../stores/notification'
 import { categoryLabel } from '../utils/format'
+import logoUrl from '../assets/logo.png'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -85,10 +86,7 @@ async function logout() {
     <div class="container brand-row">
       <div class="br-side br-left"></div>
       <router-link :to="{ name: 'products' }" class="logo">
-        <span class="mark">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V11"/><path d="M12 11C12 7 15 4 20 4c0 4-3 7-8 7Z"/><path d="M12 13.5C12 10.5 9 8 4.5 8c0 3.5 3 6 7.5 5.5Z"/></svg>
-        </span>
-        <span class="wm">BaroFarm<small>산지 직거래 마켓</small></span>
+        <img :src="logoUrl" alt="BaroFarm — 산지 직거래 신선식품 마켓" class="logo-img" />
       </router-link>
       <div class="br-side br-right">
         <form class="searchbox" @submit.prevent="submitSearch">
@@ -169,10 +167,8 @@ async function logout() {
 .brand-row{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; height:78px; }
 .br-side{ display:flex; align-items:center; }
 .br-right{ justify-self:end; gap:10px; }
-.logo{ display:flex; align-items:center; gap:10px; justify-self:center; }
-.logo .mark{ width:38px; height:38px; border-radius:12px 12px 12px 4px; background:linear-gradient(150deg, var(--leaf-500), var(--leaf-600)); display:flex; align-items:center; justify-content:center; color:#fff; box-shadow:var(--shadow-sm); }
-.logo .wm{ font-size:22px; font-weight:800; letter-spacing:-.02em; line-height:1; }
-.logo .wm small{ display:block; font-size:11px; font-weight:500; color:var(--muted); letter-spacing:0; margin-top:3px; }
+.logo{ display:flex; align-items:center; justify-self:center; }
+.logo-img{ height:56px; width:auto; display:block; }
 .searchbox{ display:flex; align-items:center; gap:9px; background:#fff; border:1.5px solid var(--line-2); border-radius:12px; padding:0 14px; height:42px; width:230px; transition:.18s; }
 .searchbox:focus-within{ border-color:var(--leaf-400); box-shadow:0 0 0 4px var(--leaf-50); }
 .searchbox svg{ color:var(--faint); }
