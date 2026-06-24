@@ -91,7 +91,7 @@ public class ProductAiService {
 
         String system = "너는 신선식품 마켓 판매자의 운영 어시스턴트다. 주어진 폐기위험 데이터를 바탕으로 "
                 + "판매자가 오늘 알아야 할 핵심과 추천 행동을 1~2문장의 한국어로 담백하게 요약한다. 이모지·과장 없이. "
-                + "할인 관련 표현은 '떨이'라는 단어를 쓰지 말고 'AI 할인가를 적용하여 ~' 형태로 서술한다.";
+                + "할인 관련 표현은 'AI 할인가를 적용하여 ~' 형태로 서술한다.";
         String user = "판매자 재고 폐기위험 현황:\n" + String.join("\n", usedData)
                 + "\n위 데이터를 바탕으로 핵심 요약과 추천 행동을 1~2문장으로 작성해줘.";
         report.setSummary(aiClient.chat(system, user, 250));

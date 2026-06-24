@@ -22,7 +22,7 @@ public class Product {
     private String riskLevel;        // HIGH | MEDIUM | LOW | EXPIRED
     private Double riskScore;        // 0.0 ~ 1.0
     private Integer discountRate;    // 추천 할인율(%)
-    private Integer discountedPrice; // 동적 떨이가
+    private Integer discountedPrice; // 동적 할인가
 
     // --- 리뷰 통계 (조회 시 reviews 집계) ---
     private Integer reviewCount;     // 리뷰 수
