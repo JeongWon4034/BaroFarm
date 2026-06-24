@@ -14,6 +14,7 @@ public interface ProductMapper {
                           @Param("sort") String sort);
     long countAll(@Param("keyword") String keyword, @Param("category") String category);
     List<Product> findBySellerId(@Param("sellerId") Long sellerId);
+    List<Product> findSameNameOthers(@Param("name") String name, @Param("productId") Long productId);
     int update(Product product);
     int delete(@Param("productId") Long productId, @Param("sellerId") Long sellerId);
     int decreaseStock(@Param("productId") Long productId, @Param("quantity") int quantity);

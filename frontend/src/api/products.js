@@ -5,6 +5,7 @@ export const productApi = {
   list: (params = {}) => http.get('/products', { params }), // {page,size,keyword,category,sort}
   detail: (productId) => http.get(`/products/${productId}`),
   lots: (productId) => http.get(`/products/${productId}/lots`), // 폐기기간별 옵션(가격·재고·D-day)
+  compare: (productId) => http.get(`/products/${productId}/compare`), // 같은 품목 다른 판매처(가격 비교)
   reviews: (productId) => http.get(`/products/${productId}/reviews`),
   // 판매자 본인 상품 (응답에 폐기위험·할인가 엔진값 포함). X-USER-ID 헤더 필요.
   sellerProducts: () => http.get('/seller/products'),

@@ -16,6 +16,7 @@ public class Product {
     private LocalDate expirationDate;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String sellerName;       // 판매처명(판매처 비교 등에서 join으로 채움)
 
     // --- 폐기위험·동적가격 엔진 산출값 (DB 비저장, 조회 시 WastePricingEngine이 계산) ---
     private Integer daysToExpiry;    // 유통기한까지 남은 일수 (음수면 경과)
@@ -54,6 +55,8 @@ public class Product {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public String getSellerName() { return sellerName; }
+    public void setSellerName(String sellerName) { this.sellerName = sellerName; }
     public Integer getDaysToExpiry() { return daysToExpiry; }
     public void setDaysToExpiry(Integer daysToExpiry) { this.daysToExpiry = daysToExpiry; }
     public String getRiskLevel() { return riskLevel; }

@@ -35,6 +35,12 @@ public class ProductController {
         return ApiResponse.ok("폐기기간별 옵션을 조회했습니다.", productService.findLots(productId));
     }
 
+    // 같은 품목을 파는 다른 판매처(가격 비교) — 공개
+    @GetMapping("/products/{productId}/compare")
+    public ApiResponse<?> compare(@PathVariable Long productId) {
+        return ApiResponse.ok("판매처 비교를 조회했습니다.", productService.findComparables(productId));
+    }
+
     @LoginRequired(role = "SELLER")
     @PostMapping("/products")
     public ApiResponse<?> create(@LoginUser Long sellerId,

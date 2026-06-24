@@ -68,6 +68,17 @@ public class ProductService {
         return products;
     }
 
+    /** 같은 품목을 파는 다른 판매처 목록(가격 비교용) — 재고>0, 동적 할인가·D-day 채워 대표가 오름차순. */
+    public List<Product> findComparables(Long productId) {
+        Product product = productMapper.findById(productId);
+        if (product == null) {
+            throw new AppException(HttpStatus.NOT_FOUND, "PRODUCT_NOT_FOUND", "상품을 찾을 수 없습니다.");
+        }
+        List<Product> others = productMapper.findSameNameOthers(product.getName(), productId);
+        others.forEach(pricingEngine::apply);
+        return others;
+    }
+
     @Transactional
     public Product update(Long sellerId, Long productId, ProductRequest request) {
         Product existing = productMapper.findById(productId);
