@@ -139,10 +139,12 @@ CREATE TABLE comments (
 );
 
 -- 시드 비밀번호: '1234' (BCrypt cost=10, python bcrypt 생성)
-INSERT INTO users(role, email, password, name) VALUES
-('ADMIN',  'admin@barofarm.com', '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '바로팜 관리자'),
-('SELLER', 'seller@example.com', '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '도연농장'),
-('BUYER',  'buyer@example.com',  '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '김도연');
+-- user_id 명시 고정: products/posts가 seller_id=1(도연농장)을 하드코딩하므로 SELLER=1, BUYER=2 보장.
+-- ADMIN은 seed_products_kamis(명시 id 11~40) 범위 밖인 1000으로 둬 AUTO_INCREMENT 충돌 방지.
+INSERT INTO users(user_id, role, email, password, name) VALUES
+(1,    'SELLER', 'seller@example.com', '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '도연농장'),
+(2,    'BUYER',  'buyer@example.com',  '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '김도연'),
+(1000, 'ADMIN',  'admin@barofarm.com', '$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O', '바로팜 관리자');
 
 -- 마감임박/할인 데모용 시드 (유통기한을 오늘 기준 상대값으로 → 언제 실행해도 D-1~D-12 유지)
 INSERT INTO products(seller_id, name, description, category, price, stock_qty, thumbnail_url, expiration_date) VALUES
