@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { won, thumbEmoji, categoryLabel, dDayLabel, riskMeta } from '../utils/format'
+import { won, thumbEmoji, categoryLabel, dDayLabel, expiryStatus } from '../utils/format'
 import { useWishlistStore } from '../stores/wishlist'
 import { useAuthStore } from '../stores/auth'
 import { track } from '../api/track'
@@ -36,7 +36,8 @@ async function toggleWish() {
 
 const hasDeal = computed(() => (props.product.discountRate ?? 0) > 0)
 const dealPrice = computed(() => props.product.discountedPrice ?? props.product.price)
-const risk = computed(() => riskMeta(props.product.riskLevel))
+// 유통기한 칩 상태는 D-day 숫자 기준(재고 무관) — D-10이 D-14보다 급하게 보이도록
+const expiry = computed(() => expiryStatus(props.product.daysToExpiry))
 // 폐기기간 옵션(lot)이 있으면 카드에서 바로 담지 않고 상세에서 옵션을 고르게 한다.
 const hasLots = computed(() => (props.product.lotCount ?? 0) > 0)
 
@@ -62,7 +63,7 @@ function onOpen() {
       <img v-if="showImg" class="photo" :src="product.thumbnailUrl" :alt="product.name" loading="lazy" @error="imgError = true" />
       <span v-else class="emoji">{{ emoji }}</span>
       <!-- 마감임박(USP)만 작은 태그로 -->
-      <span v-if="risk.cls === 'risk-high' || risk.cls === 'risk-medium'" class="dday" :class="risk.cls">
+      <span v-if="expiry.cls === 'risk-high' || expiry.cls === 'risk-medium'" class="dday" :class="expiry.cls">
         {{ dDayLabel(product.daysToExpiry) }}
       </span>
       <div v-if="soldOut" class="soldout">품절</div>

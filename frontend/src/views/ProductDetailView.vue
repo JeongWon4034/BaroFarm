@@ -7,7 +7,7 @@ import { useCartStore } from '../stores/cart'
 import { useAuthStore } from '../stores/auth'
 import { useFollowStore } from '../stores/follow'
 import { followApi } from '../api/follow'
-import { won, thumbEmoji, categoryLabel, dateOnly, dDayLabel, riskMeta } from '../utils/format'
+import { won, thumbEmoji, categoryLabel, dateOnly, dDayLabel, expiryStatus } from '../utils/format'
 import { track } from '../api/track'
 import StarRating from '../components/StarRating.vue'
 
@@ -76,7 +76,7 @@ const isExpired = computed(() => active.value?.riskLevel === 'EXPIRED' || (dday.
 const maxQty = computed(() => Math.max(1, selStock.value))
 const hasDeal = computed(() => discRate.value > 0)
 const unitPrice = computed(() => active.value?.discountedPrice ?? active.value?.price ?? 0)
-const risk = computed(() => riskMeta(active.value?.riskLevel))
+const expiry = computed(() => expiryStatus(dday.value)) // 유통기한 상태는 D-day 숫자 기준
 const estimated = computed(() => unitPrice.value * qty.value)
 const avgRating = computed(() => {
   if (!reviews.value.length) return product.value?.avgRating || 0
@@ -185,7 +185,7 @@ async function buyNow() {
       <div class="pinfo">
         <div class="chips">
           <span class="chip">{{ categoryLabel(product.category) }}</span>
-          <span v-if="dday != null" class="chip" :class="risk.cls">{{ risk.label }}</span>
+          <span v-if="dday != null" class="chip" :class="expiry.cls">{{ expiry.label }}</span>
           <span class="chip muted">산지직송</span>
         </div>
         <h1>{{ product.name }}</h1>
@@ -203,8 +203,8 @@ async function buyNow() {
         <p v-if="followError" class="err follow-err">{{ followError }}</p>
 
         <div class="pricebox">
-          <div v-if="dday != null && (risk.cls === 'risk-high' || risk.cls === 'risk-medium')" class="urgent-strip">
-            ⏰ {{ dDayLabel(dday) }} · {{ risk.label }}
+          <div v-if="dday != null && (expiry.cls === 'risk-high' || expiry.cls === 'risk-medium')" class="urgent-strip">
+            ⏰ {{ dDayLabel(dday) }} · {{ expiry.label }}
           </div>
           <div class="bigprice">
             <span v-if="hasDeal" class="pct">{{ discRate }}%</span>
@@ -223,7 +223,7 @@ async function buyNow() {
             v-for="lot in lots"
             :key="lot.lotId"
             class="lot"
-            :class="[riskMeta(lot.riskLevel).cls, { sel: selectedLot && selectedLot.lotId === lot.lotId }]"
+            :class="[expiryStatus(lot.daysToExpiry).cls, { sel: selectedLot && selectedLot.lotId === lot.lotId }]"
             @click="selectLot(lot)"
           >
             <span class="lot-dday">{{ dDayLabel(lot.daysToExpiry) }}</span>

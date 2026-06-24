@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { productApi } from '../api/products'
-import { won, categoryLabel, dDayLabel, dateOnly, riskMeta, thumbEmoji } from '../utils/format'
+import { won, categoryLabel, dDayLabel, dateOnly, expiryStatus, thumbEmoji } from '../utils/format'
 
 const products = ref([])
 const salesMap = ref({})     // productId → 판매 분석
@@ -386,8 +386,8 @@ async function remove(p) {
           <tr class="row" :class="{ open: expandedId === p.productId }" @click="toggleExpand(p.productId)">
             <td class="name">{{ p.name }}</td>
             <td>{{ categoryLabel(p.category) }}</td>
-            <td><span class="dday" :class="riskMeta(p.riskLevel).cls">{{ dDayLabel(p.daysToExpiry) }}</span></td>
-            <td><span class="risk-chip" :class="riskMeta(p.riskLevel).cls">{{ riskMeta(p.riskLevel).label }}</span></td>
+            <td><span class="dday" :class="expiryStatus(p.daysToExpiry).cls">{{ dDayLabel(p.daysToExpiry) }}</span></td>
+            <td><span class="risk-chip" :class="expiryStatus(p.daysToExpiry).cls">{{ expiryStatus(p.daysToExpiry).label }}</span></td>
             <!-- KAMIS 기준 소매가 -->
             <td class="num">
               <template v-if="insightOf(p)?.kamisPrice">{{ won(insightOf(p).kamisPrice) }}<span v-if="insightOf(p).kamisUnit" class="cell-unit">/{{ insightOf(p).kamisUnit }}</span></template>
