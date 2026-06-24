@@ -130,36 +130,64 @@ def sidebar() -> rx.Component:
                 border="1px solid rgba(27,94,63,0.12)",
             ),
             rx.divider(border_color=BORDER_CLR),
-            sidebar_section("메인"),
             rx.box(
                 rx.vstack(
-                    nav_item("🏠", "관리자홈",       "dashboard"),
-                    nav_item("🗓️", "일정·배송 달력", "calendar",
-                             DashState.expiry_week),
+                    nav_item("🏠", "관리자 홈", "dashboard"),
+                    nav_item("📞", "핫라인", "hotline", DashState.ord_pending),
+                    nav_item("🔔", "알림", "alerts", DashState.alert_count),
+                    spacing="0", width="100%", padding_x="6px",
+                ),
+                padding_top="6px",
+            ),
+            sidebar_section("주문·배송 관리"),
+            rx.box(
+                rx.vstack(
+                    nav_item("🚚", "배송 내역", "delivery", DashState.ord_shipping),
+                    nav_item("🧾", "청구 관리", "billing"),
+                    nav_item("📦", "보관상품 관리", "inventory", DashState.sup_expiry),
+                    nav_item("🗓️", "일정·배송 달력", "calendar"),
                     spacing="0", width="100%", padding_x="6px",
                 ),
             ),
-            sidebar_section("운영 최적화"),
+            sidebar_section("AI 분석·예측"),
             rx.box(
                 rx.vstack(
-                    nav_item("🚚", "공급망·수요 최적화", "supply",
-                             DashState.sup_expiry),
-                    spacing="0", width="100%", padding_x="6px",
-                ),
-            ),
-            sidebar_section("AI 예측·분석"),
-            rx.box(
-                rx.vstack(
-                    nav_item("📈", "매출 예측",   "revenue"),
-                    nav_item("🛒", "매입 추천",   "reco"),
-                    nav_item("🔮", "수요 예측",   "demand"),
-                    nav_item("👥", "고객 분석",   "segment"),
+                    nav_item("🚀", "공급망 최적화", "supply", DashState.sup_expiry),
+                    nav_item("📈", "매출 예측", "revenue"),
+                    nav_item("🛒", "매입 추천", "reco"),
+                    nav_item("🔮", "수요 예측", "demand"),
+                    nav_item("👥", "고객 분석", "segment"),
                     nav_item("📅", "계절성 분석", "season"),
                     spacing="0", width="100%", padding_x="6px",
                 ),
             ),
-            rx.spacer(),
-            rx.divider(border_color=BORDER_CLR),
+            sidebar_section("콘텐츠 관리"),
+            rx.box(
+                rx.vstack(
+                    nav_item("📢", "공지사항 관리", "notices"),
+                    nav_item("🪟", "팝업창 관리", "popups"),
+                    spacing="0", width="100%", padding_x="6px",
+                ),
+            ),
+            sidebar_section("설정"),
+            rx.box(
+                rx.vstack(
+                    nav_item("🔒", "보안 설정", "security"),
+                    nav_item("👤", "담당자 관리", "staff"),
+                    spacing="0", width="100%", padding_x="6px",
+                ),
+            ),
+            sidebar_section("추가 설정 기능 (예정)"),
+            rx.box(
+                rx.vstack(
+                    nav_item("🧑‍🤝‍🧑", "회원 관리", "members"),
+                    nav_item("💬", "문자 관리", "sms"),
+                    nav_item("💰", "예산 관리", "budget"),
+                    nav_item("🎁", "포인트·기부적립", "points"),
+                    spacing="0", width="100%", padding_x="6px",
+                ),
+            ),
+            rx.divider(border_color=BORDER_CLR, margin_top="8px"),
             rx.text(DashState.period, font_size="0.68rem", color="#94A3B8",
                     text_align="center", padding="10px 8px"),
             spacing="0", align="stretch", width="100%",
@@ -378,26 +406,43 @@ def weekly_calendar() -> rx.Component:
                 ),
                 display="flex", gap="6px", width="100%",
             ),
-            # 이벤트 열
-            rx.box(
-                rx.foreach(
-                    DashState.weekly_orders,
-                    lambda day_orders: rx.box(
-                        rx.cond(
-                            day_orders.length() == 0,
-                            rx.box(rx.text("—", font_size="0.7rem",
-                                           color="#CBD5E1", text_align="center"),
-                                   padding="14px 6px"),
-                            rx.vstack(rx.foreach(day_orders, order_event_card),
-                                      spacing="0", align="stretch", padding="4px"),
-                        ),
-                        flex="1", min_height="80px",
-                        border_right=f"1px solid {BORDER_CLR}",
-                    ),
+            # 자세히 보기 토글
+            rx.hstack(
+                rx.spacer(),
+                rx.button(
+                    rx.cond(DashState.weekly_expanded,
+                            "주문 상세 접기 ▲", "주문 상세 자세히 보기 ▼"),
+                    on_click=DashState.toggle_weekly,
+                    bg="transparent", color=ACCENT, size="1",
+                    border=f"1px solid {ACCENT}40", border_radius="8px",
+                    cursor="pointer", _hover={"bg": f"{ACCENT}0A"},
                 ),
-                display="flex", gap="0px", width="100%",
-                border=f"1px solid {BORDER_CLR}", border_radius="10px",
-                overflow="hidden", min_height="80px",
+                width="100%",
+            ),
+            # 이벤트 열 (펼쳤을 때만)
+            rx.cond(
+                DashState.weekly_expanded,
+                rx.box(
+                    rx.foreach(
+                        DashState.weekly_orders,
+                        lambda day_orders: rx.box(
+                            rx.cond(
+                                day_orders.length() == 0,
+                                rx.box(rx.text("—", font_size="0.7rem",
+                                               color="#CBD5E1", text_align="center"),
+                                       padding="14px 6px"),
+                                rx.vstack(rx.foreach(day_orders, order_event_card),
+                                          spacing="0", align="stretch", padding="4px"),
+                            ),
+                            flex="1", min_height="80px",
+                            border_right=f"1px solid {BORDER_CLR}",
+                        ),
+                    ),
+                    display="flex", gap="0px", width="100%",
+                    border=f"1px solid {BORDER_CLR}", border_radius="10px",
+                    overflow="hidden", min_height="80px",
+                ),
+                rx.fragment(),
             ),
             spacing="2",
         ),
@@ -945,7 +990,7 @@ def supply_view() -> rx.Component:
 
 def ai_page(icon: str, title: str, badge: str, content) -> rx.Component:
     return rx.vstack(
-        page_header(icon, title, "AI 예측·분석"),
+        page_header(icon, title, "AI 분석·예측"),
         section_box(
             rx.hstack(
                 section_title("rgba(27,94,63,0.08)", "🤖", title),
@@ -959,6 +1004,400 @@ def ai_page(icon: str, title: str, badge: str, content) -> rx.Component:
 
 
 # ════════════════════════════════════════════════════════════════
+#  📞 핫라인 (고객 응대 현황)
+# ════════════════════════════════════════════════════════════════
+def status_kpi(icon: str, label: str, value, color: str) -> rx.Component:
+    return rx.box(
+        rx.vstack(
+            rx.hstack(rx.text(icon, font_size="1rem"),
+                      rx.text(label, font_size="0.74rem", color=TEXT_SEC,
+                              font_weight="500"),
+                      spacing="1", align="center"),
+            rx.text(value, font_size="1.6rem", font_weight="800", color=color),
+            spacing="1", align="start",
+        ),
+        bg=CARD, border=f"1px solid {BORDER_CLR}", border_radius="12px",
+        padding="16px", flex="1", box_shadow="0 1px 3px rgba(0,0,0,0.04)",
+        border_top=f"3px solid {color}",
+    )
+
+
+def hotline_view() -> rx.Component:
+    return rx.vstack(
+        page_header("📞", "핫라인", "고객 응대 현황"),
+        rx.hstack(
+            status_kpi("🕐", "접수 대기", DashState.ord_pending, "#F59E0B"),
+            status_kpi("✅", "주문 확정", DashState.ord_confirmed, "#3B82F6"),
+            status_kpi("🚚", "배송 중", DashState.ord_shipping, "#0EA5E9"),
+            status_kpi("📦", "배송 완료", DashState.ord_completed, ACCENT),
+            spacing="3", width="100%"),
+        rx.hstack(
+            section_box(
+                section_title("#FFF7ED", "📋", "최근 응대 대기 / 처리 주문"),
+                rx.box(
+                    str_table(["날짜", "상품", "고객", "수량", "금액", "상태"],
+                              DashState.recent_orders_table),
+                    max_height="420px", overflow_y="auto", width="100%"),
+            ),
+            rx.vstack(
+                section_box(
+                    section_title("#EFF6FF", "💬", "자주 묻는 문의"),
+                    rx.vstack(
+                        recent_item("🚚", "배송", "배송 예정일이 언제인가요?", BLUE),
+                        recent_item("📦", "상품", "신선도/원산지가 궁금해요", ORANGE),
+                        recent_item("💳", "결제", "정산은 언제 되나요?", ACCENT),
+                        recent_item("🔄", "교환", "상품 교환·환불 절차는?", "#8B5CF6"),
+                        spacing="0"),
+                ),
+                section_box(
+                    section_title("#ECFDF5", "📨", "응대 채널"),
+                    rx.vstack(
+                        rx.hstack(rx.text("☎️ 전화 상담", font_size="0.8rem",
+                                          color=TEXT_PRI), rx.spacer(),
+                                  rx.badge("09–18시", color_scheme="green",
+                                           size="1"), width="100%"),
+                        rx.hstack(rx.text("💬 채팅 상담", font_size="0.8rem",
+                                          color=TEXT_PRI), rx.spacer(),
+                                  rx.badge("운영중", color_scheme="green",
+                                           size="1"), width="100%"),
+                        rx.hstack(rx.text("✉️ 이메일", font_size="0.8rem",
+                                          color=TEXT_PRI), rx.spacer(),
+                                  rx.badge("24h 내 회신", color_scheme="gray",
+                                           size="1"), width="100%"),
+                        spacing="2"),
+                ),
+                spacing="4", width="300px", flex_shrink="0", align="stretch"),
+            spacing="4", width="100%", align="start"),
+        spacing="4", align="stretch", width="100%", padding_bottom="40px",
+    )
+
+
+# ════════════════════════════════════════════════════════════════
+#  🔔 알림
+# ════════════════════════════════════════════════════════════════
+def alert_row(a) -> rx.Component:
+    sev = a[3]
+    sev_color = rx.match(sev, ("긴급", "#DC2626"), ("주의", "#D97706"), "#3B82F6")
+    sev_bg = rx.match(sev, ("긴급", "#FEF2F2"), ("주의", "#FFFBEB"), "#EFF6FF")
+    return rx.box(
+        rx.hstack(
+            rx.text(a[0], font_size="1.1rem"),
+            rx.vstack(
+                rx.hstack(
+                    rx.text(a[1], font_size="0.84rem", font_weight="700",
+                            color=TEXT_PRI),
+                    rx.badge(sev, size="1",
+                             style={"background": sev_bg, "color": sev_color}),
+                    spacing="2", align="center"),
+                rx.text(a[2], font_size="0.76rem", color=TEXT_SEC),
+                spacing="0", align="start"),
+            spacing="3", align="center", width="100%"),
+        bg=CARD, border=f"1px solid {BORDER_CLR}",
+        border_left_width="3px", border_left_style="solid",
+        border_left_color=sev_color, border_radius="10px",
+        padding="12px 14px", width="100%",
+    )
+
+
+def alerts_view() -> rx.Component:
+    return rx.vstack(
+        page_header("🔔", "알림", "운영 알림 센터"),
+        rx.hstack(
+            status_kpi("🔔", "전체 알림", DashState.alert_count, ACCENT),
+            status_kpi("🔴", "품절 위험", DashState.sup_shortage, "#DC2626"),
+            status_kpi("🟡", "폐기 위험", DashState.sup_expiry, "#D97706"),
+            status_kpi("💸", "예상 손실", DashState.sup_waste_won, NAVY_CARD),
+            spacing="3", width="100%"),
+        section_box(
+            section_title("rgba(245,158,11,0.1)", "📢", "실시간 운영 알림"),
+            rx.cond(
+                DashState.alerts_table.length() > 0,
+                rx.vstack(rx.foreach(DashState.alerts_table, alert_row),
+                          spacing="2", width="100%"),
+                info_box("현재 처리할 알림이 없습니다. 👍"),
+            ),
+        ),
+        spacing="4", align="stretch", width="100%", padding_bottom="40px",
+    )
+
+
+# ════════════════════════════════════════════════════════════════
+#  🚚 배송 내역
+# ════════════════════════════════════════════════════════════════
+def delivery_view() -> rx.Component:
+    return rx.vstack(
+        page_header("🚚", "배송 내역", "주문·배송 관리"),
+        rx.hstack(
+            status_kpi("🕐", "접수 대기", DashState.ord_pending, "#F59E0B"),
+            status_kpi("✅", "주문 확정", DashState.ord_confirmed, "#3B82F6"),
+            status_kpi("🚚", "배송 중", DashState.ord_shipping, "#0EA5E9"),
+            status_kpi("📦", "배송 완료", DashState.ord_completed, ACCENT),
+            spacing="3", width="100%"),
+        section_box(
+            rx.hstack(
+                section_title("rgba(14,165,233,0.1)", "🚚", "전체 주문·배송 내역"),
+                rx.spacer(),
+                rx.badge(DashState.ord_total + "건", color_scheme="gray", size="1"),
+                width="100%", align="center"),
+            rx.box(
+                str_table(["날짜", "상품", "고객", "수량", "금액", "배송 상태"],
+                          DashState.recent_orders_table),
+                max_height="540px", overflow_y="auto", width="100%"),
+        ),
+        spacing="4", align="stretch", width="100%", padding_bottom="40px",
+    )
+
+
+# ════════════════════════════════════════════════════════════════
+#  🧾 청구 관리
+# ════════════════════════════════════════════════════════════════
+def billing_view() -> rx.Component:
+    return rx.vstack(
+        page_header("🧾", "청구 관리", "주문·배송 관리"),
+        rx.hstack(
+            kpi_accent("💰", "누적 매출", DashState.bill_total_rev,
+                       "전체 기간", "#22A55B"),
+            kpi_accent("🏷️", "할인 회수 매출", DashState.bill_total_disc,
+                       "원가 대비 할인분", "#3B7DD8"),
+            kpi_accent("💵", "정산 예정액", DashState.bill_total_net,
+                       "수수료 3.3% 차감", NAVY_CARD),
+            spacing="3", width="100%"),
+        section_box(
+            section_title("rgba(27,94,63,0.08)", "📊", "월별 매출·할인 추이"),
+            chart_box(DashState.billing_fig,
+                      "녹색=매출, 주황=할인 회수 매출(원가 대비 떨이로 회수한 금액)"),
+        ),
+        section_box(
+            section_title("rgba(27,94,63,0.08)", "🧾", "월별 정산 내역"),
+            table_box(["월", "주문", "매출", "할인", "수수료(3.3%)", "정산액"],
+                      DashState.billing_table),
+        ),
+        spacing="4", align="stretch", width="100%", padding_bottom="40px",
+    )
+
+
+# ════════════════════════════════════════════════════════════════
+#  📦 보관상품 관리
+# ════════════════════════════════════════════════════════════════
+def inventory_view() -> rx.Component:
+    return rx.vstack(
+        page_header("📦", "보관상품 관리", "주문·배송 관리"),
+        rx.box(
+            rx.hstack(
+                rx.text("💡", font_size="1.1rem"),
+                rx.text("로트(입고 단위)별 재고와 유통기한을 관리합니다. "
+                        "만료 임박(D-3 이내) 상품은 ", font_size="0.82rem",
+                        color=TEXT_SEC),
+                rx.text("공급망 최적화", font_size="0.82rem", font_weight="700",
+                        color=ACCENT, cursor="pointer",
+                        on_click=DashState.set_nav("supply")),
+                rx.text("에서 할인 소진 전략을 확인하세요.", font_size="0.82rem",
+                        color=TEXT_SEC),
+                spacing="1", align="center", wrap="wrap"),
+            bg="#F0FDF4", border="1px solid #BBF7D0", border_radius="12px",
+            padding="14px 18px", width="100%"),
+        section_box(
+            rx.hstack(
+                section_title("rgba(27,94,63,0.08)", "📦", "보관 로트 재고 현황"),
+                rx.spacer(),
+                rx.badge("만료일 빠른 순", color_scheme="gray", size="1"),
+                width="100%", align="center"),
+            rx.box(
+                str_table(["상품명", "재고", "유통기한", "로트 단가", "상태"],
+                          DashState.inventory_table),
+                max_height="540px", overflow_y="auto", width="100%"),
+        ),
+        spacing="4", align="stretch", width="100%", padding_bottom="40px",
+    )
+
+
+# ════════════════════════════════════════════════════════════════
+#  📢 공지사항 / 🪟 팝업 / 🔒 보안 / 👤 담당자  (콘텐츠·설정)
+# ════════════════════════════════════════════════════════════════
+def _placeholder_note() -> rx.Component:
+    return rx.box(
+        rx.hstack(
+            rx.text("ℹ️", font_size="0.9rem"),
+            rx.text("아래는 예시 데이터입니다. 실제 등록·저장 기능은 전용 테이블"
+                    "(공지/팝업/담당자)을 추가하면 연동됩니다.",
+                    font_size="0.74rem", color=TEXT_SEC),
+            spacing="2", align="center"),
+        bg="#F8FAFC", border=f"1px dashed {BORDER_CLR}", border_radius="10px",
+        padding="10px 14px", width="100%",
+    )
+
+
+def list_item(left, mid, right_badge, badge_color="gray") -> rx.Component:
+    return rx.box(
+        rx.hstack(
+            rx.vstack(
+                rx.text(left, font_size="0.84rem", font_weight="600",
+                        color=TEXT_PRI),
+                rx.text(mid, font_size="0.72rem", color=TEXT_SEC),
+                spacing="0", align="start"),
+            rx.spacer(),
+            rx.badge(right_badge, color_scheme=badge_color, size="1"),
+            width="100%", align="center"),
+        border_bottom=f"1px solid {BORDER_CLR}", padding="12px 4px",
+    )
+
+
+def notices_view() -> rx.Component:
+    return rx.vstack(
+        page_header("📢", "공지사항 관리", "콘텐츠 관리"),
+        _placeholder_note(),
+        section_box(
+            rx.hstack(
+                section_title("rgba(59,130,246,0.1)", "📢", "공지사항 목록"),
+                rx.spacer(),
+                rx.button("+ 새 공지 작성", bg=ACCENT, color="white", size="2",
+                          border_radius="8px", cursor="pointer"),
+                width="100%", align="center"),
+            rx.vstack(
+                list_item("[중요] 신선식품 배송 지연 안내 (폭염)",
+                          "2026-06-20 · 조회 1,204", "게시중", "green"),
+                list_item("여름철 농산물 신선도 보관 가이드",
+                          "2026-06-15 · 조회 842", "게시중", "green"),
+                list_item("정산 주기 변경 안내 (월 2회 → 주 1회)",
+                          "2026-06-01 · 조회 2,310", "게시중", "green"),
+                list_item("개인정보 처리방침 개정 안내",
+                          "2026-05-20 · 조회 560", "예약", "orange"),
+                list_item("[종료] 봄맞이 할인 기획전",
+                          "2026-04-10 · 조회 3,120", "종료", "gray"),
+                spacing="0"),
+        ),
+        spacing="4", align="stretch", width="100%", padding_bottom="40px",
+    )
+
+
+def popups_view() -> rx.Component:
+    return rx.vstack(
+        page_header("🪟", "팝업창 관리", "콘텐츠 관리"),
+        _placeholder_note(),
+        section_box(
+            rx.hstack(
+                section_title("rgba(139,92,246,0.1)", "🪟", "팝업 목록"),
+                rx.spacer(),
+                rx.button("+ 새 팝업 등록", bg=ACCENT, color="white", size="2",
+                          border_radius="8px", cursor="pointer"),
+                width="100%", align="center"),
+            rx.vstack(
+                list_item("🍑 제철 복숭아 사전예약 배너",
+                          "노출기간 2026-06-18 ~ 06-30 · 메인 상단", "노출중", "green"),
+                list_item("🚚 무료배송 프로모션 팝업",
+                          "노출기간 2026-06-22 ~ 06-28 · 진입 시 1회", "노출중", "green"),
+                list_item("⚠️ 폭염 배송지연 안내 팝업",
+                          "노출기간 2026-06-20 ~ 06-25 · 전체", "노출중", "green"),
+                list_item("🎁 신규가입 적립 안내",
+                          "노출기간 2026-07-01 ~ · 비로그인", "예약", "orange"),
+                spacing="0"),
+        ),
+        spacing="4", align="stretch", width="100%", padding_bottom="40px",
+    )
+
+
+def security_view() -> rx.Component:
+    def toggle_row(label, desc, on):
+        return rx.box(
+            rx.hstack(
+                rx.vstack(rx.text(label, font_size="0.84rem", font_weight="600",
+                                  color=TEXT_PRI),
+                          rx.text(desc, font_size="0.72rem", color=TEXT_SEC),
+                          spacing="0", align="start"),
+                rx.spacer(),
+                rx.badge("ON" if on else "OFF",
+                         color_scheme="green" if on else "gray", size="2"),
+                width="100%", align="center"),
+            border_bottom=f"1px solid {BORDER_CLR}", padding="14px 4px")
+    return rx.vstack(
+        page_header("🔒", "보안 설정", "설정"),
+        _placeholder_note(),
+        rx.hstack(
+            section_box(
+                section_title("rgba(220,38,38,0.08)", "🔐", "계정 보안"),
+                toggle_row("2단계 인증 (OTP)", "로그인 시 추가 인증 요구", True),
+                toggle_row("비밀번호 90일 변경", "주기적 비밀번호 변경 강제", True),
+                toggle_row("접속 IP 제한", "허용된 IP에서만 관리자 접속", False),
+            ),
+            section_box(
+                section_title("rgba(59,130,246,0.08)", "📜", "접속 기록"),
+                rx.vstack(
+                    list_item("관리자 로그인", "2026-06-22 15:51 · 192.168.0.12",
+                              "정상", "green"),
+                    list_item("판매 데이터 내보내기", "2026-06-21 10:22 · 본인",
+                              "정상", "green"),
+                    list_item("로그인 실패 2회", "2026-06-20 08:14 · 14.52.x.x",
+                              "주의", "orange"),
+                    spacing="0"),
+            ),
+            spacing="4", width="100%", align="start"),
+        spacing="4", align="stretch", width="100%", padding_bottom="40px",
+    )
+
+
+def staff_view() -> rx.Component:
+    return rx.vstack(
+        page_header("👤", "담당자 관리", "설정"),
+        _placeholder_note(),
+        section_box(
+            rx.hstack(
+                section_title("rgba(27,94,63,0.08)", "👤", "담당자 목록"),
+                rx.spacer(),
+                rx.button("+ 담당자 초대", bg=ACCENT, color="white", size="2",
+                          border_radius="8px", cursor="pointer"),
+                width="100%", align="center"),
+            rx.vstack(
+                list_item("김농장 (대표)", "owner@barofarm.kr · 전체 권한",
+                          "관리자", "green"),
+                list_item("이배송 (배송담당)", "delivery@barofarm.kr · 주문/배송",
+                          "운영자", "blue"),
+                list_item("박정산 (정산담당)", "billing@barofarm.kr · 청구/정산",
+                          "운영자", "blue"),
+                list_item("최분석 (데이터)", "analyst@barofarm.kr · 분석 조회",
+                          "뷰어", "gray"),
+                spacing="0"),
+        ),
+        spacing="4", align="stretch", width="100%", padding_bottom="40px",
+    )
+
+
+# ════════════════════════════════════════════════════════════════
+#  추가 설정 기능 (예정)
+# ════════════════════════════════════════════════════════════════
+def coming_soon_view(icon: str, title: str, desc: str,
+                     features: list) -> rx.Component:
+    return rx.vstack(
+        page_header(icon, title, "추가 설정 기능 (예정)"),
+        rx.box(
+            rx.vstack(
+                rx.box(rx.text(icon, font_size="2.6rem"),
+                       bg="rgba(27,94,63,0.06)", border_radius="20px",
+                       padding="18px", margin_bottom="6px"),
+                rx.badge("오픈 예정", color_scheme="orange", size="2"),
+                rx.text(title, font_size="1.2rem", font_weight="800",
+                        color=TEXT_PRI),
+                rx.text(desc, font_size="0.86rem", color=TEXT_SEC,
+                        text_align="center", max_width="460px"),
+                rx.divider(border_color=BORDER_CLR, width="60%"),
+                rx.text("제공 예정 기능", font_size="0.74rem", font_weight="700",
+                        color=TEXT_SEC),
+                rx.vstack(
+                    *[rx.hstack(rx.text("✓", color=ACCENT, font_weight="700"),
+                                rx.text(f, font_size="0.82rem", color=TEXT_PRI),
+                                spacing="2", align="center") for f in features],
+                    spacing="2", align="start"),
+                spacing="3", align="center",
+            ),
+            bg=CARD, border=f"1px solid {BORDER_CLR}", border_radius="16px",
+            padding="48px", width="100%",
+            display="flex", justify_content="center",
+            box_shadow="0 1px 4px rgba(0,0,0,0.04)",
+        ),
+        spacing="4", align="stretch", width="100%", padding_bottom="40px",
+    )
+
+
+# ════════════════════════════════════════════════════════════════
 #  메인 라우터
 # ════════════════════════════════════════════════════════════════
 def main_content() -> rx.Component:
@@ -966,6 +1405,11 @@ def main_content() -> rx.Component:
         rx.match(
             DashState.active_nav,
             ("dashboard", dashboard_view()),
+            ("hotline", hotline_view()),
+            ("alerts", alerts_view()),
+            ("delivery", delivery_view()),
+            ("billing", billing_view()),
+            ("inventory", inventory_view()),
             ("calendar", calendar_view()),
             ("supply", supply_view()),
             ("revenue", ai_page("📈", "매출 예측", "Ridge Regression", tab_revenue())),
@@ -973,6 +1417,24 @@ def main_content() -> rx.Component:
             ("demand", ai_page("🔮", "수요 예측", "LinearRegression", tab_demand())),
             ("segment", ai_page("👥", "고객 분석", "RFM + KMeans", tab_segment())),
             ("season", ai_page("📅", "계절성 분석", "월별 집계", tab_season())),
+            ("notices", notices_view()),
+            ("popups", popups_view()),
+            ("security", security_view()),
+            ("staff", staff_view()),
+            ("members", coming_soon_view("🧑‍🤝‍🧑", "회원 관리",
+                "구매 고객을 등급·태그로 관리하고 맞춤 혜택을 운영합니다. "
+                "현재 고객 분석(RFM)에서 세그먼트를 미리 확인할 수 있습니다.",
+                ["고객 등급/태그 관리", "세그먼트별 타겟 메시지", "구매 이력 통합 조회"])),
+            ("sms", coming_soon_view("💬", "문자 관리",
+                "주문·배송 알림과 마케팅 문자를 발송하고 결과를 추적합니다.",
+                ["주문/배송 자동 알림톡", "단골 대상 캠페인 발송", "발송/클릭 통계"])),
+            ("budget", coming_soon_view("💰", "예산 관리",
+                "매입·마케팅 예산을 계획하고 집행 현황을 추적합니다. "
+                "공급망 최적화의 발주 권장량과 연동될 예정입니다.",
+                ["매입 예산 계획/집행", "마케팅 ROI 추적", "월별 손익 시뮬레이션"])),
+            ("points", coming_soon_view("🎁", "포인트·기부적립",
+                "구매 적립 포인트와 농가 기부 적립을 운영합니다.",
+                ["구매 적립/사용 관리", "기부 캠페인 운영", "적립 리포트"])),
             dashboard_view(),
         ),
         padding="20px 28px", flex="1", min_width="0",

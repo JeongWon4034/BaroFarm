@@ -759,3 +759,157 @@ def fig_supply(df) -> go.Figure:
     fig.update_xaxes(title="재고 소진 예상일수 (일)", gridcolor="#EEF2F6")
     fig.update_yaxes(title="")
     return _base_layout(fig, "")
+
+
+# ════════════════════════════════════════════════════════════════
+#  📞 핫라인 / 🚚 배송내역 / 🧾 청구 / 📦 보관상품 / 🔔 알림
+# ════════════════════════════════════════════════════════════════
+_ORDER_STATUS_KR = {
+    "PENDING": "접수 대기", "CONFIRMED": "주문 확정", "SHIPPING": "배송 중",
+    "COMPLETED": "배송 완료", "CANCELLED": "취소",
+}
+
+
+def order_status_summary(sid: int) -> dict:
+    """주문 상태별 건수·매출. keys: pending/confirmed/shipping/completed/cancelled/total."""
+    try:
+        df = q(f"""
+            SELECT o.status, COUNT(*) cnt, COALESCE(SUM(o.total_price),0) rev
+            FROM orders o JOIN products p ON o.product_id=p.product_id
+            WHERE p.seller_id={sid}
+            GROUP BY o.status
+        """)
+    except Exception:
+        df = pd.DataFrame()
+    out = {k: 0 for k in ["pending", "confirmed", "shipping", "completed", "cancelled"]}
+    rev = dict(out)
+    keymap = {"PENDING": "pending", "CONFIRMED": "confirmed", "SHIPPING": "shipping",
+              "COMPLETED": "completed", "CANCELLED": "cancelled"}
+    for _, r in df.iterrows():
+        k = keymap.get(str(r["status"]).upper())
+        if k:
+            out[k] = int(r["cnt"])
+            rev[k] = float(r["rev"])
+    out["total"] = sum(out.values())
+    out["rev"] = rev
+    return out
+
+
+def recent_orders(sid: int, n: int = 40) -> list:
+    """최근 주문 목록: [날짜, 상품, 고객, 수량, 금액, 상태]."""
+    try:
+        df = q(f"""
+            SELECT DATE(o.order_date) od, p.name pname, o.buyer_id,
+                   o.quantity, o.total_price, o.status
+            FROM orders o JOIN products p ON o.product_id=p.product_id
+            WHERE p.seller_id={sid}
+            ORDER BY o.order_date DESC LIMIT {n}
+        """)
+    except Exception:
+        df = pd.DataFrame()
+    rows = []
+    for _, r in df.iterrows():
+        rows.append([
+            str(r["od"]),
+            str(r["pname"])[:18],
+            f"고객{int(r['buyer_id']) % 1000:03d}",
+            f"{int(r['quantity'])}개",
+            won(float(r["total_price"])),
+            _ORDER_STATUS_KR.get(str(r["status"]).upper(), str(r["status"])),
+        ])
+    return rows
+
+
+def billing_monthly(sid: int):
+    """월별 매출/할인/정산 요약 DataFrame(ym, orders, revenue, discount, net)."""
+    try:
+        df = q(f"""
+            SELECT DATE_FORMAT(o.order_date,'%Y-%m') ym,
+                   COUNT(*) orders,
+                   COALESCE(SUM(o.total_price),0) revenue,
+                   COALESCE(SUM(GREATEST(COALESCE(o.original_unit_price,0)*o.quantity
+                                         - o.total_price,0)),0) discount
+            FROM orders o JOIN products p ON o.product_id=p.product_id
+            WHERE p.seller_id={sid}
+            GROUP BY ym ORDER BY ym
+        """)
+    except Exception:
+        df = pd.DataFrame()
+    if df.empty:
+        return None
+    # 정산액(net) = 매출 - 수수료(가정 3.3%)
+    df["fee"] = (df["revenue"] * 0.033).round(0)
+    df["net"] = df["revenue"] - df["fee"]
+    return df
+
+
+def fig_billing(df) -> go.Figure:
+    """월별 매출(막대) + 할인(막대) 비교."""
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=df["ym"], y=df["revenue"], name="매출",
+                         marker_color="#1B5E3F"))
+    fig.add_trace(go.Bar(x=df["ym"], y=df["discount"], name="할인 회수 매출",
+                         marker_color="#F59E0B"))
+    fig.update_layout(barmode="group")
+    fig.update_xaxes(title="")
+    fig.update_yaxes(title="원", gridcolor="#EEF2F6")
+    return _base_layout(fig, "")
+
+
+def inventory_lots(sid: int) -> list:
+    """보관상품(로트) 목록: [상품, 재고, 만료(D-), 단가, 상태]."""
+    from datetime import timedelta  # noqa: F401
+    ref = latest_order_date(sid)
+    try:
+        df = q(f"""
+            SELECT p.name pname, pl.stock_qty, pl.expiration_date exp, pl.price
+            FROM product_lots pl JOIN products p ON pl.product_id=p.product_id
+            WHERE p.seller_id={sid} AND pl.stock_qty>0
+            ORDER BY pl.expiration_date ASC
+        """)
+    except Exception:
+        df = pd.DataFrame()
+    rows = []
+    for _, r in df.iterrows():
+        dleft = (pd.to_datetime(r["exp"]).date() - ref).days
+        if dleft <= 3:
+            status = "🔴 만료임박"
+        elif dleft <= 7:
+            status = "🟡 주의"
+        else:
+            status = "🟢 정상"
+        rows.append([
+            str(r["pname"])[:18],
+            f"{int(r['stock_qty'])}개",
+            f"D-{dleft}" if dleft >= 0 else "만료",
+            won(float(r["price"])),
+            status,
+        ])
+    return rows
+
+
+def alerts_data(sid: int) -> list:
+    """운영 알림 모음: [icon, 제목, 상세, 심각도]. 심각도 순 정렬."""
+    df = supply_demand_optimization(sid)
+    alerts = []
+    if df is not None and not df.empty:
+        for _, r in df.iterrows():
+            if r["status"] in ("⛔ 품절", "🔴 품절임박"):
+                alerts.append(["🔴", "품절 위험",
+                               f"{r['product_name']} · 소진 {r['days_supply']:.0f}일분 · "
+                               f"발주 {int(r['reorder_qty'])}개 권장", "긴급"])
+            elif r["waste_qty"] > 0:
+                alerts.append(["🟡", "만료 임박",
+                               f"{r['product_name']} · {int(r['expiring_qty'])}개 "
+                               f"D-{int(r['days_to_expiry'])} · 폐기위험 {int(r['waste_qty'])}개 "
+                               f"({won(r['waste_won'])})", "주의"])
+            elif r["status"] == "🔵 과잉재고":
+                alerts.append(["🔵", "과잉 재고",
+                               f"{r['product_name']} · 소진 {r['days_supply']:.0f}일분 · "
+                               f"매입 축소 검토", "정보"])
+            elif r["status"] == "💤 판매정체":
+                alerts.append(["💤", "판매 정체",
+                               f"{r['product_name']} · 최근 판매 없음 · 노출/할인 검토", "정보"])
+    sev = {"긴급": 0, "주의": 1, "정보": 2}
+    alerts.sort(key=lambda a: sev.get(a[3], 9))
+    return alerts

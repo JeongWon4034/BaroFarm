@@ -71,6 +71,28 @@ class DashState(rx.State):
     sup_waste_won: str = "0원"
     sup_reorder: str = "0"
 
+    # ── 운영 페이지(핫라인/배송/청구/보관/알림) ──
+    ord_pending: str = "0"
+    ord_confirmed: str = "0"
+    ord_shipping: str = "0"
+    ord_completed: str = "0"
+    ord_total: str = "0"
+    recent_orders_table: list[list[str]] = []
+    billing_fig: go.Figure = go.Figure()
+    billing_table: list[list[str]] = []
+    bill_total_rev: str = "0원"
+    bill_total_disc: str = "0원"
+    bill_total_net: str = "0원"
+    inventory_table: list[list[str]] = []
+    alerts_table: list[list[str]] = []   # [icon, title, desc, sev]
+    alert_count: str = "0"
+
+    # 주간 상세 펼치기 토글
+    weekly_expanded: bool = False
+
+    def toggle_weekly(self):
+        self.weekly_expanded = not self.weekly_expanded
+
     # ── 📅 달력 (월간) ──
     cal_year: int = 0
     cal_month: int = 0
@@ -160,6 +182,7 @@ class DashState(rx.State):
             self.select_date(str(ref))
 
             self._compute_ml(sid, d0, d1)
+            self._load_ops(sid)
             self.loaded = True
         except Exception as e:  # noqa: BLE001
             self.error = f"데이터 로드 중 오류: {e}"
@@ -187,6 +210,39 @@ class DashState(rx.State):
                                  for o in d["orders"]])
         self.weekly_days = days_flat
         self.weekly_orders = orders_flat
+
+    def _load_ops(self, sid: int):
+        """핫라인/배송/청구/보관/알림 페이지 데이터 로드."""
+        # 주문 상태
+        s = data.order_status_summary(sid)
+        self.ord_pending = str(s["pending"])
+        self.ord_confirmed = str(s["confirmed"])
+        self.ord_shipping = str(s["shipping"])
+        self.ord_completed = str(s["completed"])
+        self.ord_total = str(s["total"])
+        # 최근 주문
+        self.recent_orders_table = data.recent_orders(sid, 40)
+        # 청구(월별)
+        bm = data.billing_monthly(sid)
+        if bm is not None and not bm.empty:
+            self.billing_fig = data.fig_billing(bm)
+            t = bm.copy()
+            t["매출"] = t["revenue"].apply(data.won)
+            t["할인"] = t["discount"].apply(data.won)
+            t["수수료"] = t["fee"].apply(data.won)
+            t["정산액"] = t["net"].apply(data.won)
+            t["주문"] = t["orders"].apply(lambda v: f"{int(v)}건")
+            self.billing_table = t[["ym", "주문", "매출", "할인", "수수료", "정산액"]]\
+                .astype(str).values.tolist()
+            self.bill_total_rev = data.won(float(bm["revenue"].sum()))
+            self.bill_total_disc = data.won(float(bm["discount"].sum()))
+            self.bill_total_net = data.won(float(bm["net"].sum()))
+        # 보관상품(로트)
+        self.inventory_table = data.inventory_lots(sid)
+        # 알림
+        al = data.alerts_data(sid)
+        self.alerts_table = al
+        self.alert_count = str(len(al))
 
     def select_date(self, date_str: str):
         """달력 날짜 클릭 → 당일 매출 상세 로드."""
