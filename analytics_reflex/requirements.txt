@@ -1,0 +1,11 @@
+# reflex/pydantic/sqlmodel 호환 3종 고정 — pydantic 2.11+ 는 reflex 0.7.14 의 v1 패치와 충돌.
+# pydantic 2.10.x + sqlmodel 0.0.22(pydantic<2.11 허용) 조합이라야 import reflex 가 성공한다.
+reflex==0.7.14
+pydantic==2.10.6
+sqlmodel==0.0.24
+numpy>=1.24
+pandas>=2.0
+plotly>=5.20
+sqlalchemy>=2.0
+pymysql>=1.1
+scikit-learn>=1.3
