@@ -4,14 +4,14 @@ FreshGrowth 더미 데이터 생성기 — 유저(판매자+구매자) & 주문(
 products·product_lots 는 외부(KAMIS) 적재분을 그대로 둔다. 이 스크립트는 **DB의 실제
 품목·폐기기간옵션(lot)을 읽어 참조**하면서, 유저(users)와 주문(orders)만 생성한다.
 
-핵심: 주문은 품목이 아니라 **폐기기간 옵션(lot)** 을 사서, 그 lot 의 떨이가로 결제한다
-(orders.lot_id). 떨이가는 백엔드 WastePricingEngine 과 동일 규칙을 파이썬으로 재현.
+핵심: 주문은 품목이 아니라 **폐기기간 옵션(lot)** 을 사서, 그 lot 의 할인가로 결제한다
+(orders.lot_id). 할인가는 백엔드 WastePricingEngine 과 동일 규칙을 파이썬으로 재현.
 
 적용한 통계 규칙
   1) 페르소나 4그룹 → 카테고리 구매 가중치 차등.
   2) 일별 주문수 ~ Poisson(λ), 주말 ×1.5.
   3) 계절성: 품목명 키워드로 제철 매핑 → 제철 구매확률 ↑.
-  4) 가격탄력성: lot 떨이가가 쌀수록(=폐기 임박) 구매수량 ↑ (역상관).
+  4) 가격탄력성: lot 할인가가 쌀수록(=폐기 임박) 구매수량 ↑ (역상관).
   5) 딜 선호: 임박(D-3 이내) lot 을 더 자주 선택.
 
 실행: python3 generate_dummy.py        # CSV (data/dummy/users.csv, orders.csv)
@@ -39,7 +39,7 @@ CONFIG = {
     "password_hash": "$2b$10$5I3GEXrJghnjSVepCQmjFucBk9jGYpPUDEAEQ5sOC.ltXkgnSSh4O",
 }
 
-# WastePricingEngine 상수 (backend 와 동일) — lot 떨이가 재현용
+# WastePricingEngine 상수 (backend 와 동일) — lot 할인가 재현용
 W = {"SAFE_DAYS": 7, "HIGH_STOCK": 50, "URGENCY": 0.7, "STOCK": 0.3,
      "MAX_DISCOUNT": 60, "FLOOR": 0.15}
 
@@ -68,7 +68,7 @@ SEASON_MAP = {
 
 
 def waste_price(days, stock, base):
-    """WastePricingEngine.compute 재현 → lot 의 폐기기간별 떨이가(100원 단위)."""
+    """WastePricingEngine.compute 재현 → lot 의 폐기기간별 할인가(100원 단위)."""
     if days < 0:
         return base, 0
     urgency = min(max((W["SAFE_DAYS"] - days) / W["SAFE_DAYS"], 0), 1)
@@ -144,7 +144,7 @@ def main(do_load=False):
             lw = np.array([(cfg["deal_purchase_boost"] if lo["days"] <= 3 else 1.0) * (1 + lo["rate"] / 100.0)
                            for lo in lots])
             lot = lots[int(rng.choice(len(lots), p=lw / lw.sum()))]
-            # (c) 가격탄력성: 떨이가 쌀수록 수량 ↑
+            # (c) 가격탄력성: 할인가 쌀수록 수량 ↑
             elasticity = cfg["price_elasticity"] * persona["price_sensitivity"]
             qty_scale = (prod["base"] / max(lot["dprice"], 1)) ** elasticity
             qty = max(1, int(round(persona["base_qty"] * qty_scale * rng.uniform(0.6, 1.4))))
@@ -153,7 +153,7 @@ def main(do_load=False):
             orders.append({"order_id": order_id, "buyer_id": buyer,
                            "product_id": prod["product_id"], "lot_id": lot["lot_id"],
                            "quantity": qty, "total_price": lot["dprice"] * qty,
-                           "original_unit_price": lot["price"],   # 떨이 전 정가 → 절약액/회수매출 산출
+                           "original_unit_price": lot["price"],   # 할인 전 정가 → 절약액/회수매출 산출
                            "status": _status(rng), "order_date": odt.strftime("%Y-%m-%d %H:%M:%S")})
             order_id += 1
     orders_df = pd.DataFrame(orders)
@@ -188,7 +188,7 @@ def load_db(cfg):
         dprice, rate = waste_price(days, int(r.stock_qty), int(r.price))
         lots_by_pid.setdefault(int(r.product_id), []).append(
             {"lot_id": int(r.lot_id), "days": days, "rate": rate,
-             "price": int(r.price), "dprice": dprice})   # price=정가, dprice=떨이가
+             "price": int(r.price), "dprice": dprice})   # price=정가, dprice=할인가
     return prod, lots_by_pid, int(max_uid)
 
 
@@ -240,7 +240,7 @@ def _summary(users, products, orders, cfg):
     print(f"  주문대상품목 {len(products):>9,}")
     print(f"  주문        {len(orders):>10,}")
     print(f"  GMV         {gmv:>13,} 원   AOV {gmv//max(1,len(orders)):,}")
-    print(f"  폐기회수 절약 {saved:>12,} 원  (정가 대비 떨이 할인 합계)")
+    print(f"  폐기회수 절약 {saved:>12,} 원  (정가 대비 할인 합계)")
     print(f"  평일 일평균 {wd:.0f} / 주말 {we:.0f}  (배수 {we/wd:.2f})")
     print(f"  저장: {OUT_DIR}/users.csv, orders.csv")
     print("=" * 60)

@@ -7,7 +7,7 @@ seed_products_kamis.py 가 떨군 CSV(sellers/products/product_lots)를
 
 핵심 설계
   · product_lots.expiration_date 는 '절대 날짜' 대신 DATE_ADD(CURDATE(), INTERVAL n DAY)
-    로 emit → 언제 배포해도 'D-n' 상대 거리가 유지돼 떨이가 엔진이 정상 동작.
+    로 emit → 언제 배포해도 'D-n' 상대 거리가 유지돼 할인가 엔진이 정상 동작.
   · ID(user_id/product_id)는 CSV 값을 그대로 사용. 이는 02-seed(seed_testdata.sql)가
     먼저 실행돼 users=10·products=13 상태를 만든다는 전제 위에서 충돌이 없다.
 

@@ -147,7 +147,7 @@ def render_farm():
     st.write("")
     k1, k2, k3, k4 = st.columns(4)
     k1.metric("재구매율", f"{(per_buyer >= 2).mean() * 100:.1f}%")
-    k2.metric("떨이 회수 매출", won(o.loc[o["is_deal"], "total_price"].sum()), 
+    k2.metric("할인 회수 매출", won(o.loc[o["is_deal"], "total_price"].sum()), 
               f"전체 매출의 {o.loc[o['is_deal'],'total_price'].sum()/gmv*100:.0f}% 비중")
     k3.metric("고객 절약액", won(o["saved"].sum()), "정가 대비 할인분")
     k4.metric("평균 별점", f"{avg_rating:.2f} ★" if pd.notnull(avg_rating) else "—", f"팔로워 {followers:,}명")
@@ -175,20 +175,20 @@ def render_farm():
 
     st.markdown("<hr/>", unsafe_allow_html=True)
 
-    # ── 2. 떨이(마감임박) 효과 ────────────────────────────────────────
-    st.markdown("### ⏰ 마감임박(떨이) 세일 효과")
+    # ── 2. 마감임박 할인 효과 ────────────────────────────────────────
+    st.markdown("### ⏰ 마감임박 할인 세일 효과")
     st.caption("폐기 직전 재고를 할인 판매해 '버릴 매출'을 회수한 규모입니다.")
     c1, c2, c3 = st.columns(3)
     
-    deal_mix = pd.DataFrame({"구분": ["떨이 주문", "정가 주문"], "주문": [int(o["is_deal"].sum()), int((~o["is_deal"]).sum())]})
+    deal_mix = pd.DataFrame({"구분": ["할인 주문", "정가 주문"], "주문": [int(o["is_deal"].sum()), int((~o["is_deal"]).sum())]})
     fig_pie = px.pie(deal_mix, names="구분", values="주문", hole=.5, title="할인 vs 정가 주문 비중", color="구분", 
-                     color_discrete_map={"떨이 주문":"#FF9F43", "정가 주문":"#1DD1A1"})
+                     color_discrete_map={"할인 주문":"#FF9F43", "정가 주문":"#1DD1A1"})
     c1.plotly_chart(fig_pie, use_container_width=True)
 
     by_cat = o.groupby("cat_kr").agg(매출=("total_price", "sum"),
-                                     떨이매출=("total_price", lambda s: o.loc[s.index].query("is_deal")["total_price"].sum())).reset_index()
-    by_cat["떨이비중%"] = (by_cat["떨이매출"] / by_cat["매출"] * 100).round(1)
-    fig_cat = px.bar(by_cat.sort_values("매출"), x="매출", y="cat_kr", orientation="h", color="떨이비중%", 
+                                     할인매출=("total_price", lambda s: o.loc[s.index].query("is_deal")["total_price"].sum())).reset_index()
+    by_cat["할인비중%"] = (by_cat["할인매출"] / by_cat["매출"] * 100).round(1)
+    fig_cat = px.bar(by_cat.sort_values("매출"), x="매출", y="cat_kr", orientation="h", color="할인비중%", 
                      title="카테고리별 매출 및 할인 의존도", color_continuous_scale="Oranges")
     c2.plotly_chart(fig_cat, use_container_width=True)
 

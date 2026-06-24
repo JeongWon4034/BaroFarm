@@ -38,7 +38,7 @@ CONFIG = {
     "base_url": "https://www.kamis.or.kr/service/price/xml.do",
     "n_sellers": 30,            # KAMIS 상품을 분배할 더미 판매자 수(멀티셀러 마켓)
     "lots_per_item": 4,         # 품목당 폐기기간 옵션(lot) 수 → 목록은 품목 1장, 상세에 옵션 N개
-    "lot_exp_days": [1, 3, 6, 10, 14, 18],  # lot 유통기한 후보(D-day). 떨이가는 엔진이 D-day로 계산
+    "lot_exp_days": [1, 3, 6, 10, 14, 18],  # lot 유통기한 후보(D-day). 할인가는 엔진이 D-day로 계산
     "db_url": os.getenv("DB_URL",
         "mysql+pymysql://root:1234@127.0.0.1:3306/freshgrowth?charset=utf8mb4"),
     # 비번 '1234' BCrypt 해시 — schema.sql 시드와 동일
@@ -110,7 +110,7 @@ def parse_items(raw):
 
 def build_catalog(items, seller_ids, start_pid, cfg):
     """KAMIS 품목 → (products 1행, product_lots N행).
-    품목당 lot 들은 '같은 정가, 다른 유통기한' → 떨이가는 조회 시 WastePricingEngine 이 D-day 로 산출."""
+    품목당 lot 들은 '같은 정가, 다른 유통기한' → 할인가는 조회 시 WastePricingEngine 이 D-day 로 산출."""
     rng = np.random.default_rng(cfg["seed"])
     prods, lots, pid = [], [], start_pid
     today = date.today()
@@ -245,7 +245,7 @@ def selftest():
     assert len(lots) == 5 * n_lots                                    # 품목당 lot N개
     assert lots["product_id"].isin(prods["product_id"]).all()         # FK 정합
     assert set(prods["category"]) <= {"vegetable", "fruit", "meat", "seafood", "grain", "etc"}
-    # 한 품목의 lot 들은 같은 정가, 다른 유통기한 → 떨이가는 엔진이 D-day로 차등
+    # 한 품목의 lot 들은 같은 정가, 다른 유통기한 → 할인가는 엔진이 D-day로 차등
     g = lots[lots["product_id"] == 100]
     assert g["price"].nunique() == 1 and g["expiration_date"].nunique() == len(g)
     print("  ✔ selftest 통과: 소매필터·카테고리매핑·품목1행·lot N개·FK·동일정가/상이유통기한 OK")
