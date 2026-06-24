@@ -15,7 +15,7 @@ import ReviewSection from '../components/home/ReviewSection.vue'
 const cart = useCartStore()
 const route = useRoute()
 const router = useRouter()
-const CATEGORIES = ['all', 'vegetable', 'fruit', 'seafood', 'meat', 'grain', 'mushroom', 'root']
+const CATEGORIES = ['all', 'vegetable', 'fruit', 'seafood', 'meat', 'grain', 'etc']
 const SORTS = ['latest', 'expiry', 'priceAsc', 'priceDesc']
 const SORT_LABEL = { latest: '최신순', expiry: '마감임박순', priceAsc: '가격 낮은순', priceDesc: '가격 높은순' }
 const SIZE = 12

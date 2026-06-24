@@ -18,7 +18,7 @@ const cartCount = computed(() => cart.count)
 
 // 카테고리 코드(백엔드 enum) — 클릭 시 상품목록(products)으로 ?category= 쿼리 전달.
 // ProductListView 가 route.query.category 를 복원해 필터링한다.
-const CATEGORY_CODES = ['vegetable', 'fruit', 'seafood', 'meat', 'grain', 'mushroom', 'root']
+const CATEGORY_CODES = ['vegetable', 'fruit', 'seafood', 'meat', 'grain', 'etc']
 
 // 카테고리 플라이아웃 토글 (바깥 클릭 시 닫힘)
 const catOpen = ref(false)

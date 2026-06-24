@@ -15,7 +15,7 @@ const actionCache = ref({})    // productId → 행동추천 응답
 const actionLoading = ref(null) // 현재 불러오는 productId
 const hoveredId = ref(null)     // 추천가 팝오버가 열린 productId
 
-const CATEGORIES = ['vegetable', 'fruit', 'seafood', 'meat', 'grain', 'mushroom', 'root']
+const CATEGORIES = ['vegetable', 'fruit', 'seafood', 'meat', 'grain', 'etc']
 
 const showForm = ref(false)
 const editingId = ref(null)
