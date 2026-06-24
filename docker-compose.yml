@@ -24,6 +24,7 @@ services:
       - ./backend/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./backend/src/main/resources/seed_testdata.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
       - ./backend/src/main/resources/seed_products_kamis.sql:/docker-entrypoint-initdb.d/03-products.sql:ro
+      - ./backend/src/main/resources/seed_product_images.sql:/docker-entrypoint-initdb.d/04-images.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p1234"]
       interval: 5s
