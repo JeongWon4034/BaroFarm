@@ -62,6 +62,15 @@ class DashState(rx.State):
     season_up: str = ""
     season_down: str = ""
 
+    # ── 6. 공급망·수요 최적화 ──
+    has_supply: bool = False
+    supply_fig: go.Figure = go.Figure()
+    supply_table: list[list[str]] = []
+    sup_shortage: str = "0"
+    sup_expiry: str = "0"
+    sup_waste_won: str = "0원"
+    sup_reorder: str = "0"
+
     # ── 📅 달력 (월간) ──
     cal_year: int = 0
     cal_month: int = 0
@@ -293,3 +302,27 @@ class DashState(rx.State):
             self.has_season = True
         else:
             self.has_season = False
+
+        # 6. 공급망·수요 최적화
+        sup = data.supply_demand_optimization(sid)
+        if sup is not None and not sup.empty:
+            self.supply_fig = data.fig_supply(sup)
+            t = sup.copy()
+            t["현재고"] = t["stock"].apply(lambda v: f"{int(v)}개")
+            t["일수요"] = t["daily_demand"].apply(lambda v: f"{v:.1f}개")
+            t["소진일수"] = t["days_supply"].apply(
+                lambda v: "60일+" if v >= 60 else f"{v:.0f}일")
+            t["최단만료"] = t["days_to_expiry"].apply(
+                lambda v: "—" if v >= 999 else f"D-{int(v)}")
+            self.supply_table = t[[
+                "product_name", "category_kr", "현재고", "일수요",
+                "소진일수", "최단만료", "status", "action",
+            ]].astype(str).values.tolist()
+            s = data.supply_summary(sid)
+            self.sup_shortage = str(s["shortage"])
+            self.sup_expiry = str(s["expiry"])
+            self.sup_waste_won = s["waste_won"]
+            self.sup_reorder = str(s["reorder"])
+            self.has_supply = True
+        else:
+            self.has_supply = False

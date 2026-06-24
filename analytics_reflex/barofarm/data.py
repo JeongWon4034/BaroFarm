@@ -446,10 +446,10 @@ def calendar_data(sid: int, year: int, month: int, ref=None) -> list:
 
     try:
         lot_df = q(f"""
-            SELECT DAY(pl.expire_at) AS d
+            SELECT DAY(pl.expiration_date) AS d
             FROM product_lots pl JOIN products p ON pl.product_id=p.product_id
             WHERE p.seller_id={sid}
-              AND YEAR(pl.expire_at)={year} AND MONTH(pl.expire_at)={month}
+              AND YEAR(pl.expiration_date)={year} AND MONTH(pl.expiration_date)={month}
               AND pl.stock_qty > 0
         """)
         expiry_set = set(int(r.d) for r in lot_df.itertuples()) if not lot_df.empty else set()
@@ -479,15 +479,15 @@ def calendar_data(sid: int, year: int, month: int, ref=None) -> list:
 
 
 def today_delivery_summary(sid: int) -> dict:
-    """오늘 주문 건수, 이번 주 만료 예정 재고 건수."""
-    from datetime import date as _date, timedelta
-    today = _date.today()
-    week_end = today + timedelta(days=7)
+    """최근 영업일 주문 건수, 7일 내 만료 예정 재고(로트) 건수."""
+    from datetime import timedelta
+    ref = latest_order_date(sid)          # 데모 데이터 기준 최근 영업일
+    week_end = ref + timedelta(days=7)
     try:
         ord_today = q(f"""
             SELECT COUNT(*) cnt FROM orders o
             JOIN products p ON o.product_id=p.product_id
-            WHERE p.seller_id={sid} AND DATE(o.order_date)='{today}'
+            WHERE p.seller_id={sid} AND DATE(o.order_date)='{ref}'
         """).iloc[0, 0]
     except Exception:
         ord_today = 0
@@ -496,7 +496,7 @@ def today_delivery_summary(sid: int) -> dict:
             SELECT COUNT(*) cnt FROM product_lots pl
             JOIN products p ON pl.product_id=p.product_id
             WHERE p.seller_id={sid} AND pl.stock_qty>0
-              AND pl.expire_at BETWEEN '{today}' AND '{week_end}'
+              AND pl.expiration_date BETWEEN '{ref}' AND '{week_end}'
         """).iloc[0, 0]
     except Exception:
         exp_week = 0
@@ -605,3 +605,157 @@ def daily_detail(sid: int, date_str: str) -> dict:
     items = f"{int(df['quantity'].sum())}개"
     top = str(df.groupby("product_name")["total_price"].sum().idxmax())
     return {"revenue": revenue, "orders": orders, "items": items, "top": top}
+
+
+# ════════════════════════════════════════════════════════════════
+#  🚚 공급망 · 수요 최적화 (재고 × 판매속도 → 발주/폐기 의사결정)
+# ════════════════════════════════════════════════════════════════
+LEAD_TIME_DAYS = 3      # 매입 리드타임(발주→입고)
+TARGET_DAYS    = 14     # 목표 보유 재고 일수(2주)
+OVERSTOCK_DAYS = 30     # 과잉재고 판단 기준
+DEMAND_WINDOW  = 30     # 판매속도 산정 기간(일)
+
+
+@lru_cache(maxsize=64)
+def supply_demand_optimization(sid: int):
+    """상품별 현재고 × 최근 판매속도 → 재고 소진일수·발주권장량·폐기위험 산출.
+    반환: DataFrame(우선순위 정렬). 비면 None.
+    컬럼: product_name, category_kr, stock, daily_demand, days_supply,
+          days_to_expiry, expiring_qty, waste_qty, waste_won,
+          reorder_qty, status, action
+    """
+    from datetime import timedelta
+    ref = latest_order_date(sid)
+    win_start = ref - timedelta(days=DEMAND_WINDOW - 1)
+    exp_horizon = ref + timedelta(days=7)
+
+    # 최근 N일 판매속도
+    sales = q(f"""
+        SELECT p.product_id, p.name AS product_name, p.category,
+               COALESCE(SUM(o.quantity),0) AS qty_win
+        FROM products p
+        LEFT JOIN orders o ON o.product_id=p.product_id
+             AND o.order_date BETWEEN '{win_start} 00:00:00' AND '{ref} 23:59:59'
+        WHERE p.seller_id={sid}
+        GROUP BY p.product_id, p.name, p.category
+    """)
+    if sales.empty:
+        return None
+
+    # 유효 재고(미만료 로트) + 최단 만료일 + 7일내 만료 수량 + 가중 단가
+    stock = q(f"""
+        SELECT p.product_id,
+               COALESCE(SUM(pl.stock_qty),0) AS stock,
+               MIN(pl.expiration_date) AS earliest_expiry,
+               COALESCE(SUM(CASE WHEN pl.expiration_date <= '{exp_horizon}'
+                                 THEN pl.stock_qty ELSE 0 END),0) AS expiring_qty,
+               COALESCE(SUM(pl.stock_qty * pl.price),0) AS stock_value
+        FROM products p
+        LEFT JOIN product_lots pl ON pl.product_id=p.product_id
+             AND pl.stock_qty>0 AND pl.expiration_date >= '{ref}'
+        WHERE p.seller_id={sid}
+        GROUP BY p.product_id
+    """)
+
+    df = sales.merge(stock, on="product_id", how="left").fillna(
+        {"stock": 0, "expiring_qty": 0, "stock_value": 0})
+    df["category_kr"] = df["category"].map(CAT_KR).fillna(df["category"])
+    df["daily_demand"] = (df["qty_win"] / DEMAND_WINDOW).round(2)
+
+    def _days_supply(r):
+        if r["daily_demand"] <= 0:
+            return 999.0 if r["stock"] > 0 else 0.0
+        return round(r["stock"] / r["daily_demand"], 1)
+    df["days_supply"] = df.apply(_days_supply, axis=1)
+
+    def _days_to_expiry(r):
+        e = r["earliest_expiry"]
+        if pd.isna(e):
+            return 999
+        return max((pd.to_datetime(e).date() - ref).days, 0)
+    df["days_to_expiry"] = df.apply(_days_to_expiry, axis=1)
+
+    df["unit_price"] = (df["stock_value"] / df["stock"].replace(0, pd.NA)).fillna(0)
+
+    # 만료 전 예상 판매량 → 폐기 위험 수량/금액
+    df["sellable_before_expiry"] = (df["daily_demand"] * df["days_to_expiry"]).round(0)
+    df["waste_qty"] = (df["expiring_qty"] - df["sellable_before_expiry"]).clip(lower=0)
+    df["waste_won"] = (df["waste_qty"] * df["unit_price"]).round(0)
+
+    # 권장 발주량(목표 재고 - 현재고, 양수일 때)
+    df["reorder_qty"] = (df["daily_demand"] * TARGET_DAYS - df["stock"]).clip(lower=0).round(0)
+
+    def _status(r):
+        if r["daily_demand"] <= 0 and r["stock"] > 0:
+            return "💤 판매정체"
+        if r["stock"] <= 0:
+            return "⛔ 품절"
+        if r["days_supply"] < LEAD_TIME_DAYS:
+            return "🔴 품절임박"
+        if r["waste_qty"] > 0:
+            return "🟡 폐기위험"
+        if r["days_supply"] > OVERSTOCK_DAYS:
+            return "🔵 과잉재고"
+        return "🟢 적정"
+    df["status"] = df.apply(_status, axis=1)
+
+    def _action(r):
+        s = r["status"]
+        if s == "⛔ 품절":
+            return f"즉시 발주 {int(r['reorder_qty'])}개"
+        if s == "🔴 품절임박":
+            return f"발주 권장 {int(r['reorder_qty'])}개 ({r['days_supply']:.0f}일분)"
+        if s == "🟡 폐기위험":
+            return f"할인·번들로 {int(r['waste_qty'])}개 소진({won(r['waste_won'])})"
+        if s == "🔵 과잉재고":
+            return "매입 중단·프로모션 검토"
+        if s == "💤 판매정체":
+            return "노출 강화·할인 검토"
+        return "현 수준 유지"
+    df["action"] = df.apply(_action, axis=1)
+
+    prio = {"⛔ 품절": 0, "🔴 품절임박": 1, "🟡 폐기위험": 2,
+            "💤 판매정체": 3, "🔵 과잉재고": 4, "🟢 적정": 5}
+    df["_p"] = df["status"].map(prio)
+    return df.sort_values(["_p", "days_supply"]).reset_index(drop=True)
+
+
+def supply_summary(sid: int) -> dict:
+    """공급망 KPI: 품절위험·폐기위험 품목수, 예상 폐기손실, 발주권장 품목수."""
+    df = supply_demand_optimization(sid)
+    if df is None or df.empty:
+        return {"shortage": 0, "expiry": 0, "waste_won": "0원", "reorder": 0}
+    shortage = int(df["status"].isin(["⛔ 품절", "🔴 품절임박"]).sum())
+    expiry = int((df["waste_qty"] > 0).sum())
+    waste_won = won(float(df["waste_won"].sum()))
+    reorder = int((df["reorder_qty"] > 0).sum())
+    return {"shortage": shortage, "expiry": expiry,
+            "waste_won": waste_won, "reorder": reorder}
+
+
+def fig_supply(df) -> go.Figure:
+    """상품별 재고 소진일수(가로 막대, 상태별 색)."""
+    color_map = {
+        "⛔ 품절": "#9CA3AF", "🔴 품절임박": "#EF4444", "🟡 폐기위험": "#F59E0B",
+        "💤 판매정체": "#A78BFA", "🔵 과잉재고": "#3B82F6", "🟢 적정": "#22C55E",
+    }
+    d = df.copy()
+    d["plot_days"] = d["days_supply"].clip(upper=60)  # 표시용 상한
+    d["short"] = d["product_name"].str.slice(0, 16)
+    d = d.iloc[::-1]  # 위에서부터 우선순위
+    fig = go.Figure(go.Bar(
+        x=d["plot_days"], y=d["short"], orientation="h",
+        marker_color=[color_map.get(s, "#94A3B8") for s in d["status"]],
+        text=[f"{v:.0f}일" if v < 60 else "60일+" for v in d["days_supply"]],
+        textposition="outside",
+        hovertext=[f"{s} · 현재고 {int(st)}개 · 발주권장 {int(r)}개"
+                   for s, st, r in zip(d["status"], d["stock"], d["reorder_qty"])],
+        hoverinfo="text",
+    ))
+    fig.add_vline(x=LEAD_TIME_DAYS, line_dash="dot", line_color="#EF4444",
+                  annotation_text="리드타임", annotation_position="top")
+    fig.add_vline(x=TARGET_DAYS, line_dash="dot", line_color="#22C55E",
+                  annotation_text="목표재고", annotation_position="top")
+    fig.update_xaxes(title="재고 소진 예상일수 (일)", gridcolor="#EEF2F6")
+    fig.update_yaxes(title="")
+    return _base_layout(fig, "")

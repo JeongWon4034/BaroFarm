@@ -139,6 +139,14 @@ def sidebar() -> rx.Component:
                     spacing="0", width="100%", padding_x="6px",
                 ),
             ),
+            sidebar_section("운영 최적화"),
+            rx.box(
+                rx.vstack(
+                    nav_item("🚚", "공급망·수요 최적화", "supply",
+                             DashState.sup_expiry),
+                    spacing="0", width="100%", padding_x="6px",
+                ),
+            ),
             sidebar_section("AI 예측·분석"),
             rx.box(
                 rx.vstack(
@@ -755,6 +763,39 @@ def dashboard_view() -> rx.Component:
             kpi_accent("🏷️", "할인 매출", DashState.kpi_deal,
                        DashState.kpi_deal_share + " 비중", NAVY_CARD),
             spacing="3", width="100%"),
+        # 공급망 알림 배너 (홈에서 바로 노출)
+        rx.cond(
+            DashState.has_supply & (DashState.sup_expiry != "0"),
+            rx.box(
+                rx.hstack(
+                    rx.text("🚚", font_size="1.2rem"),
+                    rx.vstack(
+                        rx.text("공급망 알림", font_size="0.72rem",
+                                font_weight="700", color="#92400E"),
+                        rx.hstack(
+                            rx.text(DashState.sup_expiry, font_weight="800",
+                                    color="#B45309"),
+                            rx.text("개 품목", font_size="0.82rem", color="#92400E"),
+                            rx.text(DashState.sup_waste_won, font_weight="800",
+                                    color="#B45309"),
+                            rx.text("폐기 위험 · 할인 소진 권장", font_size="0.82rem",
+                                    color="#92400E"),
+                            spacing="1", align="center",
+                        ),
+                        spacing="0", align="start",
+                    ),
+                    rx.spacer(),
+                    rx.button("자세히 보기 →", on_click=DashState.set_nav("supply"),
+                              bg="#B45309", color="white", size="2",
+                              border_radius="8px", cursor="pointer",
+                              _hover={"bg": "#92400E"}),
+                    width="100%", align="center",
+                ),
+                bg="#FFFBEB", border="1px solid #FCD34D",
+                border_radius="12px", padding="14px 18px", width="100%",
+            ),
+            rx.fragment(),
+        ),
         rx.divider(border_color=BORDER_CLR),
         # 주간 달력 + 당일 매출
         section_title("rgba(59,130,246,0.1)", "📅", "주간 예약·배송 현황 (날짜 클릭 시 당일 매출)"),
@@ -811,6 +852,97 @@ def calendar_view() -> rx.Component:
     )
 
 
+def supply_kpi(icon: str, label: str, value, sub: str, bg_color: str) -> rx.Component:
+    return rx.box(
+        rx.vstack(
+            rx.hstack(
+                rx.box(rx.text(icon, font_size="1.1rem"),
+                       bg="rgba(255,255,255,0.15)", border_radius="8px",
+                       width="32px", height="32px",
+                       display="flex", align_items="center",
+                       justify_content="center"),
+                rx.spacer(),
+            ),
+            rx.text(label, font_size="0.78rem",
+                    color="rgba(255,255,255,0.8)", font_weight="500"),
+            rx.text(value, font_size="1.7rem", font_weight="800", color="white"),
+            rx.text(sub, font_size="0.7rem", color="rgba(255,255,255,0.65)"),
+            spacing="1", align="start",
+        ),
+        bg=bg_color, border_radius="14px", padding="16px", flex="1",
+        box_shadow=f"0 4px 16px {bg_color}55",
+    )
+
+
+def supply_view() -> rx.Component:
+    return rx.vstack(
+        page_header("🚚", "공급망·수요 최적화", "운영 최적화"),
+        rx.cond(
+            DashState.has_supply,
+            rx.vstack(
+                # 핵심 인사이트 배너
+                rx.box(
+                    rx.hstack(
+                        rx.text("⚠️", font_size="1.3rem"),
+                        rx.vstack(
+                            rx.text("폐기 위험 재고 알림", font_size="0.82rem",
+                                    font_weight="700", color="#92400E"),
+                            rx.hstack(
+                                rx.text(DashState.sup_expiry, font_weight="800",
+                                        color="#B45309"),
+                                rx.text("개 품목 ·", font_size="0.85rem",
+                                        color="#92400E"),
+                                rx.text(DashState.sup_waste_won, font_weight="800",
+                                        color="#B45309"),
+                                rx.text("규모의 재고가 만료 전 소진되지 못할 것으로 예측됩니다. "
+                                        "할인·번들 판매로 손실을 줄이세요.",
+                                        font_size="0.82rem", color="#92400E"),
+                                spacing="1", align="center", wrap="wrap",
+                            ),
+                            spacing="0", align="start",
+                        ),
+                        spacing="3", align="center",
+                    ),
+                    bg="#FFFBEB", border="1px solid #FCD34D",
+                    border_radius="12px", padding="16px", width="100%",
+                ),
+                # KPI 4종
+                rx.hstack(
+                    supply_kpi("🔴", "품절 위험", DashState.sup_shortage,
+                               "리드타임 내 소진 우려", "#DC2626"),
+                    supply_kpi("🟡", "폐기 위험", DashState.sup_expiry,
+                               "만료 전 미소진 예상", "#D97706"),
+                    supply_kpi("💸", "예상 폐기손실", DashState.sup_waste_won,
+                               "할인 미적용 시", NAVY_CARD),
+                    supply_kpi("📦", "발주 권장", DashState.sup_reorder,
+                               f"목표 재고 2주 기준", BLUE),
+                    spacing="3", width="100%",
+                ),
+                # 소진일수 차트
+                section_box(
+                    section_title("rgba(27,94,63,0.08)", "📊",
+                                  "상품별 재고 소진 예상일수"),
+                    chart_box(DashState.supply_fig,
+                              "빨강 점선=매입 리드타임(3일), 초록 점선=목표 재고(14일). "
+                              "막대가 짧으면 품절 위험, 길면 과잉재고."),
+                ),
+                # 조치 테이블
+                section_box(
+                    section_title("rgba(245,158,11,0.08)", "📋",
+                                  "상품별 권장 조치"),
+                    table_box(
+                        ["상품명", "카테고리", "현재고", "일수요",
+                         "소진일수", "최단만료", "상태", "권장 조치"],
+                        DashState.supply_table),
+                ),
+                spacing="4", width="100%", align="stretch",
+            ),
+            info_box("재고(로트) 또는 판매 데이터가 부족해 공급망 분석을 할 수 없습니다."),
+        ),
+        spacing="4", align="stretch", width="100%", padding_bottom="40px",
+    )
+
+
 def ai_page(icon: str, title: str, badge: str, content) -> rx.Component:
     return rx.vstack(
         page_header(icon, title, "AI 예측·분석"),
@@ -835,6 +967,7 @@ def main_content() -> rx.Component:
             DashState.active_nav,
             ("dashboard", dashboard_view()),
             ("calendar", calendar_view()),
+            ("supply", supply_view()),
             ("revenue", ai_page("📈", "매출 예측", "Ridge Regression", tab_revenue())),
             ("reco", ai_page("🛒", "매입 추천", "MinMax 가중합", tab_reco())),
             ("demand", ai_page("🔮", "수요 예측", "LinearRegression", tab_demand())),
