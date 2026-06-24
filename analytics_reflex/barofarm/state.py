@@ -4,6 +4,7 @@ BaroFarm Reflex State
 URL 쿼리파라미터 ?seller_id=X 를 읽어 해당 농장의 KPI·ML 예측을 계산하고
 plotly Figure / 표 데이터를 State 변수로 보관한다. (UI 는 barofarm.py)
 """
+from datetime import date as _date
 import reflex as rx
 import plotly.graph_objects as go
 
@@ -18,7 +19,7 @@ class DashState(rx.State):
     loaded: bool = False
     error: str = ""
 
-    # ── KPI (포맷된 문자열) ──
+    # ── KPI ──
     kpi_gmv: str = "-"
     kpi_orders: str = "-"
     kpi_aov: str = "-"
@@ -27,6 +28,11 @@ class DashState(rx.State):
     kpi_deal: str = "-"
     kpi_deal_share: str = "-"
 
+    # ── 오늘 요약 ──
+    today_orders: str = "0"
+    expiry_week: str = "0"
+    today_label: str = ""
+
     # ── 1. 매출 예측 ──
     has_revenue: bool = False
     revenue_fig: go.Figure = go.Figure()
@@ -34,7 +40,7 @@ class DashState(rx.State):
     fc_daily: str = "-"
     fc_r2: str = "-"
 
-    # ── 2. 매입 추천 ── (표는 list[list[str]] 행렬로 보관 → Reflex foreach 안전)
+    # ── 2. 매입 추천 ──
     has_reco: bool = False
     reco_fig: go.Figure = go.Figure()
     reco_table: list[list[str]] = []
@@ -56,8 +62,19 @@ class DashState(rx.State):
     season_up: str = ""
     season_down: str = ""
 
+    # ── 📅 달력 ──
+    cal_year: int = 0
+    cal_month: int = 0
+    cal_month_label: str = ""
+    cal_grid: list[list[str]] = []   # 42셀: [day_str, count_str, type_str]
+
+    # ── nav active tab ──
+    active_nav: str = "dashboard"
+
+    def set_nav(self, tab: str):
+        self.active_nav = tab
+
     def _resolve_seller(self) -> int:
-        """쿼리파라미터 seller_id 우선, 없으면 GMV 1위 농장."""
         sid = None
         try:
             sid = self.router.page.params.get("seller_id")
@@ -72,13 +89,12 @@ class DashState(rx.State):
         return int(sellers.iloc[0]["user_id"]) if not sellers.empty else 0
 
     def load(self):
-        """페이지 진입 시 호출 — 전체 계산."""
         self.loaded = False
         self.error = ""
         try:
             sid = self._resolve_seller()
             if not sid:
-                self.error = "주문 데이터가 있는 판매자가 없습니다. 시드 스크립트를 먼저 실행하세요."
+                self.error = "주문 데이터가 있는 판매자가 없습니다."
                 self.loaded = True
                 return
 
@@ -103,17 +119,46 @@ class DashState(rx.State):
             self.kpi_deal = k["deal_rev"]
             self.kpi_deal_share = k["deal_share"]
 
+            # 오늘 요약
+            td = data.today_delivery_summary(sid)
+            self.today_orders = str(td["today_orders"])
+            self.expiry_week = str(td["expiry_week"])
+            today = _date.today()
+            self.today_label = f"{today.year}.{today.month:02d}.{today.day:02d}"
+
+            # 달력 (현재 월)
+            self._load_calendar(sid, today.year, today.month)
+
             self._compute_ml(sid, d0, d1)
             self.loaded = True
         except Exception as e:  # noqa: BLE001
             self.error = f"데이터 로드 중 오류: {e}"
             self.loaded = True
 
+    def _load_calendar(self, sid: int, year: int, month: int):
+        self.cal_year = year
+        self.cal_month = month
+        self.cal_month_label = f"{year}년 {month}월"
+        self.cal_grid = data.calendar_data(sid, year, month)
+
+    def prev_month(self):
+        m, y = self.cal_month - 1, self.cal_year
+        if m < 1:
+            m, y = 12, y - 1
+        self._load_calendar(self.seller_id, y, m)
+
+    def next_month(self):
+        m, y = self.cal_month + 1, self.cal_year
+        if m > 12:
+            m, y = 1, y + 1
+        self._load_calendar(self.seller_id, y, m)
+
     def _compute_ml(self, sid, d0, d1):
+        import numpy as np
+
         # 1. 매출 예측
         res = data.ai_revenue_forecast(sid, d0, d1)
         if res:
-            import numpy as np
             preds = np.array(res["preds"])
             self.revenue_fig = data.fig_revenue(res, self.seller_name)
             self.fc_total = data.won(preds.sum())

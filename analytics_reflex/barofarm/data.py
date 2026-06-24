@@ -408,3 +408,93 @@ def fig_season_growth(growth) -> go.Figure:
     fig = _base_layout(fig, "전월 대비 카테고리 매출 성장률 (%)")
     fig.update_layout(coloraxis_showscale=False, xaxis_title="카테고리", yaxis_title="성장률(%)")
     return fig
+
+
+# ════════════════════════════════════════════════════════════════
+#  📅 달력 데이터 (주문일 + 재고만료일)
+# ════════════════════════════════════════════════════════════════
+def calendar_data(sid: int, year: int, month: int) -> list:
+    """해당 월의 달력 셀 목록(42셀 = 6주×7일) 반환.
+    각 셀: [day_str, order_count_str, type_str]
+    type_str: 'today' | 'expiry' | 'order' | 'normal' | 'empty'
+    """
+    import calendar as cal_lib
+    from datetime import date as _date
+
+    first_weekday, total_days = cal_lib.monthrange(year, month)
+    # Python Mon=0,Sun=6 → 일요일 시작(Sun=0)
+    start_offset = (first_weekday + 1) % 7
+
+    d0 = f"{year}-{month:02d}-01"
+    d1 = f"{year}-{month:02d}-{total_days:02d}"
+
+    try:
+        ord_df = q(f"""
+            SELECT DAY(o.order_date) AS d, COUNT(*) AS cnt
+            FROM orders o JOIN products p ON o.product_id=p.product_id
+            WHERE p.seller_id={sid}
+              AND DATE(o.order_date) BETWEEN '{d0}' AND '{d1}'
+            GROUP BY DAY(o.order_date)
+        """)
+        order_map = {int(r.d): int(r.cnt) for r in ord_df.itertuples()} if not ord_df.empty else {}
+    except Exception:
+        order_map = {}
+
+    try:
+        lot_df = q(f"""
+            SELECT DAY(pl.expire_at) AS d
+            FROM product_lots pl JOIN products p ON pl.product_id=p.product_id
+            WHERE p.seller_id={sid}
+              AND YEAR(pl.expire_at)={year} AND MONTH(pl.expire_at)={month}
+              AND pl.stock_qty > 0
+        """)
+        expiry_set = set(int(r.d) for r in lot_df.itertuples()) if not lot_df.empty else set()
+    except Exception:
+        expiry_set = set()
+
+    today = _date.today()
+    cells = []
+    for i in range(42):
+        day_num = i - start_offset + 1
+        if 1 <= day_num <= total_days:
+            is_today = (year == today.year and month == today.month and day_num == today.day)
+            cnt = order_map.get(day_num, 0)
+            has_expiry = day_num in expiry_set
+            if is_today:
+                ctype = "today"
+            elif has_expiry:
+                ctype = "expiry"
+            elif cnt > 0:
+                ctype = "order"
+            else:
+                ctype = "normal"
+            cells.append([str(day_num), str(cnt), ctype])
+        else:
+            cells.append(["", "0", "empty"])
+
+    return cells
+
+
+def today_delivery_summary(sid: int) -> dict:
+    """오늘 주문 건수, 이번 주 만료 예정 재고 건수."""
+    from datetime import date as _date, timedelta
+    today = _date.today()
+    week_end = today + timedelta(days=7)
+    try:
+        ord_today = q(f"""
+            SELECT COUNT(*) cnt FROM orders o
+            JOIN products p ON o.product_id=p.product_id
+            WHERE p.seller_id={sid} AND DATE(o.order_date)='{today}'
+        """).iloc[0, 0]
+    except Exception:
+        ord_today = 0
+    try:
+        exp_week = q(f"""
+            SELECT COUNT(*) cnt FROM product_lots pl
+            JOIN products p ON pl.product_id=p.product_id
+            WHERE p.seller_id={sid} AND pl.stock_qty>0
+              AND pl.expire_at BETWEEN '{today}' AND '{week_end}'
+        """).iloc[0, 0]
+    except Exception:
+        exp_week = 0
+    return {"today_orders": int(ord_today), "expiry_week": int(exp_week)}
