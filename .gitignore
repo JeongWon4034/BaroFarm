@@ -31,3 +31,7 @@ batch/output/
 application-local.yml
 application-local.properties
 application-secret.*
+
+# 판매자 업로드 이미지(로컬 실행 시 생성)
+uploads/
+backend/uploads/

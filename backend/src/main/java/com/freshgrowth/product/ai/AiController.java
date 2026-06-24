@@ -44,8 +44,9 @@ public class AiController {
     @LoginRequired(role = "SELLER")
     @GetMapping("/price-suggestion")
     public ApiResponse<?> priceSuggestion(@RequestParam(defaultValue = "") String name,
-                                          @RequestParam String category) {
-        return ApiResponse.ok("추천가를 산출했습니다.", productAiService.suggestPrice(name, category));
+                                          @RequestParam String category,
+                                          @RequestParam(required = false) String unit) {
+        return ApiResponse.ok("추천가를 산출했습니다.", productAiService.suggestPrice(name, category, unit));
     }
 
     // 홈 'AI 추천 레시피' — 비로그인 공개. 판매중 재료로 만들 레시피(상품 매핑 포함).

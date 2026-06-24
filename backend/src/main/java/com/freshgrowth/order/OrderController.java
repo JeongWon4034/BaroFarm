@@ -42,6 +42,13 @@ public class OrderController {
         return ApiResponse.ok("판매 내역을 조회했습니다.", orderService.findSellerOrders(sellerId));
     }
 
+    // 판매자 상품별 판매 분석(판매량·매출·절약회수·마감임박비중·최근판매·14일 추이)
+    @LoginRequired(role = "SELLER")
+    @GetMapping("/seller/products/sales")
+    public ApiResponse<?> sellerProductSales(@LoginUser Long sellerId) {
+        return ApiResponse.ok("상품별 판매 분석을 조회했습니다.", orderService.sellerProductSales(sellerId));
+    }
+
     @LoginRequired(role = "SELLER")
     @PatchMapping("/seller/orders/{orderId}/status")
     public ApiResponse<?> updateStatus(@LoginUser Long sellerId,

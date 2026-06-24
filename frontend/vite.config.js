@@ -48,6 +48,10 @@ export default defineConfig({
         target: proxyTarget,
         changeOrigin: true,
       },
+      '/uploads': { // 판매자가 올린 상품 이미지(백엔드 정적 서빙)
+        target: proxyTarget,
+        changeOrigin: true,
+      },
     },
     watch: {
       usePolling: true, // macOS/윈도우 도커 bind mount에서 파일변경 감지 안정화

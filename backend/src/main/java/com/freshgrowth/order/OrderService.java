@@ -3,6 +3,7 @@ package com.freshgrowth.order;
 import com.freshgrowth.challenge.ChallengeService;
 import com.freshgrowth.common.AppException;
 import com.freshgrowth.order.dto.OrderRequest;
+import com.freshgrowth.order.dto.ProductSales;
 import com.freshgrowth.product.Product;
 import com.freshgrowth.product.ProductLot;
 import com.freshgrowth.product.ProductLotMapper;
@@ -11,7 +12,14 @@ import com.freshgrowth.product.WastePricingEngine;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class OrderService {
@@ -127,6 +135,63 @@ public class OrderService {
 
     public List<Order> findSellerOrders(Long sellerId) {
         return orderMapper.findBySellerId(sellerId);
+    }
+
+    private static final DateTimeFormatter DAY_LABEL = DateTimeFormatter.ofPattern("M/d");
+    private static final int TREND_DAYS = 14;
+
+    /**
+     * 판매자 상품별 판매 분석 — 주문을 productId로 묶어 판매량·매출·절약회수·마감임박비중·
+     * 최근판매일(실제 max 주문일)·최근 14일 일별 추이를 산출한다.
+     */
+    public List<ProductSales> sellerProductSales(Long sellerId) {
+        List<Order> orders = orderMapper.findBySellerId(sellerId);
+        LocalDate today = LocalDate.now();
+        LocalDate from = today.minusDays(TREND_DAYS - 1L);
+        Map<Long, ProductSales> map = new LinkedHashMap<>();
+
+        for (Order o : orders) {
+            Long pid = o.getProductId();
+            ProductSales ps = map.computeIfAbsent(pid, k -> newSales(k, from));
+
+            int qty = o.getQuantity() == null ? 0 : o.getQuantity();
+            int total = o.getTotalPrice() == null ? 0 : o.getTotalPrice();
+            int orig = o.getOriginalUnitPrice() == null ? 0 : o.getOriginalUnitPrice();
+
+            ps.setSoldQty(ps.getSoldQty() + qty);
+            ps.setRevenue(ps.getRevenue() + total);
+            ps.setOrderCount(ps.getOrderCount() + 1);
+            long savedThis = (long) orig * qty - total;
+            if (savedThis > 0) {
+                ps.setSaved(ps.getSaved() + savedThis);
+                ps.setDeadlineQty(ps.getDeadlineQty() + qty);
+            }
+
+            LocalDateTime od = o.getOrderDate();
+            if (od != null) {
+                LocalDate d = od.toLocalDate();
+                String ds = d.toString(); // ISO yyyy-MM-dd → 문자열 비교가 곧 날짜 비교
+                if (ps.getLastOrderDate() == null || ds.compareTo(ps.getLastOrderDate()) > 0) {
+                    ps.setLastOrderDate(ds);
+                }
+                if (!d.isBefore(from) && !d.isAfter(today)) {
+                    int idx = (int) ChronoUnit.DAYS.between(from, d);
+                    ps.getDaily14().get(idx).add(qty);
+                }
+            }
+        }
+        return new ArrayList<>(map.values());
+    }
+
+    private ProductSales newSales(Long productId, LocalDate from) {
+        ProductSales ps = new ProductSales();
+        ps.setProductId(productId);
+        List<ProductSales.DayPoint> days = new ArrayList<>(TREND_DAYS);
+        for (int i = 0; i < TREND_DAYS; i++) {
+            days.add(new ProductSales.DayPoint(from.plusDays(i).format(DAY_LABEL)));
+        }
+        ps.setDaily14(days);
+        return ps;
     }
 
     /**

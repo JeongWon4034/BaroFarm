@@ -45,12 +45,18 @@ services:
       AI_BASE_URL: "${AI_BASE_URL:-}"
       AI_API_KEY: "${AI_API_KEY:-}"
       AI_MODEL: "${AI_MODEL:-gpt-4o-mini}"
+      AI_PRICE_MODEL: "${AI_PRICE_MODEL:-gpt-4o}"
       KAMIS_CERT_KEY: "${KAMIS_CERT_KEY:-}"
       KAMIS_CERT_ID: "${KAMIS_CERT_ID:-}"
+      NAVER_CLIENT_ID: "${NAVER_CLIENT_ID:-}"
+      NAVER_CLIENT_SECRET: "${NAVER_CLIENT_SECRET:-}"
       JWT_SECRET: "${JWT_SECRET:-freshgrowth-dev-secret-key-change-me-in-production-0123456789ab}"
+      UPLOAD_DIR: /app/uploads   # 상품 이미지 저장 위치(볼륨 영속화)
       TZ: Asia/Seoul
     ports:
       - "8080:8080"
+    volumes:
+      - upload-data:/app/uploads  # 판매자 업로드 이미지 — 재빌드해도 유지
 
   frontend:
     build: ./frontend
@@ -83,3 +89,4 @@ services:
 
 volumes:
   mysql-data:
+  upload-data:
