@@ -498,3 +498,66 @@ def today_delivery_summary(sid: int) -> dict:
     except Exception:
         exp_week = 0
     return {"today_orders": int(ord_today), "expiry_week": int(exp_week)}
+
+
+def weekly_orders_data(sid: int) -> list:
+    """이번 주(월~일) 7일의 주문 이벤트 카드 목록 반환.
+    반환: list[dict] 길이=7, 각 dict:
+      {weekday: str, date_str: str, is_today: bool,
+       orders: list[{product: str, buyer: str, amount_str: str, status: str}]}
+    """
+    from datetime import date as _date, timedelta
+
+    today = _date.today()
+    # 이번 주 월요일
+    mon = today - timedelta(days=today.weekday())
+    days = [mon + timedelta(days=i) for i in range(7)]
+    dow_kr = ["월", "화", "수", "목", "금", "토", "일"]
+
+    d0_str = str(days[0])
+    d1_str = str(days[6])
+
+    try:
+        df = q(f"""
+            SELECT
+                DATE(o.order_date) AS od,
+                p.product_name,
+                o.buyer_id,
+                o.total_price,
+                o.status
+            FROM orders o
+            JOIN products p ON o.product_id = p.product_id
+            WHERE p.seller_id = {sid}
+              AND DATE(o.order_date) BETWEEN '{d0_str}' AND '{d1_str}'
+            ORDER BY o.order_date
+        """)
+    except Exception:
+        df = pd.DataFrame()
+
+    result = []
+    for i, d in enumerate(days):
+        if df.empty:
+            day_orders = []
+        else:
+            rows = df[df["od"] == d]
+            day_orders = []
+            for _, row in rows.iterrows():
+                status = str(row.get("status", ""))
+                status_label = {
+                    "pending": "접수", "processing": "처리중",
+                    "shipped": "배송중", "delivered": "완료",
+                    "cancelled": "취소",
+                }.get(status, status or "접수")
+                day_orders.append({
+                    "product": str(row["product_name"])[:10],
+                    "buyer": f"고객{str(row['buyer_id'])[-3:]}",
+                    "amount_str": won(float(row["total_price"])),
+                    "status": status_label,
+                })
+        result.append({
+            "weekday": dow_kr[i],
+            "date_str": f"{d.month}/{d.day}",
+            "is_today": (d == today),
+            "orders": day_orders,
+        })
+    return result

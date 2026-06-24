@@ -62,11 +62,17 @@ class DashState(rx.State):
     season_up: str = ""
     season_down: str = ""
 
-    # ── 📅 달력 ──
+    # ── 📅 달력 (월간) ──
     cal_year: int = 0
     cal_month: int = 0
     cal_month_label: str = ""
     cal_grid: list[list[str]] = []   # 42셀: [day_str, count_str, type_str]
+
+    # ── 📅 주간 뷰 ── 7일 × 주문 카드
+    # weekly_days[i] = [weekday_kr, date_str, is_today_str, order_count_str]
+    weekly_days: list[list[str]] = []
+    # weekly_orders[i][j] = [product, buyer, amount_str, status]
+    weekly_orders: list[list[list[str]]] = []
 
     # ── nav active tab ──
     active_nav: str = "dashboard"
@@ -126,8 +132,9 @@ class DashState(rx.State):
             today = _date.today()
             self.today_label = f"{today.year}.{today.month:02d}.{today.day:02d}"
 
-            # 달력 (현재 월)
+            # 달력 (현재 월 + 주간 뷰)
             self._load_calendar(sid, today.year, today.month)
+            self._load_weekly(sid)
 
             self._compute_ml(sid, d0, d1)
             self.loaded = True
@@ -140,6 +147,21 @@ class DashState(rx.State):
         self.cal_month = month
         self.cal_month_label = f"{year}년 {month}월"
         self.cal_grid = data.calendar_data(sid, year, month)
+
+    def _load_weekly(self, sid: int):
+        week_data = data.weekly_orders_data(sid)
+        days_flat = []
+        orders_flat = []
+        for d in week_data:
+            days_flat.append([
+                d["weekday"], d["date_str"],
+                "true" if d["is_today"] else "false",
+                str(len(d["orders"])),
+            ])
+            orders_flat.append([[o["product"], o["buyer"], o["amount_str"], o["status"]]
+                                 for o in d["orders"]])
+        self.weekly_days = days_flat
+        self.weekly_orders = orders_flat
 
     def prev_month(self):
         m, y = self.cal_month - 1, self.cal_year
