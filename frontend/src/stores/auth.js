@@ -11,6 +11,7 @@ export const useAuthStore = defineStore('auth', {
     isLoggedIn: (s) => !!s.user && !!s.token,
     isSeller: (s) => s.user?.role === 'SELLER',
     isBuyer: (s) => s.user?.role === 'BUYER',
+    isAdmin: (s) => s.user?.role === 'ADMIN',
   },
   actions: {
     persist(user, token) {
