@@ -6,6 +6,7 @@ import { orderApi } from '../api/orders'
 import { useCartStore } from '../stores/cart'
 import { useAuthStore } from '../stores/auth'
 import { useFollowStore } from '../stores/follow'
+import { useWishlistStore } from '../stores/wishlist'
 import { followApi } from '../api/follow'
 import { won, thumbEmoji, categoryLabel, dateOnly, dDayLabel, expiryStatus } from '../utils/format'
 import { track } from '../api/track'
@@ -16,8 +17,23 @@ const router = useRouter()
 const cart = useCartStore()
 const auth = useAuthStore()
 const follow = useFollowStore()
+const wishlist = useWishlistStore()
 
 const product = ref(null)
+
+// 찜(위시리스트) — 스토어는 App.vue에서 전역 load됨. 상세에서도 카드와 동일 동작.
+// 판매처별로 productId가 다르므로 productId 단위로 토글한다(같은 품목 다른 농장 = 다른 찜).
+const wished = computed(() => !!product.value && wishlist.isWished(product.value.productId))
+async function toggleWishFor(productId) {
+  if (!auth.isLoggedIn) {
+    router.push({ name: 'login', query: { redirect: route.fullPath } })
+    return
+  }
+  await wishlist.toggle(productId)
+}
+async function toggleWish() {
+  if (product.value) await toggleWishFor(product.value.productId)
+}
 const lots = ref([])              // 폐기기간별 옵션
 const selectedLot = ref(null)     // 선택한 옵션(없으면 상품 대표가)
 const seller = ref(null)
@@ -277,6 +293,15 @@ async function buyNow() {
               <b>{{ won(r.effPrice) }}</b>
               <s v-if="r.hasDeal" class="cmp-was">{{ won(r.price) }}</s>
             </span>
+            <span
+              class="cmp-wish" :class="{ on: wishlist.isWished(r.productId) }"
+              role="button" tabindex="0"
+              :title="wishlist.isWished(r.productId) ? '찜 해제' : '찜하기'"
+              @click.stop.prevent="toggleWishFor(r.productId)"
+              @keydown.enter.stop.prevent="toggleWishFor(r.productId)"
+            >
+              <svg viewBox="0 0 24 24" :fill="wishlist.isWished(r.productId) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"><path d="M19 14c1.5-1.5 3-3.3 3-5.5A4.5 4.5 0 0 0 12 6 4.5 4.5 0 0 0 2 8.5C2 13 12 21 12 21s4-3.2 7-7Z"/></svg>
+            </span>
           </button>
           <p class="cmp-foot muted">같은 품목도 판매처·마감임박도에 따라 가격이 달라요. 더 저렴하거나 신선한 곳을 골라보세요.</p>
         </div>
@@ -311,6 +336,10 @@ async function buyNow() {
         <p v-if="isExpired" class="expired-notice">⛔ 유통기한이 지나 판매가 종료된 상품입니다.</p>
 
         <div class="cta-row">
+          <button class="wish-btn" :class="{ on: wished }" :title="wished ? '찜 해제' : '찜하기'" @click="toggleWish">
+            <svg viewBox="0 0 24 24" :fill="wished ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"><path d="M19 14c1.5-1.5 3-3.3 3-5.5A4.5 4.5 0 0 0 12 6 4.5 4.5 0 0 0 2 8.5C2 13 12 21 12 21s4-3.2 7-7Z"/></svg>
+            <span>{{ wished ? '찜함' : '찜' }}</span>
+          </button>
           <button class="btn btn-outline" :disabled="soldOut || isExpired" @click="addToCart">🧺 장바구니 담기</button>
           <button class="btn btn-accent" :disabled="soldOut || isExpired || submitting" @click="buyNow">
             {{ isExpired ? '판매종료' : soldOut ? '품절' : (submitting ? '처리 중…' : '💳 결제하기') }}
@@ -411,10 +440,15 @@ async function buyNow() {
 .compare { display: flex; flex-direction: column; gap: 7px; border: 1.5px solid var(--line-2); border-radius: 14px; padding: 14px; background: var(--cream); }
 .cmp-head { font-size: 14px; font-weight: 800; color: var(--ink); margin-bottom: 2px; }
 .cmp-head .muted { font-weight: 500; color: var(--muted); font-size: 12.5px; }
-.cmp-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; width: 100%; text-align: left;
+.cmp-row { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 12px; width: 100%; text-align: left;
   background: #fff; border: 1.5px solid var(--line-2); border-radius: 11px; padding: 11px 13px; cursor: pointer; transition: .14s; }
 .cmp-row:hover { border-color: var(--leaf-500); }
 .cmp-row.cur { border-color: var(--ink); background: var(--leaf-50); cursor: default; }
+.cmp-wish { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px;
+  border-radius: 9px; color: var(--muted); cursor: pointer; transition: .14s; justify-self: end; }
+.cmp-wish svg { width: 19px; height: 19px; }
+.cmp-wish:hover { background: var(--deal-soft); color: var(--deal); }
+.cmp-wish.on { color: var(--deal); }
 .cmp-seller { font-weight: 700; font-size: 14px; color: var(--ink); display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .cmp-badge { font-size: 10.5px; font-weight: 800; padding: 1px 7px; border-radius: 999px; }
 .cmp-badge.is-cur { background: var(--ink); color: #fff; }
@@ -457,6 +491,15 @@ async function buyNow() {
 .expired-notice { color: #c0392b; background: var(--deal-soft); border-radius: var(--r-btn); padding: 10px 14px; font-size: 14px; font-weight: 600; margin: 0; }
 .cta-row { display: flex; gap: 11px; }
 .cta-row .btn { flex: 1; padding: 16px; font-size: 16px; }
+.wish-btn {
+  flex: none; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  width: 64px; padding: 10px 8px; border-radius: 12px;
+  border: 1.5px solid var(--line); background: #fff; color: var(--ink-2);
+  font-size: 12px; font-weight: 700; cursor: pointer; transition: .14s;
+}
+.wish-btn svg { width: 22px; height: 22px; }
+.wish-btn:hover { border-color: var(--deal); color: var(--deal); }
+.wish-btn.on { border-color: var(--deal); color: var(--deal); background: var(--deal-soft); }
 
 .reviews { margin-top: 48px; }
 .reviews-title { font-size: 20px; font-weight: 800; border-top: 1px solid var(--line); padding-top: 26px; margin-bottom: 16px; }

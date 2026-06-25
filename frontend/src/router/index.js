@@ -28,6 +28,7 @@ const routes = [
   { path: '/admin/analytics', name: 'analytics', component: () => import('../views/AnalyticsView.vue'), meta: { auth: true, admin: true } },
   { path: '/seller/products', name: 'seller-products', component: () => import('../views/SellerProductsView.vue'), meta: { auth: true, seller: true } },
   { path: '/seller/orders', name: 'seller-orders', component: () => import('../views/SellerOrdersView.vue'), meta: { auth: true, seller: true } },
+  { path: '/seller/profile', name: 'seller-profile', component: () => import('../views/SellerProfileView.vue'), meta: { auth: true, seller: true } },
   { path: '/login', name: 'login', component: () => import('../views/LoginView.vue') },
   { path: '/signup', name: 'signup', component: () => import('../views/SignupView.vue') },
 ]
