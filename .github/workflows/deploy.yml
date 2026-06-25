@@ -1,0 +1,35 @@
+# BaroFarm v1 자동배포 — main 푸시 시 VM에 SSH로 접속해 git pull + 재빌드/재기동.
+# (GitHub Actions에서 동작 → GitHub 미러로 push해야 트리거됨. VM은 자기 origin에서 pull.)
+#
+# 필요한 GitHub Secrets:
+#   VM_HOST     배포 VM 공인 IP/호스트
+#   VM_USER     SSH 사용자 (예: ubuntu)
+#   VM_SSH_KEY  VM 접속용 개인키 (PEM 전체)
+#   VM_APP_DIR  VM의 레포 경로 (예: /home/ubuntu/15pjt_lees) — 미설정 시 ~/15pjt_lees
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}   # 수동 실행 버튼
+
+concurrency:
+  group: deploy-prod      # 동시 배포 방지(겹치면 이전 것 취소)
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            set -e
+            cd ${{ secrets.VM_APP_DIR || '~/15pjt_lees' }}
+            git pull --ff-only
+            docker compose -f docker-compose.prod.yml up -d --build
+            docker image prune -f
