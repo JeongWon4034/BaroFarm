@@ -27,7 +27,7 @@
    ```bash
    git clone https://lab.ssafy.com/dlehduslee/15pjt_lees.git ~/15pjt_lees
    cd ~/15pjt_lees
-   cp .env.prod.example .env   # 값 채우기 (DOMAIN, 비번, JWT, API 키들)
+   cp .env   # 값 채우기 (DOMAIN, 비번, JWT, API 키들)
    ```
 
 ## 2. 첫 배포

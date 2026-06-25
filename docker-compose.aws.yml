@@ -1,0 +1,39 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: freshgrowth-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-1234}
+      MYSQL_DATABASE: freshgrowth
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  reflex:
+    build:
+      context: ./analytics_reflex
+      dockerfile: Dockerfile.prod
+    container_name: freshgrowth-reflex
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      # EC2_PUBLIC_IP 를 실제 IP로 채워서 실행: EC2_PUBLIC_IP=1.2.3.4 docker compose ...
+      REFLEX_API_URL: "http://${EC2_PUBLIC_IP}:8000"
+      ANALYTICS_DB_URL: "mysql+pymysql://root:${MYSQL_ROOT_PASSWORD:-1234}@mysql:3306/freshgrowth?charset=utf8mb4"
+    ports:
+      - "3001:3001"
+      - "8000:8000"
+    volumes:
+      - /app/.web
+
+volumes:
+  mysql_data:
