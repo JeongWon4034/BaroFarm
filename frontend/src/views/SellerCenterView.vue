@@ -1,9 +1,14 @@
 <script setup>
+import { computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useNotificationStore } from '../stores/notification'
+import { REFLEX_URL } from '../config'
 
 const auth = useAuthStore()
 const noti = useNotificationStore()
+
+// Reflex 분석 대시보드는 별도 호스트(HTTPS 임베드 불가)라 새 탭으로 연다.
+const dashboardUrl = computed(() => `${REFLEX_URL}/?seller_id=${auth.user?.userId ?? ''}`)
 
 const menus = [
   {
@@ -21,8 +26,15 @@ const menus = [
   {
     name: 'seller-dashboard',
     title: '판매자 대시보드',
-    desc: 'AI 매출·재고·공급망 분석을 한눈에 확인',
+    desc: 'AI 매출·재고·공급망 분석을 새 창에서 확인',
     icon: 'chart',
+    external: true,
+  },
+  {
+    name: 'seller-profile',
+    title: '내 정보 수정',
+    desc: '농장명·소개·연락처·대표 이미지 변경',
+    icon: 'user',
   },
 ]
 
@@ -37,11 +49,19 @@ const visibleMenus = menus
     </div>
 
     <div class="grid">
-      <router-link v-for="m in visibleMenus" :key="m.name" :to="{ name: m.name }" class="tile card">
+      <component
+        :is="m.external ? 'a' : 'router-link'"
+        v-for="m in visibleMenus" :key="m.name"
+        v-bind="m.external
+          ? { href: dashboardUrl, target: '_blank', rel: 'noopener noreferrer' }
+          : { to: { name: m.name } }"
+        class="tile card"
+      >
         <span class="ic">
           <svg v-if="m.icon === 'box'" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
           <svg v-else-if="m.icon === 'clipboard'" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h4"/></svg>
-          <svg v-else width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></svg>
+          <svg v-else-if="m.icon === 'chart'" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></svg>
+          <svg v-else width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 1 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>
         </span>
         <div class="tx">
           <div class="t">
@@ -50,8 +70,9 @@ const visibleMenus = menus
           </div>
           <div class="d">{{ m.desc }}</div>
         </div>
-        <svg class="arr" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-      </router-link>
+        <svg v-if="m.external" class="arr" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        <svg v-else class="arr" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+      </component>
     </div>
   </div>
 </template>

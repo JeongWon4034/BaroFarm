@@ -13,6 +13,16 @@ const touched = ref({ name: false, email: false, password: false, passwordConfir
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+// 비밀번호 문자 종류 수 — 대문자·소문자·숫자·특수기호 중 몇 종류 포함하는지
+function pwClassCount(pw) {
+  let n = 0
+  if (/[A-Z]/.test(pw)) n++
+  if (/[a-z]/.test(pw)) n++
+  if (/\d/.test(pw)) n++
+  if (/[^A-Za-z0-9]/.test(pw)) n++
+  return n
+}
+
 // 비밀번호 강도 (0~3)
 const pwStrength = computed(() => {
   const pw = form.value.password
@@ -33,7 +43,13 @@ const pwStrength = computed(() => {
 const fieldError = computed(() => ({
   name: touched.value.name && !form.value.name.trim() ? '이름을 입력하세요.' : '',
   email: touched.value.email && !EMAIL_RE.test(form.value.email) ? '올바른 이메일 형식이 아닙니다.' : '',
-  password: touched.value.password && form.value.password.length > 0 && form.value.password.length < 8 ? '비밀번호는 8자 이상이어야 합니다.' : '',
+  password: touched.value.password && form.value.password.length > 0
+    ? (form.value.password.length < 8
+        ? '비밀번호는 8자 이상이어야 합니다.'
+        : pwClassCount(form.value.password) < 2
+          ? '대문자·소문자·숫자·특수기호 중 2가지 이상 포함해야 합니다.'
+          : '')
+    : '',
   passwordConfirm: touched.value.passwordConfirm && form.value.passwordConfirm && form.value.password !== form.value.passwordConfirm ? '비밀번호가 일치하지 않습니다.' : '',
 }))
 
@@ -41,6 +57,7 @@ function validate() {
   if (!form.value.name.trim()) return '이름을 입력하세요.'
   if (!EMAIL_RE.test(form.value.email)) return '올바른 이메일 형식이 아닙니다.'
   if (form.value.password.length < 8) return '비밀번호는 8자 이상이어야 합니다.'
+  if (pwClassCount(form.value.password) < 2) return '비밀번호는 대문자·소문자·숫자·특수기호 중 2가지 이상을 포함해야 합니다.'
   if (form.value.password !== form.value.passwordConfirm) return '비밀번호가 일치하지 않습니다.'
   return ''
 }
