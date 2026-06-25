@@ -793,25 +793,27 @@ def ai_supply_feedback(sid: int) -> str:
     if not api_key or not base_url:
         return _supply_feedback_fallback(s)
 
+    sys_prompt = (
+        "당신은 신선식품 농장의 공급망·재고 최적화를 돕는 데이터 애널리스트입니다. "
+        "주어진 KPI와 위험 품목 데이터만 근거로, 군더더기 없이 실행 가능한 한국어 조언을 작성하세요. "
+        "형식: 첫 줄에 한 문장 종합 진단, 이어서 '•'로 시작하는 핵심 인사이트 3~4개"
+        "(각 항목은 수치 근거 + 구체 조치). 마지막 줄에 '✅ 우선 조치:' 로 가장 시급한 1가지. "
+        "과장·일반론 금지, 데이터에 없는 내용 지어내지 말 것."
+    )
+    user_prompt = f"다음 공급망 현황을 종합 분석해 주세요.\n\n{context}"
+
     try:
         from openai import OpenAI
-        client = OpenAI(api_key=api_key, base_url=base_url, timeout=25, max_retries=1)
-        resp = client.chat.completions.create(
+        client = OpenAI(api_key=api_key, base_url=base_url, timeout=60, max_retries=1)
+        # Responses API 사용 — gpt-5.x(추론형, /responses 전용) 와 gpt-4o 계열 모두 호환.
+        # (chat.completions 는 gpt-5.5-pro 등 추론 모델을 지원하지 않음)
+        resp = client.responses.create(
             model=model,
-            temperature=0.4,
-            max_tokens=550,
-            messages=[
-                {"role": "system", "content":
-                    "당신은 신선식품 농장의 공급망·재고 최적화를 돕는 데이터 애널리스트입니다. "
-                    "주어진 KPI와 위험 품목 데이터만 근거로, 군더더기 없이 실행 가능한 한국어 조언을 작성하세요. "
-                    "형식: 첫 줄에 한 문장 종합 진단, 이어서 '•'로 시작하는 핵심 인사이트 3~4개"
-                    "(각 항목은 수치 근거 + 구체 조치). 마지막 줄에 '✅ 우선 조치:' 로 가장 시급한 1가지. "
-                    "과장·일반론 금지, 데이터에 없는 내용 지어내지 말 것."},
-                {"role": "user", "content":
-                    f"다음 공급망 현황을 종합 분석해 주세요.\n\n{context}"},
-            ],
+            instructions=sys_prompt,
+            input=user_prompt,
+            max_output_tokens=2000,
         )
-        text = (resp.choices[0].message.content or "").strip()
+        text = (resp.output_text or "").strip()
         if text:
             _supply_ai_cache[sid] = text
             return text
