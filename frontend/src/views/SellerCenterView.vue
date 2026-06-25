@@ -1,13 +1,10 @@
 <script setup>
-import { computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useNotificationStore } from '../stores/notification'
-import { DASHBOARD_ENABLED } from '../config'
 
 const auth = useAuthStore()
 const noti = useNotificationStore()
 
-// 판매자 전용 개인 메뉴 허브 — 공개 쇼핑 메뉴와 분리된 관리 기능 모음.
 const menus = [
   {
     name: 'seller-products',
@@ -24,13 +21,12 @@ const menus = [
   {
     name: 'seller-dashboard',
     title: '판매자 대시보드',
-    desc: '재고 폐기위험과 AI 추천 할인가를 한눈에',
+    desc: 'AI 매출·재고·공급망 분석을 한눈에 확인',
     icon: 'chart',
   },
 ]
 
-// 분석 대시보드(Streamlit)는 v1 미배포 → 메뉴에서 숨김
-const visibleMenus = computed(() => menus.filter((m) => m.name !== 'seller-dashboard' || DASHBOARD_ENABLED))
+const visibleMenus = menus
 </script>
 
 <template>
