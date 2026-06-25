@@ -24,6 +24,7 @@ public class UserService {
 
     @Transactional
     public UserResponse signup(SignupRequest request) {
+        validatePassword(request.getPassword());
         if (userMapper.findByEmail(request.getEmail()) != null) {
             throw new AppException(HttpStatus.CONFLICT, "DUPLICATED_EMAIL", "이미 사용 중인 이메일입니다.");
         }
@@ -32,6 +33,7 @@ public class UserService {
         }
 
         User user = new User();
+        // (validatePassword 통과 후) BCrypt 해싱은 아래에서 수행
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword())); // BCrypt 해싱 저장
         user.setName(request.getName());
@@ -40,6 +42,25 @@ public class UserService {
         userMapper.insert(user);
 
         return new UserResponse(userMapper.findById(user.getUserId()));
+    }
+
+    /**
+     * 비밀번호 정책(서버측 강제): 8자 이상 + 대문자·소문자·숫자·특수기호 중 2종류 이상.
+     * 프론트 검증은 우회 가능하므로 가입 핵심 경로에서 동일 규칙을 다시 강제한다.
+     */
+    private void validatePassword(String pw) {
+        if (pw == null || pw.length() < 8) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "WEAK_PASSWORD", "비밀번호는 8자 이상이어야 합니다.");
+        }
+        int classes = 0;
+        if (pw.matches(".*[A-Z].*")) classes++;
+        if (pw.matches(".*[a-z].*")) classes++;
+        if (pw.matches(".*\\d.*")) classes++;
+        if (pw.matches(".*[^A-Za-z0-9].*")) classes++;
+        if (classes < 2) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "WEAK_PASSWORD",
+                    "비밀번호는 대문자·소문자·숫자·특수기호 중 2가지 이상을 포함해야 합니다.");
+        }
     }
 
     public LoginResponse login(LoginRequest request) {
