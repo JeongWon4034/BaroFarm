@@ -40,16 +40,16 @@ const dailyDeal = computed(() =>
     ? [...products.value].sort((a, b) => (b.discountRate ?? 0) - (a.discountRate ?? 0))[0]
     : null
 )
-// 섹션 제목 — 홈='오늘의 신선식품', 전체='전체 상품', 카테고리 선택 시 그 카테고리명(예: 채소).
+// 섹션 제목 — 홈='갓 들어온 신선식품', 전체='전체 상품', 카테고리 선택 시 그 카테고리명(예: 채소).
 const sectionTitle = computed(() =>
   route.query.category === 'all'
     ? '전체 상품'
     : activeCategory.value === 'all'
-      ? '오늘의 신선식품'
+      ? '갓 들어온 신선식품'
       : categoryLabel(activeCategory.value)
 )
 
-// 홈 '오늘의 신선식품' — 서로 다른 카테고리에서 랜덤 4개를 뽑아 다양하게 노출.
+// 홈 '갓 들어온 신선식품' — 서로 다른 카테고리에서 랜덤 4개를 뽑아 다양하게 노출.
 const homePicks = ref([])
 async function loadHomePicks() {
   try {
@@ -201,7 +201,7 @@ function addToCart(product) {
       </template>
     </template>
 
-    <!-- 홈 랜딩 섹션 (오늘의 신선식품 아래, 카테고리·검색 중엔 숨김) -->
+    <!-- 홈 랜딩 섹션 (갓 들어온 신선식품 아래, 카테고리·검색 중엔 숨김) -->
     <template v-if="isHome">
       <GardenPick />
       <RecipeSection />
@@ -212,8 +212,8 @@ function addToCart(product) {
         <router-link :to="{ name: 'deals' }" class="deal-banner">
           <div class="db-l">
             <span class="eyebrow">오늘의 마감임박 특가</span>
-            <h2>오늘 안 팔리면 사라지는 신선식품, 제값에</h2>
-            <p>마감 임박 상품을 모아 더 알뜰하게 — 매일 밤 리셋돼요</p>
+            <h2>오늘 안 사면 사라지는 신선식품, 더 저렴하게</h2>
+            <p>유통기한이 임박할수록 더 싸게 — 마감 임박 상품만 모았어요</p>
           </div>
           <span class="db-go">특가 전체 보기
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>

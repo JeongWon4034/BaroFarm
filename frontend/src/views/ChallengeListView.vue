@@ -74,8 +74,8 @@ async function join(c) {
 <template>
   <div>
     <div class="head">
-      <h1>🏆 폐기 절감 챌린지</h1>
-      <p class="muted sub">마감임박 상품을 구매할 때마다 진행도가 쌓여요. 음식물 폐기를 줄이고 뱃지를 모아보세요.</p>
+      <h1>🏆 바로팜 챌린지</h1>
+      <p class="muted sub">마감임박 상품을 구매할 때마다 진행도가 쌓여요. 알뜰하게 사고 뱃지도 모아보세요.</p>
     </div>
 
     <div v-if="auth.isLoggedIn" class="summary">
