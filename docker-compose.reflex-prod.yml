@@ -16,6 +16,9 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      # ── 한글 깨짐 방지: 클라이언트가 latin1 로 접속해도 서버가 utf8mb4 강제 ──
+      # (시드 SQL 초기 적재 시 이중 인코딩되어 한글이 깨지던 문제 해결)
+      - --skip-character-set-client-handshake
       # ── 1GB EC2 메모리 절감 튜닝 ──
       - --innodb-buffer-pool-size=64M
       - --performance-schema=OFF
@@ -31,6 +34,8 @@ services:
       - ./backend/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./backend/src/main/resources/seed_testdata.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
       - ./backend/src/main/resources/seed_products_kamis.sql:/docker-entrypoint-initdb.d/03-products.sql:ro
+      # 04: analytics_reflex 배포 전용 주문 시드(buyer 1.5천 + 주문 1만). Java 백엔드 미참조.
+      - ./analytics_reflex/deploy/seed_orders.sql:/docker-entrypoint-initdb.d/04-orders.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
