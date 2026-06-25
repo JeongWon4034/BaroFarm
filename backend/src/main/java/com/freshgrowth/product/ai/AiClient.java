@@ -19,13 +19,16 @@ public class AiClient {
     private final RestClient rest;
     private final String apiKey;
     private final String model;
+    private final String priceModel;
     private final boolean configured;
 
     public AiClient(@Value("${ai.base-url:}") String baseUrl,
                     @Value("${ai.api-key:}") String apiKey,
-                    @Value("${ai.model:gpt-4o-mini}") String model) {
+                    @Value("${ai.model:gpt-4o-mini}") String model,
+                    @Value("${ai.price-model:gpt-4o}") String priceModel) {
         this.apiKey = apiKey == null ? "" : apiKey.trim();
         this.model = model;
+        this.priceModel = priceModel == null || priceModel.isBlank() ? model : priceModel.trim();
         this.configured = baseUrl != null && !baseUrl.isBlank()
                 && !this.apiKey.isBlank() && !this.apiKey.startsWith("<");
         this.rest = RestClient.builder().baseUrl(baseUrl == null ? "" : baseUrl.trim()).build();
@@ -35,14 +38,23 @@ public class AiClient {
         return configured;
     }
 
-    @SuppressWarnings("unchecked")
+    /** 추천가 등 정밀 추론용 모델 id(기본 gpt-4o). 단위 정규화처럼 mini로 부족한 작업에 사용. */
+    public String getPriceModel() {
+        return priceModel;
+    }
+
     public String chat(String systemPrompt, String userPrompt, int maxTokens) {
+        return chat(systemPrompt, userPrompt, maxTokens, model);
+    }
+
+    @SuppressWarnings("unchecked")
+    public String chat(String systemPrompt, String userPrompt, int maxTokens, String modelId) {
         if (!configured) {
             throw new AppException(HttpStatus.SERVICE_UNAVAILABLE, "AI_NOT_CONFIGURED",
                     "AI가 설정되지 않았습니다. backend/application-local.yml에 GMS base-url/키를 넣어주세요.");
         }
         Map<String, Object> body = Map.of(
-                "model", model,
+                "model", modelId == null || modelId.isBlank() ? model : modelId,
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", userPrompt)

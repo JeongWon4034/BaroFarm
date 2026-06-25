@@ -7,7 +7,7 @@ import { useCartStore } from '../stores/cart'
 import { useAuthStore } from '../stores/auth'
 import { useFollowStore } from '../stores/follow'
 import { followApi } from '../api/follow'
-import { won, thumbEmoji, categoryLabel, dateOnly, dDayLabel, riskMeta } from '../utils/format'
+import { won, thumbEmoji, categoryLabel, dateOnly, dDayLabel, expiryStatus } from '../utils/format'
 import { track } from '../api/track'
 import StarRating from '../components/StarRating.vue'
 
@@ -22,6 +22,7 @@ const lots = ref([])              // 폐기기간별 옵션
 const selectedLot = ref(null)     // 선택한 옵션(없으면 상품 대표가)
 const seller = ref(null)
 const reviews = ref([])
+const others = ref([])            // 같은 품목 다른 판매처(가격 비교)
 const loading = ref(true)
 const error = ref('')
 const qty = ref(1)
@@ -38,13 +39,15 @@ async function loadAll() {
   try {
     product.value = await productApi.detail(route.params.id)
     // 리뷰·판매자·폐기기간옵션은 서로 의존이 없어 병렬로 조회
-    const [rv, sl, lt] = await Promise.all([
+    const [rv, sl, lt, cmp] = await Promise.all([
       productApi.reviews(route.params.id).catch(() => []),
       followApi.seller(product.value.sellerId).catch(() => null),
       productApi.lots(route.params.id).catch(() => []),
+      productApi.compare(route.params.id).catch(() => []),
     ])
     reviews.value = rv
     seller.value = sl
+    others.value = cmp || []
     // 판매 가능(미만료) 옵션만, 임박순 정렬. 기본 선택 = 가장 임박(=할인 큰) 옵션.
     lots.value = (lt || []).filter((l) => l.riskLevel !== 'EXPIRED')
     selectedLot.value = lots.value[0] ?? null
@@ -76,7 +79,28 @@ const isExpired = computed(() => active.value?.riskLevel === 'EXPIRED' || (dday.
 const maxQty = computed(() => Math.max(1, selStock.value))
 const hasDeal = computed(() => discRate.value > 0)
 const unitPrice = computed(() => active.value?.discountedPrice ?? active.value?.price ?? 0)
-const risk = computed(() => riskMeta(active.value?.riskLevel))
+const expiry = computed(() => expiryStatus(dday.value)) // 유통기한 상태는 D-day 숫자 기준
+
+// 판매처 가격 비교 — 현재 상품 + 같은 품목 다른 판매처를 실판매가 오름차순으로, 최저가 표시
+const hasCompare = computed(() => others.value.length > 0)
+const compareRows = computed(() => {
+  if (!product.value) return []
+  const mk = (p, isCurrent) => ({
+    productId: p.productId,
+    sellerName: isCurrent ? (seller.value?.name || p.sellerName || '이 판매처') : p.sellerName,
+    price: p.price,
+    effPrice: p.discountedPrice ?? p.price,
+    daysToExpiry: p.daysToExpiry,
+    hasDeal: (p.discountRate ?? 0) > 0,
+    isCurrent,
+  })
+  const rows = [mk(product.value, true), ...others.value.map((o) => mk(o, false))]
+  rows.sort((a, b) => a.effPrice - b.effPrice)
+  const min = Math.min(...rows.map((r) => r.effPrice))
+  rows.forEach((r) => { r.isLowest = r.effPrice === min })
+  return rows
+})
+function goProduct(id) { if (id !== product.value?.productId) router.push({ name: 'product-detail', params: { id } }) }
 const estimated = computed(() => unitPrice.value * qty.value)
 const avgRating = computed(() => {
   if (!reviews.value.length) return product.value?.avgRating || 0
@@ -185,7 +209,7 @@ async function buyNow() {
       <div class="pinfo">
         <div class="chips">
           <span class="chip">{{ categoryLabel(product.category) }}</span>
-          <span v-if="dday != null" class="chip" :class="risk.cls">{{ risk.label }}</span>
+          <span v-if="dday != null" class="chip" :class="expiry.cls">{{ expiry.label }}</span>
           <span class="chip muted">산지직송</span>
         </div>
         <h1>{{ product.name }}</h1>
@@ -203,8 +227,8 @@ async function buyNow() {
         <p v-if="followError" class="err follow-err">{{ followError }}</p>
 
         <div class="pricebox">
-          <div v-if="dday != null && (risk.cls === 'risk-high' || risk.cls === 'risk-medium')" class="urgent-strip">
-            ⏰ {{ dDayLabel(dday) }} · {{ risk.label }}
+          <div v-if="dday != null && (expiry.cls === 'risk-high' || expiry.cls === 'risk-medium')" class="urgent-strip">
+            ⏰ {{ dDayLabel(dday) }} · {{ expiry.label }}
           </div>
           <div class="bigprice">
             <span v-if="hasDeal" class="pct">{{ discRate }}%</span>
@@ -223,7 +247,7 @@ async function buyNow() {
             v-for="lot in lots"
             :key="lot.lotId"
             class="lot"
-            :class="[riskMeta(lot.riskLevel).cls, { sel: selectedLot && selectedLot.lotId === lot.lotId }]"
+            :class="[expiryStatus(lot.daysToExpiry).cls, { sel: selectedLot && selectedLot.lotId === lot.lotId }]"
             @click="selectLot(lot)"
           >
             <span class="lot-dday">{{ dDayLabel(lot.daysToExpiry) }}</span>
@@ -237,6 +261,24 @@ async function buyNow() {
             </span>
             <span class="lot-check">{{ selectedLot && selectedLot.lotId === lot.lotId ? '✓' : '' }}</span>
           </button>
+        </div>
+
+        <!-- 판매처 가격 비교 — 바로팜 내 같은 품목을 파는 다른 농장 가격·D-day -->
+        <div v-if="hasCompare" class="compare">
+          <div class="cmp-head">🛒 다른 판매처 가격 비교 <span class="muted">· 바로팜 내 같은 품목 {{ compareRows.length }}곳</span></div>
+          <button v-for="r in compareRows" :key="r.productId" class="cmp-row" :class="{ cur: r.isCurrent }" @click="goProduct(r.productId)">
+            <span class="cmp-seller">
+              {{ r.sellerName }}
+              <span v-if="r.isCurrent" class="cmp-badge is-cur">지금 보는 곳</span>
+              <span v-else-if="r.isLowest" class="cmp-badge is-low">최저가</span>
+            </span>
+            <span class="cmp-dday" :class="expiryStatus(r.daysToExpiry).cls">{{ dDayLabel(r.daysToExpiry) }}</span>
+            <span class="cmp-price">
+              <b>{{ won(r.effPrice) }}</b>
+              <s v-if="r.hasDeal" class="cmp-was">{{ won(r.price) }}</s>
+            </span>
+          </button>
+          <p class="cmp-foot muted">같은 품목도 판매처·마감임박도에 따라 가격이 달라요. 더 저렴하거나 신선한 곳을 골라보세요.</p>
         </div>
 
         <p v-if="product.description" class="desc">{{ product.description }}</p>
@@ -364,6 +406,26 @@ async function buyNow() {
 .lot-stock { font-size: 12px; color: var(--muted); text-align: right; }
 .lot-stock.low { color: var(--deal); font-weight: 700; }
 .lot-check { color: var(--leaf-700); font-weight: 900; font-size: 15px; text-align: center; }
+
+/* 판매처 가격 비교 */
+.compare { display: flex; flex-direction: column; gap: 7px; border: 1.5px solid var(--line-2); border-radius: 14px; padding: 14px; background: var(--cream); }
+.cmp-head { font-size: 14px; font-weight: 800; color: var(--ink); margin-bottom: 2px; }
+.cmp-head .muted { font-weight: 500; color: var(--muted); font-size: 12.5px; }
+.cmp-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; width: 100%; text-align: left;
+  background: #fff; border: 1.5px solid var(--line-2); border-radius: 11px; padding: 11px 13px; cursor: pointer; transition: .14s; }
+.cmp-row:hover { border-color: var(--leaf-500); }
+.cmp-row.cur { border-color: var(--ink); background: var(--leaf-50); cursor: default; }
+.cmp-seller { font-weight: 700; font-size: 14px; color: var(--ink); display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cmp-badge { font-size: 10.5px; font-weight: 800; padding: 1px 7px; border-radius: 999px; }
+.cmp-badge.is-cur { background: var(--ink); color: #fff; }
+.cmp-badge.is-low { background: var(--leaf-500); color: #fff; }
+.cmp-dday { font-weight: 800; font-size: 12px; padding: 3px 8px; border-radius: 8px; background: #eef1ea; color: var(--muted); }
+.cmp-dday.risk-high { background: var(--deal-soft); color: #bd3a26; }
+.cmp-dday.risk-medium { background: var(--gold-soft); color: #9a6a1c; }
+.cmp-price { display: inline-flex; align-items: baseline; gap: 6px; justify-self: end; }
+.cmp-price b { font-weight: 800; font-size: 17px; letter-spacing: -.02em; color: var(--ink); }
+.cmp-was { color: var(--muted); font-size: 12px; }
+.cmp-foot { font-size: 11.5px; line-height: 1.5; margin: 4px 0 0; }
 
 .desc { line-height: 1.7; color: var(--ink-2); font-size: 15px; margin: 0; }
 

@@ -5,6 +5,7 @@ import { orderApi, reviewApi } from '../api/orders'
 import { useAuthStore } from '../stores/auth'
 import { useNotificationStore } from '../stores/notification'
 import { won, thumbEmoji, dateOnly, orderStatusMeta } from '../utils/format'
+import { DASHBOARD_ENABLED } from '../config'
 import StarRating from '../components/StarRating.vue'
 
 const router = useRouter()
@@ -142,7 +143,7 @@ async function submitReview(order) {
             <router-link :to="{ name: 'purchase-insights' }">📊 내 구매 분석</router-link>
             <template v-if="auth.isSeller">
               <span class="menu-sep"></span>
-              <router-link :to="{ name: 'seller-dashboard' }">📊 판매자 대시보드</router-link>
+              <router-link v-if="DASHBOARD_ENABLED" :to="{ name: 'seller-dashboard' }">📊 판매자 대시보드</router-link>
               <router-link :to="{ name: 'seller-products' }">📦 내 상품 관리</router-link>
             </template>
           </div>

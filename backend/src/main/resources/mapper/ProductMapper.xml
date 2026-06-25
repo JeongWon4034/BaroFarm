@@ -78,6 +78,19 @@
         ORDER BY products.product_id DESC
     </select>
 
+    <!-- 같은 품목(name 동일)을 파는 다른 판매처 — 판매처 비교용. 재고>0만, 대표가 오름차순. -->
+    <select id="findSameNameOthers" resultType="com.freshgrowth.product.Product">
+        SELECT <include refid="lotCols"/>,
+               u.name AS seller_name
+        FROM products
+        <include refid="lotJoin"/>
+        JOIN users u ON u.user_id = products.seller_id
+        WHERE products.name = #{name}
+          AND products.product_id != #{productId}
+          AND COALESCE(la.total_stock, products.stock_qty) > 0
+        ORDER BY price ASC
+    </select>
+
     <update id="update" parameterType="com.freshgrowth.product.Product">
         UPDATE products
         SET name = #{name},
