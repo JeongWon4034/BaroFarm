@@ -58,8 +58,6 @@ onBeforeUnmount(() => { io?.disconnect(); statsIo?.disconnect() })
         <router-link :to="{ name: 'products' }" class="ab-cta reveal d3">신선식품 둘러보기
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </router-link>
-        <!-- 브랜드 사진: 준비되면 <img src="..."> 로 교체 -->
-        <div class="heroimg reveal d3"><span class="ph">산지 풍경 / 농가 이미지</span></div>
       </div>
     </section>
 
