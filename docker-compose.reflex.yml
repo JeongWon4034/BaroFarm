@@ -1,0 +1,18 @@
+# Reflex 분석 대시보드 오버라이드 (Streamlit 과 병렬 운영)
+#   docker compose -f docker-compose.yml -f docker-compose.reflex.yml up reflex
+# 기존 streamlit(8501) 은 그대로 두고, Reflex 를 frontend 3001 / backend 8000 으로 추가한다.
+services:
+  reflex:
+    build: ./analytics_reflex
+    container_name: freshgrowth-reflex
+    depends_on:
+      - mysql
+    environment:
+      # ANALYTICS_DB_URL 사용 — Reflex 가 자체 내부 DB 설정으로 읽는 DB_URL 과 충돌 회피
+      ANALYTICS_DB_URL: "mysql+pymysql://root:1234@mysql:3306/freshgrowth?charset=utf8mb4"
+    ports:
+      - "3001:3001"   # frontend (iframe 임베드 대상)
+      - "8000:8000"   # backend (이벤트 websocket)
+    volumes:
+      - ./analytics_reflex:/app
+      - /app/.web      # 빌드 산출물은 컨테이너 내부 보존

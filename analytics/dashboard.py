@@ -7,12 +7,21 @@ BaroFarm 대시보드 (DB 직결)
   🛠 관리자 페이지  — 플랫폼 '전체'를 보는 기존 통계.
 """
 import os
+import warnings
+warnings.filterwarnings("ignore")
+
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import plotly.io as pio
 import streamlit as st
 from sqlalchemy import create_engine, text
+
+# ML 패키지 (scikit-learn · statsmodels)
+from sklearn.linear_model import Ridge, LinearRegression
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.cluster import KMeans
 
 # ── 차트 기본 테마 설정 (여백 최소화, 깔끔한 배경) ────────────────────────
 pio.templates.default = "plotly_white"
@@ -256,6 +265,492 @@ def render_farm():
         lots["긴급도"] = lots["dday"].apply(lambda d: "🔴 임박" if d <= 3 else "🟡 주의" if d <= 7 else "🟢 여유")
         with st.expander("현재 판매 가능한 재고 목록 자세히 보기", expanded=True):
             st.dataframe(lots.sort_values("dday")[["name", "긴급도", "dday", "stock_qty", "price"]], use_container_width=True, hide_index=True)
+
+    # ── AI 예측 섹션 ─────────────────────────────────────────────
+    render_ai_section(sid, o, d0, d1, sname)
+
+
+# ════════════════════════════════════════════════════════════════
+#  🤖 AI 예측 & 매입 추천  (scikit-learn · statsmodels 기반)
+# ════════════════════════════════════════════════════════════════
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _ai_revenue_forecast(sid: int, d0: str, d1: str):
+    """Ridge Regression + 주간·월간 계절성 피처 → 30일 매출 예측."""
+    df = q(f"""
+        SELECT o.order_date, o.total_price
+        FROM orders o JOIN products p ON o.product_id=p.product_id
+        WHERE p.seller_id={sid} AND o.order_date BETWEEN '{d0} 00:00:00' AND '{d1} 23:59:59'
+    """)
+    if df.empty:
+        return None
+    df["order_date"] = pd.to_datetime(df["order_date"])
+    df["date"] = df["order_date"].dt.normalize()
+    daily = df.groupby("date")["total_price"].sum().reset_index(name="revenue")
+    daily = daily.set_index("date").asfreq("D", fill_value=0).reset_index()
+
+    n = len(daily)
+    if n < 14:
+        return None
+
+    idx = np.arange(n, dtype=float)
+    X = np.column_stack([
+        idx, idx**2,
+        np.sin(2*np.pi*idx/7),  np.cos(2*np.pi*idx/7),   # 주간
+        np.sin(2*np.pi*idx/30), np.cos(2*np.pi*idx/30),   # 월간
+    ])
+    y = daily["revenue"].values.astype(float)
+
+    model = Ridge(alpha=100.0).fit(X, y)
+    residual_std = float(np.std(y - model.predict(X)))
+
+    fi = np.arange(n, n + 30, dtype=float)
+    Xf = np.column_stack([
+        fi, fi**2,
+        np.sin(2*np.pi*fi/7),  np.cos(2*np.pi*fi/7),
+        np.sin(2*np.pi*fi/30), np.cos(2*np.pi*fi/30),
+    ])
+    preds = model.predict(Xf).clip(0)
+    future_dates = pd.date_range(daily["date"].max() + pd.Timedelta(days=1), periods=30)
+
+    return {
+        "daily": daily,
+        "future_dates": future_dates.tolist(),
+        "preds": preds.tolist(),
+        "std": residual_std,
+        "score": float(model.score(X, y)),
+    }
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _ai_purchase_reco(sid: int, d0: str, d1: str):
+    """MinMaxScaler 멀티팩터 스코어링 → 매입 추천 Top-10."""
+    df = q(f"""
+        SELECT o.order_id, o.buyer_id, o.order_date, o.quantity, o.total_price,
+               p.product_id, p.name AS product_name, p.category
+        FROM orders o JOIN products p ON o.product_id=p.product_id
+        WHERE p.seller_id={sid} AND o.order_date BETWEEN '{d0} 00:00:00' AND '{d1} 23:59:59'
+    """)
+    if df.empty or len(df) < 5:
+        return None
+    df["order_date"] = pd.to_datetime(df["order_date"])
+    df["date"]       = df["order_date"].dt.normalize()
+
+    last = df["date"].max()
+    df30  = df[df["date"] > last - pd.Timedelta(days=30)]
+    df_30_60 = df[(df["date"] <= last - pd.Timedelta(days=30)) &
+                  (df["date"] >  last - pd.Timedelta(days=60))]
+
+    agg = df.groupby(["product_id","product_name","category"]).agg(
+        total_qty = ("quantity",    "sum"),
+        total_rev = ("total_price", "sum"),
+        orders    = ("order_id",    "nunique"),
+        buyers    = ("buyer_id",    "nunique"),
+        active_days = ("date", lambda x: max((x.max()-x.min()).days+1, 1)),
+    ).reset_index()
+
+    recent  = df30.groupby("product_id")["total_price"].sum().rename("recent_rev")
+    prev    = df_30_60.groupby("product_id")["total_price"].sum().rename("prev_rev")
+
+    agg = agg.join(recent, on="product_id").join(prev, on="product_id").fillna(0)
+    agg["velocity"]   = agg["total_qty"] / agg["active_days"]
+    agg["trend"]      = (agg["recent_rev"]+1) / (agg["prev_rev"]+1)
+    agg["rev_share"]  = agg["total_rev"] / agg["total_rev"].sum()
+    agg["repurchase"] = (agg["orders"] / agg["buyers"].clip(lower=1)).clip(upper=5) / 5
+
+    feats   = ["velocity","trend","rev_share","repurchase"]
+    weights = np.array([0.30, 0.35, 0.20, 0.15])
+    scaled  = MinMaxScaler().fit_transform(agg[feats])
+    agg["score"] = (scaled * weights).sum(axis=1) * 100
+
+    cat_kr = {"vegetable":"채소","fruit":"과일","seafood":"해산물","meat":"육류","grain":"곡물","etc":"기타"}
+    agg["카테고리"] = agg["category"].map(cat_kr).fillna(agg["category"])
+    agg["추천점수"] = agg["score"].round(1)
+    agg["트렌드"]   = agg["trend"].apply(lambda t: "📈 상승" if t>1.1 else ("📉 하락" if t<0.9 else "➡️ 유지"))
+    agg["이유"] = agg.apply(lambda r:
+        "🔥 최근 급상승+고속도" if r.trend>1.2 and r.velocity>2 else
+        "⭐ 안정적 재구매"      if r.repurchase>0.4 else
+        "📦 매출 핵심 상품"     if r.rev_share>0.05 else
+        "🌱 성장 잠재력", axis=1)
+
+    return agg.sort_values("score", ascending=False).head(10)
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _ai_demand_forecast(sid: int, d0: str, d1: str):
+    """상위 8개 상품의 주간 수요 → LinearRegression → 4주 예측."""
+    df = q(f"""
+        SELECT o.order_date, o.quantity, p.product_id, p.name AS product_name, p.category
+        FROM orders o JOIN products p ON o.product_id=p.product_id
+        WHERE p.seller_id={sid} AND o.order_date BETWEEN '{d0} 00:00:00' AND '{d1} 23:59:59'
+    """)
+    if df.empty:
+        return None
+    df["order_date"] = pd.to_datetime(df["order_date"])
+    df["week"]       = df["order_date"].dt.to_period("W").astype(str)
+
+    top_pids = df.groupby("product_id")["quantity"].sum().nlargest(8).index
+    results  = []
+    for pid in top_pids:
+        sub = df[df["product_id"]==pid]
+        weekly = sub.groupby("week")["quantity"].sum().reset_index(name="qty")
+        if len(weekly) < 4:
+            continue
+        X = np.arange(len(weekly), dtype=float).reshape(-1, 1)
+        y = weekly["qty"].values.astype(float)
+        m = LinearRegression().fit(X, y)
+        f4 = m.predict(np.arange(len(weekly), len(weekly)+4, dtype=float).reshape(-1,1)).clip(0)
+        results.append({
+            "product_id":   pid,
+            "product_name": sub["product_name"].iloc[0],
+            "category":     sub["category"].iloc[0],
+            "avg_qty":      float(y.mean()),
+            "forecast_avg": float(f4.mean()),
+            "trend_pct":    float((f4[-1]-y[-1])/(y[-1]+1)*100),
+            "history":      y[-8:].tolist(),
+            "forecast":     f4.tolist(),
+        })
+    return pd.DataFrame(results) if results else None
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _ai_customer_segments(sid: int, d0: str, d1: str):
+    """RFM + KMeans(4) → 고객 세그멘테이션."""
+    df = q(f"""
+        SELECT o.buyer_id, o.order_date, o.total_price, o.order_id
+        FROM orders o JOIN products p ON o.product_id=p.product_id
+        WHERE p.seller_id={sid} AND o.order_date BETWEEN '{d0} 00:00:00' AND '{d1} 23:59:59'
+    """)
+    if df.empty:
+        return None
+    df["order_date"] = pd.to_datetime(df["order_date"])
+    last = df["order_date"].max()
+
+    rfm = df.groupby("buyer_id").agg(
+        recency   = ("order_date",  lambda x: (last-x.max()).days),
+        frequency = ("order_id",    "nunique"),
+        monetary  = ("total_price", "sum"),
+    ).reset_index()
+
+    n_clusters = min(4, len(rfm))
+    if n_clusters < 2:
+        return None
+
+    scaled = StandardScaler().fit_transform(rfm[["recency","frequency","monetary"]])
+    km     = KMeans(n_clusters=n_clusters, random_state=42, n_init=10).fit(scaled)
+    rfm["cluster"] = km.labels_
+
+    order = rfm.groupby("cluster")["monetary"].median().sort_values().index
+    names = ["이탈위험 ⚠️","잠재고객 🌱","충성고객 ⭐","VIP 👑"][:n_clusters]
+    label_map = {c: names[i] for i, c in enumerate(order)}
+    rfm["segment"] = rfm["cluster"].map(label_map)
+    return rfm
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _ai_seasonality(sid: int, d0: str, d1: str):
+    """카테고리×월별 매출 히트맵 + 성장률 분석."""
+    df = q(f"""
+        SELECT o.order_date, o.total_price, p.category
+        FROM orders o JOIN products p ON o.product_id=p.product_id
+        WHERE p.seller_id={sid} AND o.order_date BETWEEN '{d0} 00:00:00' AND '{d1} 23:59:59'
+    """)
+    if df.empty:
+        return None, None
+    df["order_date"] = pd.to_datetime(df["order_date"])
+    df["month"]      = df["order_date"].dt.strftime("%Y-%m")
+
+    cat_kr = {"vegetable":"채소","fruit":"과일","seafood":"해산물","meat":"육류","grain":"곡물","etc":"기타"}
+    df["cat_kr"] = df["category"].map(cat_kr).fillna(df["category"])
+
+    pivot = df.groupby(["month","cat_kr"])["total_price"].sum().unstack(fill_value=0)
+
+    # 월별 전체 추이 (statsmodels HP filter 대신 간단한 rolling)
+    monthly_total = df.groupby("month")["total_price"].sum().reset_index(name="revenue")
+
+    # 최근 달 vs 이전 달 카테고리별 성장률
+    if len(monthly_total) >= 2:
+        last_m  = monthly_total["month"].max()
+        prev_m  = monthly_total.iloc[-2]["month"]
+        last_df = df[df["month"]==last_m].groupby("cat_kr")["total_price"].sum()
+        prev_df = df[df["month"]==prev_m].groupby("cat_kr")["total_price"].sum()
+        growth  = ((last_df - prev_df) / (prev_df + 1) * 100).sort_values(ascending=False)
+    else:
+        growth = pd.Series(dtype=float)
+
+    return pivot, growth
+
+
+def render_ai_section(sid: int, o: pd.DataFrame, d0: str, d1: str, sname: str):
+    """5개 ML/AI 예측 모듈을 탭으로 구성해 농장 대시보드 하단에 표시."""
+    st.markdown("<hr/>", unsafe_allow_html=True)
+    st.markdown("## 🤖 AI 예측 & 매입 추천")
+    st.caption(
+        f"**{sname}** 농장의 실제 주문 데이터로 학습한 머신러닝 모델 · "
+        "scikit-learn Ridge/LinearRegression/KMeans · 5분 캐시"
+    )
+    st.write("")
+
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📈 매출 예측",
+        "🛒 매입 추천 AI",
+        "🔮 상품별 수요 예측",
+        "👥 고객 세그먼트",
+        "📅 계절성 분석",
+    ])
+
+    # ── Tab 1 : 매출 예측 ──────────────────────────────────────────
+    with tab1:
+        with st.spinner("Ridge Regression 모델 학습 중…"):
+            res = _ai_revenue_forecast(sid, d0, d1)
+        if res is None:
+            st.info("예측에 필요한 데이터가 부족합니다. (최소 2주 이상의 주문 이력 필요)")
+        else:
+            daily = res["daily"]
+            fdates = pd.DatetimeIndex(res["future_dates"])
+            preds  = np.array(res["preds"])
+            std    = res["std"]
+            r2     = res["score"]
+
+            c1, c2, c3 = st.columns(3)
+            c1.metric("예측 30일 총 매출", f"{preds.sum():,.0f}원")
+            c2.metric("예측 일평균 매출",  f"{preds.mean():,.0f}원")
+            c3.metric("모델 설명력 (R²)",  f"{r2:.3f}")
+            st.write("")
+
+            fig = go.Figure()
+            # 실제 매출
+            fig.add_trace(go.Bar(
+                x=daily["date"], y=daily["revenue"],
+                name="실제 매출", marker_color="#74C69D", opacity=0.7,
+            ))
+            # 예측 라인
+            fig.add_trace(go.Scatter(
+                x=fdates, y=preds, mode="lines+markers",
+                name="30일 예측", line=dict(color="#F4845F", width=2.5, dash="dot"),
+            ))
+            # 신뢰 구간 (±1σ)
+            fig.add_trace(go.Scatter(
+                x=list(fdates) + list(fdates[::-1]),
+                y=list((preds+std).clip(0)) + list((preds-std).clip(0)[::-1]),
+                fill="toself", fillcolor="rgba(244,132,95,0.15)",
+                line=dict(color="rgba(255,255,255,0)"),
+                name="±1σ 신뢰구간",
+            ))
+            fig.update_layout(
+                title=f"{sname} — 일별 매출 및 30일 예측 (Ridge Regression)",
+                xaxis_title="날짜", yaxis_title="매출(원)",
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                legend=dict(orientation="h", y=-0.2),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            st.caption("주간(sin/cos 주기 7일)·월간(주기 30일) 계절성 피처를 사용한 Ridge Regression 모델. "
+                       "주황 점선이 향후 30일 예측, 음영이 ±1σ 불확실성 구간입니다.")
+
+    # ── Tab 2 : 매입 추천 AI ───────────────────────────────────────
+    with tab2:
+        with st.spinner("매입 추천 스코어 계산 중…"):
+            reco = _ai_purchase_reco(sid, d0, d1)
+        if reco is None:
+            st.info("스코어 계산에 필요한 주문 데이터가 부족합니다.")
+        else:
+            st.markdown("### 🛒 AI 매입 추천 — Top 10 상품")
+            st.caption(
+                "판매 속도(velocity 30%) · 최근 트렌드(35%) · 매출 비중(20%) · 재구매율(15%)을 "
+                "MinMaxScaler로 정규화 후 가중합한 **종합 추천 점수**입니다."
+            )
+
+            fig_reco = px.bar(
+                reco.sort_values("score"),
+                x="score", y="product_name", orientation="h",
+                color="score", color_continuous_scale="YlGn",
+                text="추천점수",
+                title="매입 추천 점수 (100점 만점)",
+            )
+            fig_reco.update_traces(texttemplate="%{text}점", textposition="outside")
+            fig_reco.update_layout(
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                yaxis_title="", xaxis_title="추천 점수",
+                coloraxis_showscale=False,
+            )
+            st.plotly_chart(fig_reco, use_container_width=True)
+
+            st.dataframe(
+                reco[["product_name","카테고리","추천점수","트렌드","이유",
+                      "velocity","repurchase"]].rename(columns={
+                    "product_name":"상품명", "velocity":"일평균판매량",
+                    "repurchase":"재구매지수",
+                }).round({"일평균판매량":2, "재구매지수":2}),
+                use_container_width=True, hide_index=True,
+            )
+
+    # ── Tab 3 : 상품별 수요 예측 ──────────────────────────────────
+    with tab3:
+        with st.spinner("주간 수요 예측 모델 학습 중…"):
+            dem = _ai_demand_forecast(sid, d0, d1)
+        if dem is None or dem.empty:
+            st.info("수요 예측에 필요한 데이터가 부족합니다. (상품당 최소 4주 이상)")
+        else:
+            cat_kr = {"vegetable":"채소","fruit":"과일","seafood":"해산물",
+                      "meat":"육류","grain":"곡물","etc":"기타"}
+            dem["카테고리"] = dem["category"].map(cat_kr).fillna(dem["category"])
+            dem["현재 주간 수요"] = dem["avg_qty"].round(1)
+            dem["예측 주간 수요"] = dem["forecast_avg"].round(1)
+            dem["트렌드"] = dem["trend_pct"].apply(
+                lambda t: f"📈 +{t:.1f}%" if t>3 else (f"📉 {t:.1f}%" if t<-3 else f"➡️ {t:.1f}%")
+            )
+
+            st.markdown("### 🔮 상위 8개 상품 — 향후 4주 수요 예측")
+            st.caption("주간 판매량의 선형 회귀(LinearRegression)로 다음 4주 평균 수요를 예측합니다.")
+
+            # Bullet chart: 현재 vs 예측
+            fig_dem = go.Figure()
+            colors = px.colors.qualitative.Pastel
+            for i, row in dem.iterrows():
+                fig_dem.add_trace(go.Bar(
+                    name=row["product_name"][:12],
+                    x=[row["product_name"][:14]],
+                    y=[row["avg_qty"]],
+                    marker_color="#74C69D",
+                    showlegend=i==0,
+                    legendgroup="현재",
+                ))
+                fig_dem.add_trace(go.Bar(
+                    name="예측",
+                    x=[row["product_name"][:14]],
+                    y=[row["forecast_avg"]],
+                    marker_color="#F4845F",
+                    marker_pattern_shape="/",
+                    showlegend=i==0,
+                    legendgroup="예측",
+                ))
+            fig_dem.update_layout(
+                barmode="group",
+                title="현재 주간 평균 수요 vs 4주 후 예측",
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                xaxis_tickangle=-30, legend=dict(orientation="h", y=-0.3),
+            )
+            st.plotly_chart(fig_dem, use_container_width=True)
+
+            st.dataframe(
+                dem[["product_name","카테고리","현재 주간 수요","예측 주간 수요","트렌드"]].rename(
+                    columns={"product_name":"상품명"}),
+                use_container_width=True, hide_index=True,
+            )
+
+    # ── Tab 4 : 고객 세그멘테이션 ─────────────────────────────────
+    with tab4:
+        with st.spinner("RFM KMeans 클러스터링 학습 중…"):
+            rfm = _ai_customer_segments(sid, d0, d1)
+        if rfm is None:
+            st.info("세그멘테이션에 필요한 고객 수가 부족합니다. (최소 8명 이상)")
+        else:
+            st.markdown("### 👥 RFM 기반 고객 세그멘테이션 (KMeans 4-Cluster)")
+            st.caption(
+                "**R**ecency(최근 구매일) · **F**requency(구매 횟수) · **M**onetary(총 구매액)을 "
+                "StandardScaler로 정규화 후 KMeans(k=4)로 군집화합니다."
+            )
+
+            seg_colors = {
+                "VIP 👑": "#2D6A4F", "충성고객 ⭐": "#52B788",
+                "잠재고객 🌱": "#95D5B2", "이탈위험 ⚠️": "#F4845F",
+            }
+
+            # 세그먼트 요약 KPI
+            summary = rfm.groupby("segment").agg(
+                고객수=("buyer_id","count"),
+                평균구매횟수=("frequency","mean"),
+                평균매출=("monetary","mean"),
+                평균최근성=("recency","mean"),
+            ).reset_index().sort_values("평균매출", ascending=False)
+
+            cols = st.columns(len(summary))
+            for col, (_, row) in zip(cols, summary.iterrows()):
+                col.metric(
+                    row["segment"],
+                    f"{int(row['고객수'])}명",
+                    f"평균 {row['평균매출']:,.0f}원",
+                )
+
+            st.write("")
+
+            # Scatter: Frequency vs Monetary (size=recency_inv)
+            rfm["recency_inv"] = 1 / (rfm["recency"] + 1)
+            fig_rfm = px.scatter(
+                rfm, x="frequency", y="monetary",
+                color="segment", size="recency_inv",
+                color_discrete_map=seg_colors,
+                hover_data={"buyer_id": True, "recency": True},
+                title="고객 분포 (x=구매횟수, y=총매출, 점크기=최근성)",
+                labels={"frequency":"구매 횟수","monetary":"총 구매액(원)","segment":"세그먼트"},
+            )
+            fig_rfm.update_layout(
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)"
+            )
+            st.plotly_chart(fig_rfm, use_container_width=True)
+
+            # 세그먼트별 파이
+            seg_count = rfm["segment"].value_counts().reset_index()
+            seg_count.columns = ["segment","count"]
+            fig_pie = px.pie(
+                seg_count, names="segment", values="count",
+                color="segment", color_discrete_map=seg_colors,
+                title="세그먼트 구성 비율", hole=0.45,
+            )
+            fig_pie.update_layout(paper_bgcolor="rgba(0,0,0,0)")
+            c1, c2 = st.columns([1.6, 1])
+            c1.dataframe(
+                summary.round({"평균구매횟수":1,"평균매출":0,"평균최근성":0}).rename(
+                    columns={"평균최근성":"최근구매(일전)"}),
+                use_container_width=True, hide_index=True,
+            )
+            c2.plotly_chart(fig_pie, use_container_width=True)
+
+    # ── Tab 5 : 계절성 분석 ───────────────────────────────────────
+    with tab5:
+        with st.spinner("계절성 패턴 분석 중…"):
+            pivot, growth = _ai_seasonality(sid, d0, d1)
+        if pivot is None or pivot.empty:
+            st.info("계절성 분석에 필요한 데이터가 부족합니다.")
+        else:
+            st.markdown("### 📅 카테고리 × 월별 매출 히트맵")
+            st.caption("어떤 달에 어떤 카테고리가 잘 팔렸는지 확인하고, 다음 달 매입 계획을 세우세요.")
+
+            fig_heat = px.imshow(
+                pivot.T, text_auto=".0f", aspect="auto",
+                color_continuous_scale="Greens",
+                title="카테고리 × 월별 매출 (원)",
+                labels=dict(x="월", y="카테고리", color="매출"),
+            )
+            fig_heat.update_layout(paper_bgcolor="rgba(0,0,0,0)")
+            st.plotly_chart(fig_heat, use_container_width=True)
+
+            if growth is not None and not growth.empty:
+                st.markdown("### 이번 달 카테고리별 성장률 (전월 대비)")
+                fig_growth = px.bar(
+                    growth.reset_index(),
+                    x="cat_kr", y=growth.name or 0,
+                    color=growth.values,
+                    color_continuous_scale=["#F4845F","#FFFFFF","#52B788"],
+                    color_continuous_midpoint=0,
+                    text_auto=".1f",
+                    title="전월 대비 카테고리 매출 성장률 (%)",
+                    labels={"cat_kr":"카테고리", growth.name or 0:"성장률(%)"},
+                )
+                fig_growth.update_layout(
+                    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                    coloraxis_showscale=False,
+                )
+                fig_growth.update_traces(texttemplate="%{text}%")
+                st.plotly_chart(fig_growth, use_container_width=True)
+
+                # 추천 멘트
+                top_cats = growth[growth > 5].index.tolist()
+                down_cats = growth[growth < -5].index.tolist()
+                if top_cats:
+                    st.success(f"📈 **매입 확대 추천**: {', '.join(top_cats)} — 전월 대비 성장 중")
+                if down_cats:
+                    st.warning(f"📉 **매입 축소 검토**: {', '.join(down_cats)} — 전월 대비 하락 중")
 
 
 # ════════════════════════════════════════════════════════════════

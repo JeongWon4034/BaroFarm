@@ -1,0 +1,13 @@
+*.py[cod]
+*.db
+.web
+assets/external/
+.states
+# Reflex 빌드 산출물 / 의존성
+.web/
+.states/
+__pycache__/
+*.pyc
+.venv/
+venv/
+reflex.db

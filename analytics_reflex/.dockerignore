@@ -1,0 +1,8 @@
+.venv/
+venv/
+.web/
+.states/
+__pycache__/
+*.pyc
+reflex.db
+*.log
