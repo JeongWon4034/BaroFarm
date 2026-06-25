@@ -35,15 +35,19 @@ const showEvent     = () => activeFilter.value === '전체' || activeFilter.valu
 
     <div class="bnr-stack">
 
-      <!-- 챌린지 이벤트 -->
+      <!-- 챌린지 -->
       <template v-if="showChallenge()">
         <div class="lbl">
-          <span class="t">챌린지 이벤트</span>
+          <span class="t">챌린지</span>
           <span class="pill challenge">CHALLENGE</span>
         </div>
-        <div v-for="src in challengeImages" :key="src" class="bnr-item">
-          <img :src="src" alt="챌린지 배너" />
-        </div>
+        <router-link
+          v-for="src in challengeImages" :key="src"
+          :to="{ name: 'challenges' }"
+          class="bnr-item bnr-link"
+        >
+          <img :src="src" alt="챌린지 배너 — 클릭하면 챌린지로 이동" />
+        </router-link>
       </template>
 
       <!-- 쿠폰 혜택 -->
@@ -109,4 +113,8 @@ const showEvent     = () => activeFilter.value === '전체' || activeFilter.valu
   object-fit: cover;      /* 비율 맞게 중앙 크롭 */
   object-position: center;
 }
+
+/* 클릭 가능한 챌린지 배너(버튼은 배너 이미지에 포함) — 이미지 전체가 링크 */
+.bnr-link { display: block; cursor: pointer; transition: transform .14s, box-shadow .14s; }
+.bnr-link:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 </style>
