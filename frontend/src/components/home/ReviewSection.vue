@@ -1,6 +1,11 @@
 <script setup>
 // 생생 대표 후기 — 샘플(에디토리얼). 사이트 전역 대표후기 API가 생기면 props/fetch로 교체.
-// (현재 백엔드는 상품별 reviews 만 제공 → 홈 대표후기는 정적 샘플로 둠)
+// review 폴더 이미지를 glob으로 동적 로드 → 파일 추가/삭제 시 자동 반영
+const reviewImgModules = import.meta.glob('@/assets/review/*.{png,jpg,jpeg,webp}', { eager: true })
+const reviewImgs = Object.keys(reviewImgModules)
+  .sort()
+  .map(key => reviewImgModules[key].default)
+
 const REVIEWS = [
   { name: '이서연', prod: '국산 딸기 500g', stars: 5, text: '산지직송이라 그런지 알이 꽉꽉하고 당도가 달라요. 아이가 한 판을 다 비웠어요!' },
   { name: '정민재', prod: '제주 흑돼지 목살 100g', stars: 5, text: '마감임박이라 반신반의했는데 신선도 전혀 문제없고 가격꿀… 재구매 확정입니다.' },
@@ -18,7 +23,10 @@ const REVIEWS = [
     </div>
     <div class="review-grid">
       <article v-for="(r, i) in REVIEWS" :key="i" class="review">
-        <div class="rvimg"><span class="ph-tag">후기 사진 {{ i + 1 }}</span></div>
+        <div class="rvimg">
+          <img v-if="reviewImgs[i]" :src="reviewImgs[i]" :alt="`후기 사진 ${i + 1}`" />
+          <span v-else class="ph-tag">후기 사진 {{ i + 1 }}</span>
+        </div>
         <div class="rvbody">
           <div class="rvstars">
             <svg v-for="n in 5" :key="n" viewBox="0 0 24 24" :style="{ color: n <= r.stars ? 'var(--star)' : 'var(--line-2)' }" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 18.6 5 21.4l1.4-6.8L1.3 9.9l6.9-.8L12 2Z"/></svg>
@@ -42,7 +50,8 @@ const REVIEWS = [
 .review-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
 .review{ display:flex; flex-direction:column; border-radius:20px; overflow:hidden; border:1px solid var(--line); background:var(--paper); box-shadow:var(--shadow-sm); transition:transform .2s, box-shadow .2s; }
 .review:hover{ transform:translateY(-4px); box-shadow:var(--shadow-lg); }
-.rvimg{ position:relative; aspect-ratio:16/10; background:linear-gradient(135deg,#eef4ef,#dcefe4); }
+.rvimg{ position:relative; aspect-ratio:16/10; background:linear-gradient(135deg,#eef4ef,#dcefe4); overflow:hidden; }
+.rvimg img{ width:100%; height:100%; object-fit:cover; display:block; }
 .ph-tag{ position:absolute; top:12px; left:12px; background:rgba(28,34,21,.55); color:#fff; font-size:11.5px; font-weight:700; padding:5px 11px; border-radius:999px; }
 .rvbody{ padding:17px 18px 19px; display:flex; flex-direction:column; gap:11px; }
 .rvstars{ display:flex; gap:2px; }
