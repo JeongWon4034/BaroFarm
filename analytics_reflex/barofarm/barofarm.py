@@ -678,6 +678,13 @@ def tab_season() -> rx.Component:
         rx.vstack(
             chart_box(DashState.season_heat_fig, "카테고리 × 월별 매출 히트맵"),
             chart_box(DashState.season_growth_fig),
+            rx.cond(
+                DashState.season_growth_table.length() > 0,
+                table_box(
+                    ["카테고리", "전월 일평균", "당월 일평균", "성장률"],
+                    DashState.season_growth_table),
+                rx.fragment(),
+            ),
             rx.cond(DashState.season_up != "",
                     rx.box(rx.hstack(rx.text("📈", font_size="1rem"),
                             rx.vstack(rx.text("매입 확대 추천", font_size="0.76rem",
@@ -919,12 +926,62 @@ def supply_kpi(icon: str, label: str, value, sub: str, bg_color: str) -> rx.Comp
     )
 
 
+def supply_ai_box() -> rx.Component:
+    """공급망 AI 종합 분석(LLM) 카드 — 상단 배치."""
+    return rx.box(
+        rx.hstack(
+            rx.hstack(
+                rx.text("🤖", font_size="1.1rem"),
+                rx.text("AI 종합 분석", font_size="0.92rem",
+                        font_weight="800", color="white"),
+                rx.box(rx.text("gpt-4o-mini", font_size="0.62rem",
+                               color="rgba(255,255,255,0.75)"),
+                       bg="rgba(255,255,255,0.12)", border_radius="5px",
+                       padding="2px 7px"),
+                spacing="2", align="center",
+            ),
+            rx.spacer(),
+            rx.button(
+                rx.cond(DashState.supply_ai_loading, "분석 중…",
+                        rx.cond(DashState.supply_ai_text != "", "🔄 다시 분석", "✨ 분석 생성")),
+                on_click=DashState.generate_supply_ai,
+                disabled=DashState.supply_ai_loading,
+                size="2", variant="surface",
+                color_scheme="green", cursor="pointer",
+            ),
+            align="center", width="100%",
+        ),
+        rx.box(
+            rx.cond(
+                DashState.supply_ai_loading,
+                rx.hstack(rx.spinner(size="2", color="white"),
+                          rx.text("재고·수요 데이터를 분석하고 있습니다…",
+                                  font_size="0.82rem", color="rgba(255,255,255,0.85)"),
+                          spacing="2", align="center"),
+                rx.cond(
+                    DashState.supply_ai_text != "",
+                    rx.text(DashState.supply_ai_text,
+                            font_size="0.86rem", color="rgba(255,255,255,0.92)",
+                            white_space="pre-wrap", line_height="1.6"),
+                    rx.text("‘분석 생성’을 누르면 현재 공급망 현황을 AI가 종합 진단합니다.",
+                            font_size="0.82rem", color="rgba(255,255,255,0.6)"),
+                ),
+            ),
+            margin_top="12px",
+        ),
+        bg=HEADER_BG, border_radius="14px", padding="18px",
+        width="100%", box_shadow="0 4px 18px rgba(30,42,59,0.25)",
+    )
+
+
 def supply_view() -> rx.Component:
     return rx.vstack(
         page_header("🚚", "공급망·수요 최적화", "운영 최적화"),
         rx.cond(
             DashState.has_supply,
             rx.vstack(
+                # ── AI 종합 분석(LLM) — 최상단 ──
+                supply_ai_box(),
                 # 핵심 인사이트 배너
                 rx.box(
                     rx.hstack(
@@ -1210,7 +1267,7 @@ def inventory_view() -> rx.Component:
         spacing="4", align="stretch", width="100%", padding_bottom="40px",
     )
 
-
+1
 # ════════════════════════════════════════════════════════════════
 #  📢 공지사항 / 🪟 팝업 / 🔒 보안 / 👤 담당자  (콘텐츠·설정)
 # ════════════════════════════════════════════════════════════════

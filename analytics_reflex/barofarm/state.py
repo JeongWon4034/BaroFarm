@@ -59,6 +59,7 @@ class DashState(rx.State):
     has_season: bool = False
     season_heat_fig: go.Figure = go.Figure()
     season_growth_fig: go.Figure = go.Figure()
+    season_growth_table: list[list[str]] = []   # [카테고리, 전월 일평균, 당월 일평균, 성장률]
     season_up: str = ""
     season_down: str = ""
 
@@ -70,6 +71,10 @@ class DashState(rx.State):
     sup_expiry: str = "0"
     sup_waste_won: str = "0원"
     sup_reorder: str = "0"
+
+    # ── 공급망 AI 종합 분석(LLM) ──
+    supply_ai_text: str = ""
+    supply_ai_loading: bool = False
 
     # ── 운영 페이지(핫라인/배송/청구/보관/알림) ──
     ord_pending: str = "0"
@@ -121,6 +126,21 @@ class DashState(rx.State):
 
     def set_nav(self, tab: str):
         self.active_nav = tab
+
+    async def generate_supply_ai(self):
+        """공급망 AI 종합 분석 생성 — LLM 호출은 블로킹이라 별도 스레드에서 실행."""
+        import asyncio
+        if self.supply_ai_loading:
+            return
+        self.supply_ai_loading = True
+        self.supply_ai_text = ""
+        yield  # 로딩 상태를 먼저 UI 에 반영
+        try:
+            text = await asyncio.to_thread(data.ai_supply_feedback, self.seller_id)
+        except Exception as e:  # noqa: BLE001
+            text = f"분석 생성 중 오류가 발생했습니다: {type(e).__name__}"
+        self.supply_ai_text = text
+        self.supply_ai_loading = False
 
     def _resolve_seller(self) -> int:
         sid = None
@@ -346,9 +366,10 @@ class DashState(rx.State):
             self.has_segment = False
 
         # 5. 계절성
-        pivot, growth = data.ai_seasonality(sid, d0, d1)
+        pivot, growth, growth_table = data.ai_seasonality(sid, d0, d1)
         if pivot is not None and not pivot.empty:
             self.season_heat_fig = data.fig_season_heat(pivot)
+            self.season_growth_table = growth_table
             if growth is not None and not growth.empty:
                 self.season_growth_fig = data.fig_season_growth(growth)
                 up = growth[growth > 5].index.tolist()

@@ -329,21 +329,33 @@ def ai_seasonality(sid: int, d0: str, d1: str):
         return None, None
     df["order_date"] = pd.to_datetime(df["order_date"])
     df["month"] = df["order_date"].dt.strftime("%Y-%m")
+    df["day"] = df["order_date"].dt.normalize()
     df["cat_kr"] = df["category"].map(CAT_KR).fillna(df["category"])
 
     pivot = df.groupby(["month", "cat_kr"])["total_price"].sum().unstack(fill_value=0)
-    monthly_total = df.groupby("month")["total_price"].sum().reset_index(name="revenue")
+    months = sorted(df["month"].unique())
 
-    if len(monthly_total) >= 2:
-        last_m = monthly_total["month"].max()
-        prev_m = monthly_total.iloc[-2]["month"]
-        last_df = df[df["month"] == last_m].groupby("cat_kr")["total_price"].sum()
-        prev_df = df[df["month"] == prev_m].groupby("cat_kr")["total_price"].sum()
-        growth = ((last_df - prev_df) / (prev_df + 1) * 100).sort_values(ascending=False)
-    else:
-        growth = pd.Series(dtype=float)
+    # 전월 대비 카테고리 성장률 — '일평균 매출' 기준으로 정규화한다.
+    # (당월이 부분월[예: 6월 22일까지]이면 전체월과 총액 비교 시 성장률이
+    #  부당하게 낮게 나오므로, 각 월의 '주문 있었던 날 수'로 나눠 공정 비교)
+    growth = pd.Series(dtype=float)
+    growth_table = []   # [카테고리, 전월 일평균, 당월 일평균, 성장률표시]
+    if len(months) >= 2:
+        last_m, prev_m = months[-1], months[-2]
+        days_last = max(df[df["month"] == last_m]["day"].nunique(), 1)
+        days_prev = max(df[df["month"] == prev_m]["day"].nunique(), 1)
+        last_avg = df[df["month"] == last_m].groupby("cat_kr")["total_price"].sum() / days_last
+        prev_avg = df[df["month"] == prev_m].groupby("cat_kr")["total_price"].sum() / days_prev
+        cats = sorted(set(last_avg.index) | set(prev_avg.index))
+        la = last_avg.reindex(cats, fill_value=0.0)
+        pa = prev_avg.reindex(cats, fill_value=0.0)
+        growth = ((la - pa) / (pa + 1) * 100).sort_values(ascending=False)
+        for c in growth.index:
+            p = float(growth[c])
+            arrow = "📈" if p > 3 else ("📉" if p < -3 else "➡️")
+            growth_table.append([c, won(float(pa[c])), won(float(la[c])), f"{arrow} {p:+.1f}%"])
 
-    return pivot, growth
+    return pivot, growth, growth_table
 
 
 # ════════════════════════════════════════════════════════════════
@@ -409,7 +421,7 @@ def fig_season_growth(growth) -> go.Figure:
                  color_continuous_scale=["#F4845F", "#FFFFFF", "#52B788"],
                  color_continuous_midpoint=0, text_auto=".1f")
     fig.update_traces(texttemplate="%{text}%")
-    fig = _base_layout(fig, "전월 대비 카테고리 매출 성장률 (%)")
+    fig = _base_layout(fig, "전월 대비 카테고리 일평균 매출 성장률 (%)")
     fig.update_layout(coloraxis_showscale=False, xaxis_title="카테고리", yaxis_title="성장률(%)")
     return fig
 
@@ -735,6 +747,77 @@ def supply_summary(sid: int) -> dict:
     reorder = int((df["reorder_qty"] > 0).sum())
     return {"shortage": shortage, "expiry": expiry,
             "waste_won": waste_won, "reorder": reorder}
+
+
+# 성공한 LLM 응답만 캐시(실패=폴백은 캐시하지 않아 재시도 가능)
+_supply_ai_cache: dict[int, str] = {}
+
+
+def _supply_feedback_fallback(s: dict) -> str:
+    """LLM 호출 불가 시 규칙 기반 요약(키 미설정/네트워크 오류 대비)."""
+    return (
+        f"• 품절 위험 {s['shortage']}개 품목 — 리드타임(3일) 내 소진이 우려되니 우선 발주하세요.\n"
+        f"• 폐기 위험 {s['expiry']}개 품목, 예상 손실 {s['waste_won']} — 할인·번들로 만료 전 소진을 유도하세요.\n"
+        f"• 발주 권장 {s['reorder']}개 품목 — 목표 재고(2주) 기준으로 보충이 필요합니다.\n"
+        "※ AI 분석 키가 설정되지 않아 규칙 기반 요약을 표시합니다."
+    )
+
+
+def ai_supply_feedback(sid: int) -> str:
+    """공급망 데이터를 요약해 SSAFY GMS(OpenAI 호환) LLM 으로 종합 분석을 생성.
+    AI_BASE_URL / AI_API_KEY / AI_MODEL 환경변수 사용. 실패 시 규칙 기반 폴백."""
+    if sid in _supply_ai_cache:
+        return _supply_ai_cache[sid]
+
+    df = supply_demand_optimization(sid)
+    s = supply_summary(sid)
+    if df is None or df.empty:
+        return ""
+
+    # 위험 품목(적정 제외) 상위 8개를 컨텍스트로
+    risk = df[df["status"] != "🟢 적정"].head(8)
+    lines = [
+        f"- {r.product_name}({r.category_kr}): 현재고 {int(r.stock)}개, 일수요 {r.daily_demand}개, "
+        f"소진 {r.days_supply}일, 최단만료 D-{int(r.days_to_expiry)}, 상태 {r.status}, 권장 {r.action}"
+        for r in risk.itertuples()
+    ]
+    context = (
+        f"[공급망 KPI] 품절위험 {s['shortage']}품목 · 폐기위험 {s['expiry']}품목 · "
+        f"예상폐기손실 {s['waste_won']} · 발주권장 {s['reorder']}품목\n"
+        f"[위험 품목]\n" + ("\n".join(lines) if lines else "- 특이 위험 품목 없음")
+    )
+
+    api_key = os.getenv("AI_API_KEY")
+    base_url = os.getenv("AI_BASE_URL")
+    model = os.getenv("AI_MODEL", "gpt-4o-mini")
+    if not api_key or not base_url:
+        return _supply_feedback_fallback(s)
+
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key, base_url=base_url, timeout=25, max_retries=1)
+        resp = client.chat.completions.create(
+            model=model,
+            temperature=0.4,
+            max_tokens=550,
+            messages=[
+                {"role": "system", "content":
+                    "당신은 신선식품 농장의 공급망·재고 최적화를 돕는 데이터 애널리스트입니다. "
+                    "주어진 KPI와 위험 품목 데이터만 근거로, 군더더기 없이 실행 가능한 한국어 조언을 작성하세요. "
+                    "형식: 첫 줄에 한 문장 종합 진단, 이어서 '•'로 시작하는 핵심 인사이트 3~4개"
+                    "(각 항목은 수치 근거 + 구체 조치). 마지막 줄에 '✅ 우선 조치:' 로 가장 시급한 1가지. "
+                    "과장·일반론 금지, 데이터에 없는 내용 지어내지 말 것."},
+                {"role": "user", "content":
+                    f"다음 공급망 현황을 종합 분석해 주세요.\n\n{context}"},
+            ],
+        )
+        text = (resp.choices[0].message.content or "").strip()
+        if text:
+            _supply_ai_cache[sid] = text
+            return text
+        return _supply_feedback_fallback(s)
+    except Exception as e:  # noqa: BLE001
+        return f"{_supply_feedback_fallback(s)}\n(분석 호출 오류: {type(e).__name__})"
 
 
 def fig_supply(df) -> go.Figure:
