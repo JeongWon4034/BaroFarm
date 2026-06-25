@@ -49,12 +49,16 @@ def top_header() -> rx.Component:
             ),
             rx.spacer(),
             rx.hstack(
-                rx.button(
-                    rx.hstack(rx.text("📦"), rx.text("주문 접수"),
-                              spacing="1", align="center"),
-                    bg=ORANGE, color="white", size="2", border_radius="8px",
-                    font_weight="600", border="none", cursor="pointer",
-                    _hover={"bg": "#D97706"},
+                rx.link(
+                    rx.button(
+                        rx.hstack(rx.text("📦"), rx.text("주문 접수"),
+                                  spacing="1", align="center"),
+                        bg=ORANGE, color="white", size="2", border_radius="8px",
+                        font_weight="600", border="none", cursor="pointer",
+                        _hover={"bg": "#D97706"},
+                    ),
+                    href="https://barofarm.duckdns.org/seller/orders",
+                    is_external=True,
                 ),
                 rx.button(
                     rx.hstack(rx.text("🏠"), rx.text("홈으로"),
@@ -158,32 +162,6 @@ def sidebar() -> rx.Component:
                     nav_item("🔮", "수요 예측", "demand"),
                     nav_item("👥", "고객 분석", "segment"),
                     nav_item("📅", "계절성 분석", "season"),
-                    spacing="0", width="100%", padding_x="6px",
-                ),
-            ),
-            sidebar_section("콘텐츠 관리"),
-            rx.box(
-                rx.vstack(
-                    nav_item("📢", "공지사항 관리", "notices"),
-                    nav_item("🪟", "팝업창 관리", "popups"),
-                    spacing="0", width="100%", padding_x="6px",
-                ),
-            ),
-            sidebar_section("설정"),
-            rx.box(
-                rx.vstack(
-                    nav_item("🔒", "보안 설정", "security"),
-                    nav_item("👤", "담당자 관리", "staff"),
-                    spacing="0", width="100%", padding_x="6px",
-                ),
-            ),
-            sidebar_section("추가 설정 기능 (예정)"),
-            rx.box(
-                rx.vstack(
-                    nav_item("🧑‍🤝‍🧑", "회원 관리", "members"),
-                    nav_item("💬", "문자 관리", "sms"),
-                    nav_item("💰", "예산 관리", "budget"),
-                    nav_item("🎁", "포인트·기부적립", "points"),
                     spacing="0", width="100%", padding_x="6px",
                 ),
             ),
@@ -1474,24 +1452,6 @@ def main_content() -> rx.Component:
             ("demand", ai_page("🔮", "수요 예측", "LinearRegression", tab_demand())),
             ("segment", ai_page("👥", "고객 분석", "RFM + KMeans", tab_segment())),
             ("season", ai_page("📅", "계절성 분석", "월별 집계", tab_season())),
-            ("notices", notices_view()),
-            ("popups", popups_view()),
-            ("security", security_view()),
-            ("staff", staff_view()),
-            ("members", coming_soon_view("🧑‍🤝‍🧑", "회원 관리",
-                "구매 고객을 등급·태그로 관리하고 맞춤 혜택을 운영합니다. "
-                "현재 고객 분석(RFM)에서 세그먼트를 미리 확인할 수 있습니다.",
-                ["고객 등급/태그 관리", "세그먼트별 타겟 메시지", "구매 이력 통합 조회"])),
-            ("sms", coming_soon_view("💬", "문자 관리",
-                "주문·배송 알림과 마케팅 문자를 발송하고 결과를 추적합니다.",
-                ["주문/배송 자동 알림톡", "단골 대상 캠페인 발송", "발송/클릭 통계"])),
-            ("budget", coming_soon_view("💰", "예산 관리",
-                "매입·마케팅 예산을 계획하고 집행 현황을 추적합니다. "
-                "공급망 최적화의 발주 권장량과 연동될 예정입니다.",
-                ["매입 예산 계획/집행", "마케팅 ROI 추적", "월별 손익 시뮬레이션"])),
-            ("points", coming_soon_view("🎁", "포인트·기부적립",
-                "구매 적립 포인트와 농가 기부 적립을 운영합니다.",
-                ["구매 적립/사용 관리", "기부 캠페인 운영", "적립 리포트"])),
             dashboard_view(),
         ),
         padding="20px 28px", flex="1", min_width="0",
