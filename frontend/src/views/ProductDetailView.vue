@@ -6,6 +6,7 @@ import { orderApi } from '../api/orders'
 import { useCartStore } from '../stores/cart'
 import { useAuthStore } from '../stores/auth'
 import { useFollowStore } from '../stores/follow'
+import { useWishlistStore } from '../stores/wishlist'
 import { followApi } from '../api/follow'
 import { won, thumbEmoji, categoryLabel, dateOnly, dDayLabel, expiryStatus } from '../utils/format'
 import { track } from '../api/track'
@@ -16,8 +17,19 @@ const router = useRouter()
 const cart = useCartStore()
 const auth = useAuthStore()
 const follow = useFollowStore()
+const wishlist = useWishlistStore()
 
 const product = ref(null)
+
+// 찜(위시리스트) — 스토어는 App.vue에서 전역 load됨. 상세에서도 카드와 동일 동작.
+const wished = computed(() => !!product.value && wishlist.isWished(product.value.productId))
+async function toggleWish() {
+  if (!auth.isLoggedIn) {
+    router.push({ name: 'login', query: { redirect: route.fullPath } })
+    return
+  }
+  if (product.value) await wishlist.toggle(product.value.productId)
+}
 const lots = ref([])              // 폐기기간별 옵션
 const selectedLot = ref(null)     // 선택한 옵션(없으면 상품 대표가)
 const seller = ref(null)
@@ -311,6 +323,10 @@ async function buyNow() {
         <p v-if="isExpired" class="expired-notice">⛔ 유통기한이 지나 판매가 종료된 상품입니다.</p>
 
         <div class="cta-row">
+          <button class="wish-btn" :class="{ on: wished }" :title="wished ? '찜 해제' : '찜하기'" @click="toggleWish">
+            <svg viewBox="0 0 24 24" :fill="wished ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"><path d="M19 14c1.5-1.5 3-3.3 3-5.5A4.5 4.5 0 0 0 12 6 4.5 4.5 0 0 0 2 8.5C2 13 12 21 12 21s4-3.2 7-7Z"/></svg>
+            <span>{{ wished ? '찜함' : '찜' }}</span>
+          </button>
           <button class="btn btn-outline" :disabled="soldOut || isExpired" @click="addToCart">🧺 장바구니 담기</button>
           <button class="btn btn-accent" :disabled="soldOut || isExpired || submitting" @click="buyNow">
             {{ isExpired ? '판매종료' : soldOut ? '품절' : (submitting ? '처리 중…' : '💳 결제하기') }}
@@ -457,6 +473,15 @@ async function buyNow() {
 .expired-notice { color: #c0392b; background: var(--deal-soft); border-radius: var(--r-btn); padding: 10px 14px; font-size: 14px; font-weight: 600; margin: 0; }
 .cta-row { display: flex; gap: 11px; }
 .cta-row .btn { flex: 1; padding: 16px; font-size: 16px; }
+.wish-btn {
+  flex: none; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  width: 64px; padding: 10px 8px; border-radius: 12px;
+  border: 1.5px solid var(--line); background: #fff; color: var(--ink-2);
+  font-size: 12px; font-weight: 700; cursor: pointer; transition: .14s;
+}
+.wish-btn svg { width: 22px; height: 22px; }
+.wish-btn:hover { border-color: var(--deal); color: var(--deal); }
+.wish-btn.on { border-color: var(--deal); color: var(--deal); background: var(--deal-soft); }
 
 .reviews { margin-top: 48px; }
 .reviews-title { font-size: 20px; font-weight: 800; border-top: 1px solid var(--line); padding-top: 26px; margin-bottom: 16px; }
