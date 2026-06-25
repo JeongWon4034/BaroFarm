@@ -1,0 +1,81 @@
+# BaroFarm v1 운영 배포 — mysql + backend(Spring) + web(Caddy: 정적 프론트 + API 프록시 + HTTPS).
+# 개발용 docker-compose.yml(vite dev·streamlit)과 분리. 분석 대시보드는 v1 미배포(2단계 Reflex).
+#
+# 실행(VM): cp .env.prod.example .env && 값 채우기 → docker compose -f docker-compose.prod.yml up -d --build
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: baro-mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?set in .env}"
+      MYSQL_DATABASE: freshgrowth
+      TZ: Asia/Seoul
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # 최초 1회(빈 볼륨)만: 스키마 → 시드 5종 (개발과 동일 데이터 재현)
+      - ./backend/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./backend/src/main/resources/seed_testdata.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - ./backend/src/main/resources/seed_products_kamis.sql:/docker-entrypoint-initdb.d/03-products.sql:ro
+      - ./backend/src/main/resources/seed_product_images.sql:/docker-entrypoint-initdb.d/04-images.sql:ro
+      - ./backend/src/main/resources/seed_multiseller.sql:/docker-entrypoint-initdb.d/05-multiseller.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    # 운영에선 DB 포트를 외부로 열지 않음(백엔드가 내부망 service명으로 접속)
+
+  backend:
+    build: ./backend
+    container_name: baro-backend
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/freshgrowth?serverTimezone=Asia/Seoul&characterEncoding=UTF-8"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      AI_BASE_URL: "${AI_BASE_URL:-}"
+      AI_API_KEY: "${AI_API_KEY:-}"
+      AI_MODEL: "${AI_MODEL:-gpt-4o-mini}"
+      AI_PRICE_MODEL: "${AI_PRICE_MODEL:-gpt-4o}"
+      KAMIS_CERT_KEY: "${KAMIS_CERT_KEY:-}"
+      KAMIS_CERT_ID: "${KAMIS_CERT_ID:-}"
+      NAVER_CLIENT_ID: "${NAVER_CLIENT_ID:-}"
+      NAVER_CLIENT_SECRET: "${NAVER_CLIENT_SECRET:-}"
+      JWT_SECRET: "${JWT_SECRET:?set a strong secret in .env}"
+      UPLOAD_DIR: /app/uploads
+      TZ: Asia/Seoul
+    volumes:
+      - upload-data:/app/uploads   # 판매자 업로드 이미지 영속화
+    expose:
+      - "8080"                      # 외부 비노출, web(Caddy)만 프록시
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/web.Dockerfile
+    container_name: baro-web
+    depends_on:
+      - backend
+    environment:
+      DOMAIN: "${DOMAIN:?set domain in .env (예: baro-farm.duckdns.org)}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy-data:/data            # Let's Encrypt 인증서 영속화(재배포해도 재발급 안 함)
+      - caddy-config:/config
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+  upload-data:
+  caddy-data:
+  caddy-config:

@@ -1,6 +1,8 @@
 <script setup>
+import { computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useNotificationStore } from '../stores/notification'
+import { DASHBOARD_ENABLED } from '../config'
 
 const auth = useAuthStore()
 const noti = useNotificationStore()
@@ -26,6 +28,9 @@ const menus = [
     icon: 'chart',
   },
 ]
+
+// 분석 대시보드(Streamlit)는 v1 미배포 → 메뉴에서 숨김
+const visibleMenus = computed(() => menus.filter((m) => m.name !== 'seller-dashboard' || DASHBOARD_ENABLED))
 </script>
 
 <template>
@@ -36,7 +41,7 @@ const menus = [
     </div>
 
     <div class="grid">
-      <router-link v-for="m in menus" :key="m.name" :to="{ name: m.name }" class="tile card">
+      <router-link v-for="m in visibleMenus" :key="m.name" :to="{ name: m.name }" class="tile card">
         <span class="ic">
           <svg v-if="m.icon === 'box'" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
           <svg v-else-if="m.icon === 'clipboard'" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h4"/></svg>
