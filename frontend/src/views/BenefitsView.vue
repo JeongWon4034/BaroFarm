@@ -98,15 +98,15 @@ const showEvent     = () => activeFilter.value === '전체' || activeFilter.valu
 
 .bnr-item {
   width: 100%;
-  max-width: 360px;
-  margin: 0 auto;
+  aspect-ratio: 5 / 2;   /* 모든 이미지 동일 비율 고정 */
   border-radius: 12px;
   overflow: hidden;
-  line-height: 0;
 }
 .bnr-item img {
   width: 100%;
-  height: auto;
+  height: 100%;
   display: block;
+  object-fit: cover;      /* 비율 맞게 중앙 크롭 */
+  object-position: center;
 }
 </style>
