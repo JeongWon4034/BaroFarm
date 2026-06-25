@@ -36,7 +36,8 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins("http://localhost:5173", "http://localhost:3000")
+                // 로컬 dev(임의 포트) + 배포 도메인. 패턴이라 포트 와일드카드 허용.
+                .allowedOriginPatterns("http://localhost:*", "https://barofarm.duckdns.org")
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*");
     }

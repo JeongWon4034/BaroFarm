@@ -1,15 +1,30 @@
 # BaroFarm v1 — Caddy 한 개가 [정적 프론트 서빙 + API/업로드 프록시 + 자동 HTTPS]를 담당.
 # DOMAIN 환경변수로 사이트 주소 주입(예: baro-farm.duckdns.org). 로컬 HTTP 테스트는 DOMAIN=:80.
+#
+# handle 블록 = 상호배타 라우팅. /api·/uploads 는 백엔드로, 나머지는 정적(SPA 폴백).
+# (try_files 를 최상위에 두면 /api 가 index.html 로 먼저 rewrite 돼 프록시가 안 되므로 handle 로 분리.)
 {$DOMAIN} {
 	encode gzip zstd
 
-	# 백엔드(Spring)로 — REST API + 판매자 업로드 이미지
-	@backend path /api/* /uploads/*
-	reverse_proxy @backend backend:8080
+	# REST API → 백엔드(Spring)
+	# 프론트와 같은 출처지만 브라우저가 POST에 Origin 헤더를 붙인다. 백엔드 CORS
+	# allowedOrigins(localhost)에 없는 Origin이면 Spring이 403으로 막으므로,
+	# 같은 출처인 이 프록시 구간에선 Origin을 제거해 불필요한 CORS 검사를 우회한다.
+	handle /api/* {
+		reverse_proxy backend:8080 {
+			header_up -Origin
+		}
+	}
 
-	# 그 외 전부 SPA 정적 파일 (빌드된 dist; /seed-images 도 여기 포함).
-	# 라우트 못 찾으면 index.html로 폴백(Vue Router history 모드).
-	root * /srv
-	try_files {path} /index.html
-	file_server
+	# 판매자 업로드 이미지 → 백엔드(정적 서빙)
+	handle /uploads/* {
+		reverse_proxy backend:8080
+	}
+
+	# 그 외 전부 SPA 정적(빌드된 dist; /seed-images 포함). 라우트 없으면 index.html 폴백.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
 }
