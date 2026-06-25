@@ -20,9 +20,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from sqlalchemy import create_engine, text
 
-from sklearn.linear_model import Ridge, LinearRegression
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from sklearn.cluster import KMeans
+# sklearn 은 무겁다(스키피 포함 ~150MB). 1GB EC2 백엔드 시작 메모리를 줄이려
+# 모듈 최상단이 아니라 실제 ML 함수 안에서 지연 임포트한다.
 
 # ── 설정 ──────────────────────────────────────────────────────────
 # ANALYTICS_DB_URL 우선(Reflex 내부 db_url 환경변수 DB_URL 과 충돌 회피). 로컬 편의로 DB_URL 폴백.
@@ -169,6 +168,7 @@ def ai_revenue_forecast(sid: int, d0: str, d1: str):
     ])
     y = daily["revenue"].values.astype(float)
 
+    from sklearn.linear_model import Ridge
     model = Ridge(alpha=100.0).fit(X, y)
     residual_std = float(np.std(y - model.predict(X)))
 
@@ -228,6 +228,7 @@ def ai_purchase_reco(sid: int, d0: str, d1: str):
 
     feats = ["velocity", "trend", "rev_share", "repurchase"]
     weights = np.array([0.30, 0.35, 0.20, 0.15])
+    from sklearn.preprocessing import MinMaxScaler
     scaled = MinMaxScaler().fit_transform(agg[feats])
     agg["score"] = (scaled * weights).sum(axis=1) * 100
 
@@ -257,6 +258,7 @@ def ai_demand_forecast(sid: int, d0: str, d1: str):
     df["week"] = df["order_date"].dt.to_period("W").astype(str)
 
     top_pids = df.groupby("product_id")["quantity"].sum().nlargest(8).index
+    from sklearn.linear_model import LinearRegression
     results = []
     for pid in top_pids:
         sub = df[df["product_id"] == pid]
@@ -301,6 +303,8 @@ def ai_customer_segments(sid: int, d0: str, d1: str):
     if n_clusters < 2:
         return None
 
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.cluster import KMeans
     scaled = StandardScaler().fit_transform(rfm[["recency", "frequency", "monetary"]])
     km = KMeans(n_clusters=n_clusters, random_state=42, n_init=10).fit(scaled)
     rfm["cluster"] = km.labels_

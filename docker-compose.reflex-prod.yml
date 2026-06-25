@@ -1,8 +1,13 @@
-# BaroFarm 분석 대시보드 단독 배포 (Reflex + MySQL)
+# BaroFarm 분석 대시보드 단독 배포 (Reflex + MySQL) — AWS 프리티어(1GB) 최적화판
 # 도연이 barofarm과 합치기 전 단계 — Reflex만 독립 EC2에서 운영.
 #
 # 실행: EC2_PUBLIC_IP=<IP> MYSQL_ROOT_PASSWORD=<pw> docker compose -f docker-compose.reflex-prod.yml up -d --build
 # 또는 .env.reflex 에 값 채운 뒤: docker compose -f docker-compose.reflex-prod.yml --env-file .env.reflex up -d --build
+#
+# 저사양(1GB) 전략:
+#   1) 프론트엔드는 "빌드 시점"에 prod 번들로 미리 컴파일(REFLEX_API_URL 박아넣음)
+#      → 런타임에 무거운 next build 가 다시 돌지 않음(OOM 방지).
+#   2) MySQL 메모리 풋프린트를 최소로 튜닝(innodb 버퍼풀 축소 등).
 
 services:
   mysql:
@@ -11,6 +16,12 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      # ── 1GB EC2 메모리 절감 튜닝 ──
+      - --innodb-buffer-pool-size=64M
+      - --performance-schema=OFF
+      - --innodb-flush-method=O_DIRECT
+      - --max-connections=20
+      - --table-open-cache=64
     environment:
       MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?}"
       MYSQL_DATABASE: freshgrowth
@@ -31,17 +42,22 @@ services:
     build:
       context: ./analytics_reflex
       dockerfile: Dockerfile.prod
+      args:
+        # 프론트엔드 번들에 박아넣을 백엔드 WS 주소(빌드 시점 고정 = 런타임 재빌드 방지)
+        REFLEX_API_URL: "http://${EC2_PUBLIC_IP:?}:8000"
     container_name: baro-reflex
     depends_on:
       mysql:
         condition: service_healthy
     environment:
-      # 브라우저가 WebSocket으로 닿는 백엔드 주소 — EC2 퍼블릭 IP 필수
+      # 런타임 값은 빌드 ARG 와 반드시 동일해야 프론트 재빌드가 안 일어난다.
       REFLEX_API_URL: "http://${EC2_PUBLIC_IP:?}:8000"
       ANALYTICS_DB_URL: "mysql+pymysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/freshgrowth?charset=utf8mb4"
     ports:
-      - "3001:3001"   # Reflex 프론트엔드
+      - "3001:3001"   # Reflex 프론트엔드 (Next.js prod)
       - "8000:8000"   # Reflex 백엔드 WebSocket
+    # prod 모드는 핫리로드가 없으므로 소스 볼륨 마운트를 두지 않는다.
+    # (마운트가 있으면 빌드 산출물/소스 불일치로 런타임 재빌드를 유발할 수 있음)
     restart: unless-stopped
 
 volumes:

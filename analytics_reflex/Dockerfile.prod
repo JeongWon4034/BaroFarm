@@ -5,14 +5,34 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# ── Python 의존성 ────────────────────────────────────────────────
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# ── 소스 ─────────────────────────────────────────────────────────
+# /app/rxconfig.py + /app/barofarm/ 구조 (app_name="barofarm" 와 일치)
 COPY . .
 
+# 저사양(1GB) EC2 대비: node 힙 상향, 텔레메트리/소스맵 OFF
+ENV NODE_OPTIONS=--max-old-space-size=2048 \
+    NEXT_TELEMETRY_DISABLED=1
+
+# ── 핵심: 프론트엔드가 닿을 백엔드 WS 주소를 "빌드 시점"에 고정 ──────
+# 런타임에 REFLEX_API_URL 이 빌드때와 같으면 Reflex 가 프론트를 다시
+# 빌드하지 않는다 → 저사양 서버에서 런타임 재빌드(OOM 원인) 제거.
+ARG REFLEX_API_URL=http://localhost:8000
+ENV REFLEX_API_URL=${REFLEX_API_URL}
+
+# bun + Next.js 의존성 설치
 RUN reflex init --loglevel warning || true
+
+# 프론트엔드 prod 번들을 빌드 시점에 미리 컴파일 (위 API URL 이 박힘)
+RUN reflex export --frontend-only --no-zip --loglevel warning || true
 
 EXPOSE 3001 8000
 
-CMD ["reflex", "run", "--env", "prod", \
-     "--frontend-port", "3001", "--backend-port", "8000"]
+# 런타임 next build 를 피하려고 전용 entrypoint 로 분리 기동
+# (프론트: 미리 빌드된 .next 를 next start / 백엔드: --backend-only)
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
