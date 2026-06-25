@@ -209,7 +209,11 @@ nav.main a.deal.active::after{ background:var(--deal); }
 
 @media (max-width:780px){
   .searchbox{ display:none; }
-  nav.main{ gap:8px; }
+  /* 카테고리 버튼이 absolute라 좁은 화면에서 탭과 겹침 → 세로로 쌓아 카테고리를 탭 위에 배치 */
+  .nav-row{ flex-direction:column; height:auto; gap:10px; padding:10px 0; align-items:stretch; }
+  .cat-menu{ position:relative; top:auto; transform:none; }   /* absolute 해제 — flyout은 버튼 기준 유지 */
+  .cat-btn{ width:100%; justify-content:center; height:40px; }
+  nav.main{ gap:8px; justify-content:center; flex-wrap:wrap; }
   nav.main a{ padding:8px 9px; font-size:14px; }
 }
 </style>
