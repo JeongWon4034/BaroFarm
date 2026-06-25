@@ -1,7 +1,7 @@
 <script setup>
 // 생생 대표 후기 — 샘플(에디토리얼). 사이트 전역 대표후기 API가 생기면 props/fetch로 교체.
 // review 폴더 이미지를 glob으로 동적 로드 → 파일 추가/삭제 시 자동 반영
-const reviewImgModules = import.meta.glob('@/assets/review/*.{png,jpg,jpeg,webp}', { eager: true })
+const reviewImgModules = import.meta.glob('../../assets/review/*.{png,jpg,jpeg,webp}', { eager: true })
 const reviewImgs = Object.keys(reviewImgModules)
   .sort()
   .map(key => reviewImgModules[key].default)
