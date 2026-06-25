@@ -1,0 +1,41 @@
+# Reflex 분석 대시보드 자동배포 — jeongwon 브랜치 푸시 시 Reflex EC2에 SSH 접속해 재빌드.
+#
+# 필요한 GitHub Secrets:
+#   REFLEX_HOST        Reflex EC2 퍼블릭 IP
+#   REFLEX_USER        SSH 사용자 (예: ubuntu, ec2-user)
+#   REFLEX_SSH_KEY     EC2 접속 PEM 키 전체 내용
+#   REFLEX_APP_DIR     EC2 내 레포 경로 (예: /home/ubuntu/15pjt_lees)
+#   EC2_PUBLIC_IP      Reflex EC2 퍼블릭 IP (REFLEX_HOST와 동일해도 됨)
+#   MYSQL_ROOT_PASSWORD  DB 루트 비밀번호
+name: deploy-reflex
+
+on:
+  push:
+    branches: [jeongwon]
+    paths:
+      - "analytics_reflex/**"
+      - "docker-compose.reflex-prod.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-reflex
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH deploy to Reflex EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.REFLEX_HOST }}
+          username: ${{ secrets.REFLEX_USER }}
+          key: ${{ secrets.REFLEX_SSH_KEY }}
+          script: |
+            set -e
+            cd ${{ secrets.REFLEX_APP_DIR || '~/15pjt_lees' }}
+            git pull --ff-only
+            EC2_PUBLIC_IP=${{ secrets.EC2_PUBLIC_IP }} \
+            MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }} \
+            docker compose -f docker-compose.reflex-prod.yml up -d --build
+            docker image prune -f
