@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.freshgrowth.order.OrderMapper">
+    <sql id="orderSelect">
+        SELECT
+            o.order_id,
+            o.buyer_id,
+            p.seller_id AS seller_id,
+            u.name AS seller_name,
+            o.product_id,
+            o.lot_id,
+            p.name AS product_name,
+            p.category AS category,
+            o.quantity,
+            o.total_price,
+            o.original_unit_price,
+            o.status,
+            o.order_date,
+            r.review_id AS review_id
+        FROM orders o
+        JOIN products p ON o.product_id = p.product_id
+        JOIN users u ON p.seller_id = u.user_id
+        LEFT JOIN reviews r ON r.order_id = o.order_id
+    </sql>
+
+    <insert id="insert" parameterType="com.freshgrowth.order.Order" useGeneratedKeys="true" keyProperty="orderId">
+        INSERT INTO orders(buyer_id, product_id, lot_id, quantity, total_price, original_unit_price, status)
+        VALUES (#{buyerId}, #{productId}, #{lotId}, #{quantity}, #{totalPrice}, #{originalUnitPrice}, #{status})
+    </insert>
+
+    <select id="findById" resultType="com.freshgrowth.order.Order">
+        <include refid="orderSelect"/>
+        WHERE o.order_id = #{orderId}
+    </select>
+
+    <select id="findByBuyerId" resultType="com.freshgrowth.order.Order">
+        <include refid="orderSelect"/>
+        WHERE o.buyer_id = #{buyerId}
+        ORDER BY o.order_id DESC
+    </select>
+
+    <select id="findBySellerId" resultType="com.freshgrowth.order.Order">
+        <include refid="orderSelect"/>
+        WHERE p.seller_id = #{sellerId}
+        ORDER BY o.order_id DESC
+    </select>
+
+    <update id="updateStatus">
+        UPDATE orders SET status = #{status} WHERE order_id = #{orderId}
+    </update>
+</mapper>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.freshgrowth.product.ProductLotMapper">
+
+    <insert id="insert" parameterType="com.freshgrowth.product.ProductLot" useGeneratedKeys="true" keyProperty="lotId">
+        INSERT INTO product_lots(product_id, expiration_date, stock_qty, price)
+        VALUES (#{productId}, #{expirationDate}, #{stockQty}, #{price})
+    </insert>
+
+    <select id="findById" resultType="com.freshgrowth.product.ProductLot">
+        SELECT lot_id, product_id, expiration_date, stock_qty, price, created_at
+        FROM product_lots
+        WHERE lot_id = #{lotId}
+    </select>
+
+    <!-- 폐기기간 옵션 목록: 임박(유통기한 빠른)·저렴 순으로 노출 -->
+    <select id="findByProductId" resultType="com.freshgrowth.product.ProductLot">
+        SELECT lot_id, product_id, expiration_date, stock_qty, price, created_at
+        FROM product_lots
+        WHERE product_id = #{productId}
+        ORDER BY expiration_date ASC, price ASC
+    </select>
+
+    <!-- 동시성 안전: 재고 충분할 때만 차감 (영향행 0이면 품절) -->
+    <update id="decreaseStock">
+        UPDATE product_lots
+        SET stock_qty = stock_qty - #{quantity}
+        WHERE lot_id = #{lotId}
+          AND stock_qty >= #{quantity}
+    </update>
+</mapper>

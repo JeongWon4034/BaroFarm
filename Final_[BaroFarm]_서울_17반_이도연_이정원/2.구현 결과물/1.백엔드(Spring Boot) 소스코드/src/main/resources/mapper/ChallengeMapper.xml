@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.freshgrowth.challenge.ChallengeMapper">
+
+    <select id="findAll" resultType="com.freshgrowth.challenge.Challenge">
+        SELECT challenge_id, title, description, goal_type, goal_count, period_days, badge_emoji, reward_discount_rate, created_at
+        FROM challenges
+        ORDER BY goal_count ASC, challenge_id ASC
+    </select>
+
+    <select id="findById" resultType="com.freshgrowth.challenge.Challenge">
+        SELECT challenge_id, title, description, goal_type, goal_count, period_days, badge_emoji, reward_discount_rate, created_at
+        FROM challenges
+        WHERE challenge_id = #{challengeId}
+    </select>
+
+    <sql id="userChallengeJoin">
+        SELECT uc.user_challenge_id, uc.user_id, uc.challenge_id, uc.status, uc.progress,
+               uc.joined_at, uc.completed_at,
+               c.title, c.description, c.goal_count, c.reward_discount_rate, c.badge_emoji
+        FROM user_challenges uc
+        JOIN challenges c ON uc.challenge_id = c.challenge_id
+    </sql>
+
+    <select id="findUserChallenge" resultType="com.freshgrowth.challenge.UserChallenge">
+        <include refid="userChallengeJoin"/>
+        WHERE uc.user_id = #{userId} AND uc.challenge_id = #{challengeId}
+    </select>
+
+    <select id="findMyChallenges" resultType="com.freshgrowth.challenge.UserChallenge">
+        <include refid="userChallengeJoin"/>
+        WHERE uc.user_id = #{userId}
+        ORDER BY (uc.status = 'COMPLETED'), uc.joined_at DESC
+    </select>
+
+    <insert id="insertUserChallenge" parameterType="com.freshgrowth.challenge.UserChallenge"
+            useGeneratedKeys="true" keyProperty="userChallengeId">
+        INSERT INTO user_challenges(user_id, challenge_id)
+        VALUES (#{userId}, #{challengeId})
+    </insert>
+
+    <!-- 진행도 갱신 대상: ONGOING + 목표유형 일치 + 기간 미만료.
+         기간 만료는 프론트(challengeStatus)와 동일하게 '날짜 기준'으로 본다:
+         참여일(날짜) + period_days 일까지 유효, 그 이후 구매는 진행도에 반영하지 않는다. -->
+    <select id="findOngoingByUserAndType" resultType="com.freshgrowth.challenge.UserChallenge">
+        <include refid="userChallengeJoin"/>
+        WHERE uc.user_id = #{userId} AND uc.status = 'ONGOING' AND c.goal_type = #{goalType}
+          AND DATE(uc.joined_at) + INTERVAL c.period_days DAY &gt;= CURDATE()
+    </select>
+
+    <update id="incrementProgress">
+        UPDATE user_challenges SET progress = progress + 1
+        WHERE user_challenge_id = #{userChallengeId}
+    </update>
+
+    <update id="markCompleted">
+        UPDATE user_challenges SET status = 'COMPLETED', completed_at = NOW()
+        WHERE user_challenge_id = #{userChallengeId} AND status = 'ONGOING'
+    </update>
+</mapper>

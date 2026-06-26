@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.freshgrowth.wishlist.WishlistMapper">
+    <!-- 이미 찜한 상품이면 무시(멱등) -->
+    <insert id="insert">
+        INSERT IGNORE INTO wishlists(user_id, product_id)
+        VALUES (#{userId}, #{productId})
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM wishlists
+        WHERE user_id = #{userId} AND product_id = #{productId}
+    </delete>
+
+    <!-- 목록과 동일하게 lot 집계(재고·최저가·임박일)·리뷰 통계를 포함해야 품절/할인 표시가 일치한다. -->
+    <select id="findWishedProducts" resultType="com.freshgrowth.product.Product">
+        SELECT
+            <include refid="com.freshgrowth.product.ProductMapper.lotCols"/>
+            <include refid="com.freshgrowth.product.ProductMapper.reviewStats"/>
+        FROM products
+        <include refid="com.freshgrowth.product.ProductMapper.lotJoin"/>
+        JOIN wishlists w ON w.product_id = products.product_id
+        WHERE w.user_id = #{userId}
+        ORDER BY w.wishlist_id DESC
+    </select>
+</mapper>

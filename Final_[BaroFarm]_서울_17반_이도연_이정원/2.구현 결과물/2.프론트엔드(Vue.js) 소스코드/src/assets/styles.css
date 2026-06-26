@@ -1,0 +1,135 @@
+/* ============================================================
+   FreshGrowth 리뉴얼 — 글로벌 스타일 (frontend/src/assets/styles.css 전체 교체)
+   목업 1:1: 크림 배경 · 잎새 그린 · 18px 라운드 · Pretendard
+   기존 .btn / .badge / .card / .input / .empty 등 유틸 클래스명은
+   그대로 유지하므로 모든 View가 안 깨지고 새 디자인으로 바뀝니다.
+   ============================================================ */
+:root{
+  /* 브랜드 — 딥 포레스트 그린 스케일 (중후·신뢰) */
+  --leaf-700:#0e4a2e;
+  --leaf-600:#176b42;   /* primary: 깊고 신뢰감 있는 녹색 */
+  --leaf-500:#2a8a5a;
+  --leaf-400:#5aa982;
+  --leaf-300:#93c9ac;
+  --leaf-100:#dcefe4;
+  --leaf-50:#eef7f1;
+
+  /* 잉크 / 중립 */
+  --ink:#1c2215;
+  --ink-2:#3e4736;
+  --muted:#7c8470;
+  --faint:#a2a899;
+  --line:#e9eae1;
+  --line-2:#dcdecf;
+  --paper:#ffffff;
+  --cream:#f6f8f6;   /* 켤리식 화이트 클린 배경 (카드 화이트와 미세 대비) */
+
+  /* 강조 — 마감임박/가격 */
+  --deal:#d6452f;
+  --deal-soft:#fbe7e1;
+  --gold:#c1872b;
+  --gold-soft:#f6ecd5;
+  --star:#f5b50a;
+
+  /* ── 기존 코드 호환 별칭 (var(--color-*) 그대로 동작) ── */
+  --color-primary:var(--leaf-600);
+  --color-primary-dark:var(--leaf-700);
+  --color-primary-soft:var(--leaf-100);
+  --color-accent:var(--deal);
+  --color-accent-dark:#bd3a26;
+  --color-bg:var(--cream);
+  --color-card:var(--paper);
+  --color-text:var(--ink);
+  --color-muted:var(--muted);
+  --color-border:var(--line);
+  --color-star:var(--star);
+
+  /* 형태 */
+  --r-card:18px;
+  --r-btn:11px;
+  --radius:var(--r-card);
+  --radius-sm:var(--r-btn);
+  --shadow-sm:0 1px 2px rgba(28,34,21,.06), 0 1px 3px rgba(28,34,21,.05);
+  --shadow-md:0 6px 16px rgba(28,34,21,.08), 0 2px 5px rgba(28,34,21,.05);
+  --shadow-lg:0 18px 40px rgba(28,34,21,.13), 0 6px 14px rgba(28,34,21,.07);
+  --shadow:var(--shadow-sm);
+  --shadow-hover:var(--shadow-md);
+  --maxw:1240px;
+}
+
+*{ box-sizing:border-box; }
+html{ scroll-behavior:smooth; }
+html, body{
+  margin:0; padding:0;
+  background:var(--cream);
+  color:var(--ink);
+  font-family:'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo',
+    'Segoe UI', 'Malgun Gothic', sans-serif;
+  font-size:15px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+a{ color:inherit; text-decoration:none; }
+button{ font-family:inherit; cursor:pointer; }
+ul{ margin:0; padding:0; list-style:none; }
+svg{ flex:none; }
+::selection{ background:var(--leaf-300); }
+
+.container{ max-width:var(--maxw); margin:0 auto; padding:0 28px; }
+
+/* ============ 버튼 ============ */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  border:1.5px solid transparent; border-radius:var(--r-btn);
+  padding:12px 20px; font-size:15px; font-weight:700;
+  transition:transform .06s ease, background .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.btn:active{ transform:translateY(1px); }
+.btn-primary{ background:var(--leaf-600); color:#fff; box-shadow:0 6px 16px rgba(23,107,66,.24); }
+.btn-primary:hover{ background:var(--leaf-700); box-shadow:0 10px 22px rgba(23,107,66,.30); }
+.btn-accent{ background:var(--deal); color:#fff; box-shadow:0 6px 16px rgba(214,69,47,.22); }
+.btn-accent:hover{ background:#bd3a26; }
+.btn-outline{ background:#fff; color:var(--ink); border-color:var(--line-2); }
+.btn-outline:hover{ border-color:var(--leaf-500); background:var(--leaf-50); color:var(--leaf-700); }
+.btn-block{ width:100%; }
+.btn:disabled{ opacity:.5; cursor:not-allowed; }
+
+/* ============ 뱃지 / 칩 ============ */
+.badge{
+  display:inline-flex; align-items:center; gap:5px;
+  padding:3px 10px; border-radius:7px;
+  font-size:12px; font-weight:700;
+  background:var(--leaf-50); color:var(--leaf-700);
+}
+.badge-accent{ background:var(--deal-soft); color:#bd3a26; }
+
+.price{ color:var(--ink); font-weight:800; }
+.muted{ color:var(--muted); }
+
+/* ============ 카드 ============ */
+.card{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:var(--r-card);
+  box-shadow:var(--shadow-sm);
+}
+
+/* ============ 폼 ============ */
+.field{ margin-bottom:16px; }
+.field label{ display:block; margin-bottom:6px; font-size:14px; font-weight:600; }
+.input, .select{
+  width:100%; padding:12px 13px;
+  border:1.5px solid var(--line-2); border-radius:var(--r-btn);
+  font-size:15px; background:#fff; color:var(--ink);
+  transition:.15s;
+}
+.input:focus, .select:focus{
+  outline:none; border-color:var(--leaf-400);
+  box-shadow:0 0 0 4px var(--leaf-50);
+}
+
+/* ============ 빈 상태 ============ */
+.empty{
+  text-align:center; padding:64px 20px; color:var(--muted);
+}
+.empty .emoji{ font-size:42px; display:block; margin-bottom:12px; }

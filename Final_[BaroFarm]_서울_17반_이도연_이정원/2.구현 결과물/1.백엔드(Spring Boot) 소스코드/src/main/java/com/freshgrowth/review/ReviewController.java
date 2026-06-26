@@ -1,0 +1,44 @@
+package com.freshgrowth.review;
+
+import com.freshgrowth.common.ApiResponse;
+import com.freshgrowth.common.auth.LoginRequired;
+import com.freshgrowth.common.auth.LoginUser;
+import com.freshgrowth.review.dto.ReviewRequest;
+import com.freshgrowth.review.dto.ReviewUpdateRequest;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/v1")
+public class ReviewController {
+    private final ReviewService reviewService;
+
+    public ReviewController(ReviewService reviewService) {
+        this.reviewService = reviewService;
+    }
+
+    @LoginRequired(role = "BUYER")
+    @PostMapping("/reviews")
+    public ApiResponse<?> create(@LoginUser Long buyerId, @Valid @RequestBody ReviewRequest request) {
+        return ApiResponse.ok("리뷰가 작성되었습니다.", reviewService.create(buyerId, request));
+    }
+
+    @GetMapping("/products/{productId}/reviews")
+    public ApiResponse<?> findByProductId(@PathVariable Long productId) {
+        return ApiResponse.ok("상품별 리뷰 목록을 조회했습니다.", reviewService.findByProductId(productId));
+    }
+
+    @LoginRequired
+    @PutMapping("/reviews/{reviewId}")
+    public ApiResponse<?> update(@LoginUser Long buyerId, @PathVariable Long reviewId,
+                                 @Valid @RequestBody ReviewUpdateRequest request) {
+        return ApiResponse.ok("리뷰가 수정되었습니다.", reviewService.update(buyerId, reviewId, request));
+    }
+
+    @LoginRequired
+    @DeleteMapping("/reviews/{reviewId}")
+    public ApiResponse<Void> delete(@LoginUser Long buyerId, @PathVariable Long reviewId) {
+        reviewService.delete(buyerId, reviewId);
+        return ApiResponse.ok("리뷰가 삭제되었습니다.", null);
+    }
+}
