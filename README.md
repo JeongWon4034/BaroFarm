@@ -240,15 +240,6 @@ JWT_SECRET                               # JWT 서명
 
 ---
 
-## 11. 시연 계정
-
-| 역할 | 이메일 | 비밀번호 |
-|------|--------|----------|
-| 구매자 | buyer@example.com | 1234 |
-| 판매자 | seller@example.com | 1234 |
-
-> 라이브: https://barofarm.duckdns.org · 시연용 계정으로 평가 기간 종료 후 비활성화 예정
-
 ---
 
 > **문의**: [leewon12381@gmail.com](mailto:leewon12381@gmail.com)
